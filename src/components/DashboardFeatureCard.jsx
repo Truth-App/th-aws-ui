@@ -1,16 +1,13 @@
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
+import { useNavigate } from "react-router";
+import { DASHBOARD_FEATURES } from "../constants/dashboardFeatures";
 
-const DashboardFeatureCard = ({ activeFeature, onFeatureSelect }) => {
-    const features = [
-        "Manage Product Catalog",
-        "Category Management", 
-        "User Management",
-        "Inventory Management",       
-        "View Orders", 
-        "Earnings Summary"]
-    return <>
+const DashboardFeatureCard = ({ activeFeature = "products" }) => {
+  const navigate = useNavigate();
+
+  return (
     <Card
       style={{
         height: "100%",
@@ -19,23 +16,33 @@ const DashboardFeatureCard = ({ activeFeature, onFeatureSelect }) => {
         border: "1px solid #e8efeb",
       }}
     >
-        <CardContent>
-            {features.map((feature) => {
-                const isActive = activeFeature === feature;
-                return (
-                <Button
-                    key={feature}
-                    onClick={() => onFeatureSelect(feature)}
-                    size="small"
-                    variant="contained"
-                    style={{width: "100%", margin: "5px 0", backgroundColor: isActive ? "#165d46" : "transparent", color: isActive ? "#fff" : "#165d46", border: "1px solid #165d46", boxShadow: isActive ? undefined : "none", textTransform: "none", fontWeight: "bolder" }}
-                >
-                    {feature}
-                </Button>
-            )})}
-        </CardContent>
+      <CardContent>
+        {DASHBOARD_FEATURES.map((feature) => {
+          const isActive = activeFeature === feature.id;
+          return (
+            <Button
+              key={feature.id}
+              onClick={() => feature.path && navigate(feature.path)}
+              size="small"
+              variant="contained"
+              style={{
+                width: "100%",
+                margin: "5px 0",
+                backgroundColor: isActive ? "#165d46" : "transparent",
+                color: isActive ? "#fff" : "#165d46",
+                border: "1px solid #165d46",
+                boxShadow: isActive ? undefined : "none",
+                textTransform: "none",
+                fontWeight: "bolder",
+              }}
+            >
+              {feature.label}
+            </Button>
+          );
+        })}
+      </CardContent>
     </Card>
-    </>
-}
+  );
+};
 
 export default DashboardFeatureCard;

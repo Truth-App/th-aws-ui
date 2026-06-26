@@ -14,7 +14,12 @@ export const fetchInventory = createAsyncThunk(
 			const response = await fetch(INVENTORY_API_URL)
 
 			if (!response.ok) {
-				throw new Error('Failed to fetch inventory')
+				throw new Error(`Failed to fetch inventory (${response.status})`)
+			}
+
+			const contentType = response.headers.get('content-type') || ''
+			if (!contentType.includes('application/json')) {
+				throw new Error('Invalid response from inventory API. Check dev proxy or API URL.')
 			}
 
 			return await response.json()

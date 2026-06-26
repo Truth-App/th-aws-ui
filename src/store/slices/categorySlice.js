@@ -14,7 +14,12 @@ export const fetchCategories = createAsyncThunk(
 			const response = await fetch(CATEGORY_API_URL)
 
 			if (!response.ok) {
-				throw new Error('Failed to fetch categories')
+				throw new Error(`Failed to fetch categories (${response.status})`)
+			}
+
+			const contentType = response.headers.get('content-type') || ''
+			if (!contentType.includes('application/json')) {
+				throw new Error('Invalid response from category API. Check dev proxy or API URL.')
 			}
 
 			return await response.json()

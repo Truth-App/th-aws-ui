@@ -33,10 +33,14 @@ const Navbar = () => {
     try {
       await signInWithRedirect({ provider: "Google" });
     } catch (error) {
-      if (error.name === 'UserAlreadyAuthenticatedException') {
+      if (error.name === "UserAlreadyAuthenticatedException") {
         dispatch(fetchCurrentUser());
       } else {
-        throw error;
+        console.error("Google sign-in failed:", error);
+        alert(
+          error.message ||
+            "Sign-in failed. Use the same URL you started from (for example http://localhost:5173)."
+        );
       }
     }
   };

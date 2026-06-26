@@ -92,7 +92,7 @@ const OrdersManagement = () => {
         >
           <div>
             <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
-              View Orders
+              My Orders
             </Typography>
             <Typography variant="body2" color="text.secondary">
               View order summaries and open detailed tracking.

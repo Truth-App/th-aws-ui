@@ -2,8 +2,14 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 
-const DashboardFeatureCard = () => {
-    const features = ["Manage Product Catalog", "User Management", "View Orders", "Earnings Summary"]
+const DashboardFeatureCard = ({ activeFeature, onFeatureSelect }) => {
+    const features = [
+        "Manage Product Catalog",
+        "Category Management", 
+        "User Management",
+        "Inventory Management",       
+        "View Orders", 
+        "Earnings Summary"]
     return <>
     <Card
       style={{
@@ -14,19 +20,19 @@ const DashboardFeatureCard = () => {
       }}
     >
         <CardContent>
-            {features.map((feature, index) => (
+            {features.map((feature) => {
+                const isActive = activeFeature === feature;
+                return (
                 <Button
-                    key={index}
-                    onClick={() => {
-                        
-                    }}
+                    key={feature}
+                    onClick={() => onFeatureSelect(feature)}
                     size="small"
                     variant="contained"
-                    style={{width: "100%", margin: "5px 0", backgroundColor: index === 0 ? "#165d46" : "transparent", color: index === 0 ? "#fff" : "#165d46", border: "1px solid #165d46", boxShadow: index === 0 ? undefined : "none", textTransform: "none", fontWeight: "bolder" }}
+                    style={{width: "100%", margin: "5px 0", backgroundColor: isActive ? "#165d46" : "transparent", color: isActive ? "#fff" : "#165d46", border: "1px solid #165d46", boxShadow: isActive ? undefined : "none", textTransform: "none", fontWeight: "bolder" }}
                 >
                     {feature}
                 </Button>
-            ))}
+            )})}
         </CardContent>
     </Card>
     </>

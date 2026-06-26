@@ -75,7 +75,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
           flexDirection: "column",
         }}
       >
-        <div style={{ backgroundColor: "#f5f5f5", position: "relative" }}>
+        <div style={{ backgroundColor: "#f5f5f5" }}>
           <CardMedia
             component="img"
             onClick={handleImageClick}
@@ -89,63 +89,61 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             src={imagePath}
             alt={product.title}
           />
-          {imageKeys.length > 1 && (
-            <>
-              <Button
-                onClick={handlePrevImage}
-                size="small"
-                style={{
-                  position: "absolute",
-                  left: "4px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  color: "white",
-                  minWidth: isMobile ? "22px" : "28px",
-                  padding: isMobile ? "2px" : "4px",
-                  borderRadius: "50%",
-                  fontSize: isMobile ? "10px" : "14px",
-                }}
-              >
-                ❮
-              </Button>
-              <Typography
-                variant="caption"
-                style={{
-                  position: "absolute",
-                  bottom: "6px",
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  backgroundColor: "rgba(0, 0, 0, 0.6)",
-                  color: "white",
-                  padding: "2px 8px",
-                  borderRadius: "4px",
-                  fontSize: isMobile ? "9px" : "11px",
-                }}
-              >
-                {currentImageIndex + 1} / {imageKeys.length}
-              </Typography>
-              <Button
-                onClick={handleNextImage}
-                size="small"
-                style={{
-                  position: "absolute",
-                  right: "4px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  backgroundColor: "rgba(0, 0, 0, 0.5)",
-                  color: "white",
-                  minWidth: isMobile ? "22px" : "28px",
-                  padding: isMobile ? "2px" : "4px",
-                  borderRadius: "50%",
-                  fontSize: isMobile ? "10px" : "14px",
-                }}
-              >
-                ❯
-              </Button>
-            </>
-          )}
         </div>
+        {imageKeys.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              padding: "8px 12px",
+              borderTop: "1px solid rgba(0, 0, 0, 0.08)",
+              borderBottom: "1px solid rgba(0, 0, 0, 0.08)",
+            }}
+          >
+            <Button
+              onClick={handlePrevImage}
+              disabled={imageKeys.length <= 1}
+              size="small"
+              style={{
+                backgroundColor: imageKeys.length <= 1 ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.5)",
+                color: "white",
+                minWidth: "32px",
+                padding: "4px",
+                cursor: imageKeys.length <= 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              ❮
+            </Button>
+            <Typography
+              variant="caption"
+              style={{
+                backgroundColor: "rgba(0, 0, 0, 0.6)",
+                color: "white",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+              }}
+            >
+              {currentImageIndex + 1} / {imageKeys.length}
+            </Typography>
+            <Button
+              onClick={handleNextImage}
+              disabled={imageKeys.length <= 1}
+              size="small"
+              style={{
+                backgroundColor: imageKeys.length <= 1 ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.5)",
+                color: "white",
+                minWidth: "32px",
+                padding: "4px",
+                cursor: imageKeys.length <= 1 ? "not-allowed" : "pointer",
+              }}
+            >
+              ❯
+            </Button>
+          </div>
+        )}
         <CardContent style={{ flexGrow: 1, padding: "8px 12px" }}>
           <Typography gutterBottom={false} variant="h6" component="div" sx={{ fontSize: isMobile ? "0.9rem" : "0.94rem", margin: "0 0 0.3em 0", lineHeight: 1.2 }}>
             {product.title}
@@ -172,13 +170,13 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             </Typography>
           </div>
         </CardContent>
-        <CardActions style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: isMobile ? "4px 8px 6px" : "0px 12px 2px 12px" }}>
+        <CardActions style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "0px 12px 2px 12px" }}>
           {isUpdateMode ? (
             <Button
               onClick={() => onAction?.(product)}
               size="small"
               variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold", fontSize: isMobile ? "0.7rem" : undefined }}
+              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
             >
               {actionLabel}
             </Button>
@@ -187,10 +185,10 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: isMobile ? "0.15em" : "0.4em",
+                gap: "0.4em",
                 border: "1px solid #cfd8d2",
                 borderRadius: "999px",
-                padding: isMobile ? "0.1em 0.15em" : "0.2em 0.35em",
+                padding: "0.2em 0.35em",
                 backgroundColor: "#f7faf8",
               }}
             >
@@ -253,9 +251,9 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               }}
               size="small"
               variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none", fontSize: isMobile ? "0.7rem" : undefined }}
+              style={{ backgroundColor: "#165d46", textTransform: "none" }}
             >
-              + Add
+              Add to cart
             </Button>
           )}
         </CardActions>

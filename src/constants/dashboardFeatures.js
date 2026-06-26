@@ -3,6 +3,6 @@ export const DASHBOARD_FEATURES = [
   { id: "categories", label: "Category Management", path: "/categories" },
   { id: "users", label: "User Management", path: "/users" },
   { id: "inventory", label: "Inventory Management", path: "/inventory" },
-  { id: "orders", label: "View Orders", path: "/orders" },
+  { id: "orders", label: "My Orders", path: "/orders" },
   { id: "earnings", label: "Earnings Summary", path: null },
 ];

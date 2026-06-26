@@ -2,15 +2,7 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import { useNavigate } from "react-router";
-
-export const DASHBOARD_FEATURES = [
-  { id: "products", label: "Manage Product Catalog", path: "/dashboard" },
-  { id: "categories", label: "Category Management", path: "/categories" },
-  { id: "users", label: "User Management", path: "/users" },
-  { id: "inventory", label: "Inventory Management", path: "/inventory" },
-  { id: "orders", label: "View Orders", path: "/orders" },
-  { id: "earnings", label: "Earnings Summary", path: null },
-];
+import { DASHBOARD_FEATURES } from "../constants/dashboardFeatures";
 
 const DashboardFeatureCard = ({ activeFeature = "products" }) => {
   const navigate = useNavigate();

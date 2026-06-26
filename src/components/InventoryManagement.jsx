@@ -16,7 +16,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchInventory } from "../store/slices/inventorySlice";
 import { fetchProducts } from "../store/slices/productSlice";
@@ -341,6 +341,13 @@ const InventoryManagement = () => {
               flexDirection: isMobile ? "column" : "row",
             }}
           >
+            <TextField
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              size="small"
+              label="Search inventory"
+              style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
+            />
             <TextField
               select
               size="small"

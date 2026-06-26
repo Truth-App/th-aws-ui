@@ -1,9 +1,8 @@
-import { configureStore } from '@reduxjs/toolkit'
+import { combineReducers, configureStore } from '@reduxjs/toolkit'
+import { persistReducer, persistStore } from 'redux-persist'
+import createWebStorage from 'redux-persist/es/storage/createWebStorage'
 import cartReducer from './slices/cartSlice'
 import productsReducer from './slices/productSlice'
-import categoriesReducer from './slices/categorySlice'
-import usersReducer from './slices/usersSlice'
-import inventoryReducer from './slices/inventorySlice'
 import userReducer from './slices/userSlice'
 import categoriesReducer from './slices/categorySlice'
 import usersReducer from './slices/usersSlice'
@@ -35,12 +34,13 @@ const rootReducer = combineReducers({
 const persistedReducer = persistReducer(persistConfig, rootReducer)
 
 export const store = configureStore({
-  reducer: {
-    cart: cartReducer,
-    products: productsReducer,
-    categories: categoriesReducer,
-    users: usersReducer,
-    inventory: inventoryReducer,
-    user: userReducer,
-  },
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+      },
+    }),
 })
+
+export const persistor = persistStore(store)

@@ -1,12 +1,5 @@
 import { Amplify } from "aws-amplify";
 
-const PROD_ORIGIN = "https://d2n3ipabg4cniq.cloudfront.net";
-const LOCAL_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"];
-const currentOrigin = typeof window !== "undefined" ? window.location.origin : PROD_ORIGIN;
-
-// Keep current origin first so Amplify picks the URL that initiated OAuth.
-const redirectOrigins = Array.from(new Set([currentOrigin, ...LOCAL_ORIGINS, PROD_ORIGIN]));
-
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -16,8 +9,8 @@ Amplify.configure({
         oauth: {
           domain: "ap-south-254qzeqnxo.auth.ap-south-2.amazoncognito.com",
           scopes: ["openid", "email", "profile"],
-          redirectSignIn: redirectOrigins,
-          redirectSignOut: redirectOrigins,
+          redirectSignIn: ["https://d2n3ipabg4cniq.cloudfront.net"],
+          redirectSignOut: ["https://d2n3ipabg4cniq.cloudfront.net"],
           responseType: "code",
         },
       },

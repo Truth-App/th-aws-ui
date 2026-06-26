@@ -16,6 +16,7 @@ import Orders from "./pages/Orders.jsx";
 import CategoryManagement from "./pages/CategoryManagement.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 import InventoryManagement from "./pages/InventoryManagement.jsx";
+import ViewOrders from "./pages/ViewOrders.jsx";
 
 import "./helpers/amplify-config";
 
@@ -60,6 +61,14 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <InventoryManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/view-orders"
+                element={
+                  <ProtectedRoute>
+                    <ViewOrders />
                   </ProtectedRoute>
                 }
               />

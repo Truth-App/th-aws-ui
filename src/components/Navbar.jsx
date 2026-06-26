@@ -6,7 +6,7 @@ import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
-import { MdPerson, MdDashboard, MdLogout, MdLogin, MdReceiptLong } from "react-icons/md";
+import { MdPerson, MdDashboard, MdLogout, MdLogin } from "react-icons/md";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
@@ -130,12 +130,6 @@ const Navbar = () => {
                 <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
                   <MdDashboard size={20} />
                   Dashboard
-                </MenuItem>
-              </NavLink>
-              <NavLink to="/orders" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
-                <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
-                  <MdReceiptLong size={20} />
-                  My Orders
                 </MenuItem>
               </NavLink>
               <MenuItem

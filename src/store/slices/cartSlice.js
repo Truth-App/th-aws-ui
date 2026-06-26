@@ -1,45 +1,39 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice } from '@reduxjs/toolkit'
 
-const initialState = [];
+const initialState = []
 
 export const cartSlice = createSlice({
-  name: "cart",
+  name: 'cart',
   initialState,
   reducers: {
-    addToCart: (state, action) => {
-      console.log(action.payload);
-      const productId = action.payload.id;
-      const existingProductIndex = state.findIndex(
-        (item) => item.id === productId,
-      );
-      if (existingProductIndex !== -1) {
-        state[existingProductIndex].quantity += 1;
-        console.log("cart store", state);
+    addToCart: (state, action)=>{
+        console.log(action.payload)
+        const productId = action.payload.id;
+        const existingProductIndex = state.findIndex(item => item.id === productId);
+        if(existingProductIndex !== -1){
+            state[existingProductIndex].quantity += 1;
+        console.log('cart store', state)
         return;
-      } else {
-        state.push({ ...action.payload, quantity: 1 });
-      }
-      console.log("cart store", state);
-    },
-    removeFromCart: (state, action) => {
-      const productId = action.payload.id;
-      const existingProductIndex = state.findIndex(
-        (item) => item.id === productId,
-      );
-      if (existingProductIndex !== -1) {
-        if (state[existingProductIndex].quantity > 1) {
-          state[existingProductIndex].quantity -= 1;
-        } else {
-          state.splice(existingProductIndex, 1);
         }
-      }
+        else {
+            state.push({...action.payload, quantity: 1});
+        }
+        console.log('cart store', state)
     },
-    clearCart: () => {
-      return [];
-    },
+    removeFromCart: (state, action)=>{
+        const productId = action.payload.id;
+        const existingProductIndex = state.findIndex(item => item.id === productId);
+        if(existingProductIndex !== -1){
+            if(state[existingProductIndex].quantity > 1){
+                state[existingProductIndex].quantity -= 1;
+            } else {
+                state.splice(existingProductIndex, 1);
+            }
+        }
+    }
   },
-});
+})
 
-export const { addToCart, removeFromCart, clearCart } = cartSlice.actions;
+export const { addToCart, removeFromCart } = cartSlice.actions
 
-export default cartSlice.reducer;
+export default cartSlice.reducer

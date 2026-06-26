@@ -1,5 +1,4 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { PRODUCT_API_URL } from '../../constants/api'
 
 const initialState = {
 	items: [],
@@ -13,7 +12,7 @@ export const fetchProducts = createAsyncThunk(
 	'products/fetchProducts',
 	async (_, thunkAPI) => {
 		try {
-			const response = await fetch(PRODUCT_API_URL)
+			const response = await fetch('https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/products')
 
 			if (!response.ok) {
 				throw new Error('Failed to fetch products')

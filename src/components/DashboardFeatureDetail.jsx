@@ -12,14 +12,15 @@ import MenuItem from "@mui/material/MenuItem";
 import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "./ProductCard";
 import CategoryCarousel from "./CategoryCarousel";
-import { categories as fallbackCategories } from "../constants/products";
+import { categories as productCategories } from "../constants/products";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts } from "../store/slices/productSlice";
-import { fetchCategories } from "../store/slices/categorySlice";
-import { PRODUCT_API_URL, PRESIGNED_URL_API } from "../constants/api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
+
+const PRODUCT_API_URL = "https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/products";
+const PRESIGNED_URL_API = "https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/preSignedUrl";
 
 const INITIAL_PRODUCT_FORM = {
   title: "",
@@ -36,10 +37,6 @@ const DashboardFeatureDetail = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const { items: products, status, error } = useSelector((state) => state.products);
-  const { items: categoryItems } = useSelector((state) => state.categories);
-  const productCategories = categoryItems.length > 0
-    ? categoryItems.map((item) => item.title)
-    : fallbackCategories;
   const [open, setOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = useState("create");
   const [editingProductId, setEditingProductId] = useState(null);
@@ -56,7 +53,6 @@ const DashboardFeatureDetail = () => {
     if (status === "idle") {
       dispatch(fetchProducts());
     }
-    dispatch(fetchCategories());
   }, [dispatch, status]);
 
   const filteredProducts = useMemo(() => {

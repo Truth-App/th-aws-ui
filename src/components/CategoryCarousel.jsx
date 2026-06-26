@@ -1,8 +1,7 @@
 
 import Avatar from "@mui/material/Avatar";
 import Typography from "@mui/material/Typography";
-import { categories as defaultCategories } from "../constants/products";
-import { S3_BASE_URL } from "../constants/api";
+import { categories } from "../constants/products";
 
 // Color palette for category avatars
 const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8", "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8B88B", "#95E1D3", "#C7CEEA"];
@@ -16,16 +15,7 @@ const getInitials = (text) => {
     .slice(0, 2);
 };
 
-const normalizeCategory = (item) => {
-  if (typeof item === "string") {
-    return { title: item, imageKey: "" };
-  }
-  return { title: item.title || "", imageKey: item.imageKey || "" };
-};
-
-const CategoryCarousel = ({ selectedCategory, onCategorySelect, items }) => {
-  const categoryItems = (items ?? defaultCategories).map(normalizeCategory);
-
+const CategoryCarousel = ({ selectedCategory, onCategorySelect }) => {
   return (
     <div
       style={{
@@ -38,10 +28,10 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect, items }) => {
         boxSizing: "border-box",
       }}
     >
-      {categoryItems.map((category, index) => (
+      {categories.map((category, index) => (
         <div
-          key={category.title}
-          onClick={() => onCategorySelect(selectedCategory === category.title ? null : category.title)}
+          key={category}
+          onClick={() => onCategorySelect(selectedCategory === category ? null : category)}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -49,28 +39,27 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect, items }) => {
             gap: "3px",
             minWidth: "60px",
             cursor: "pointer",
-            opacity: selectedCategory === category.title ? 1 : 0.7,
+            opacity: selectedCategory === category ? 1 : 0.7,
           }}
         >
           <Avatar
-            src={category.imageKey ? `${S3_BASE_URL}/${category.imageKey}` : undefined}
             sx={{
               width: 36,
               height: 36,
               backgroundColor: colors[index % colors.length],
               fontWeight: 700,
               fontSize: "13px",
-              border: selectedCategory === category.title ? "2px solid #165d46" : "none",
-              boxShadow: selectedCategory === category.title ? "0 0 12px rgba(22, 93, 70, 0.3)" : "none",
+              border: selectedCategory === category ? "2px solid #165d46" : "none",
+              boxShadow: selectedCategory === category ? "0 0 12px rgba(22, 93, 70, 0.3)" : "none",
             }}
           >
-            {!category.imageKey && getInitials(category.title)}
+            {getInitials(category)}
           </Avatar>
           <Typography
             variant="caption"
             sx={{
               fontSize: "11px",
-              fontWeight: selectedCategory === category.title ? 700 : 500,
+              fontWeight: selectedCategory === category ? 700 : 500,
               color: "#165d46",
               textAlign: "center",
               maxWidth: "60px",
@@ -78,7 +67,7 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect, items }) => {
               wordBreak: "break-word",
             }}
           >
-            {category.title}
+            {category}
           </Typography>
         </div>
       ))}

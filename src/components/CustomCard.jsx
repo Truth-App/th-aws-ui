@@ -95,6 +95,7 @@ const CustomCard = () => {
             flexWrap: "wrap",
             gap: "16px",
             marginTop: "1.5em",
+            paddingBottom: "60px",
             flexDirection: "row",
             justifyContent: "center",
           }}

@@ -15,7 +15,9 @@ const getInitials = (text) => {
     .slice(0, 2);
 };
 
-const CategoryCarousel = ({ selectedCategory, onCategorySelect }) => {
+const CategoryCarousel = ({ items, selectedCategory, onCategorySelect }) => {
+  const displayItems = items ?? categories;
+
   return (
     <div
       style={{
@@ -28,7 +30,7 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect }) => {
         boxSizing: "border-box",
       }}
     >
-      {categories.map((category, index) => (
+      {displayItems.map((category, index) => (
         <div
           key={category}
           onClick={() => onCategorySelect(selectedCategory === category ? null : category)}

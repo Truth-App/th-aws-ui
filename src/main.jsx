@@ -13,6 +13,9 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Checkout from "./pages/Checkout.jsx";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
 import Orders from "./pages/Orders.jsx";
+import CategoryManagement from "./pages/CategoryManagement.jsx";
+import UserManagement from "./pages/UserManagement.jsx";
+import InventoryManagement from "./pages/InventoryManagement.jsx";
 
 import "./helpers/amplify-config";
 
@@ -33,6 +36,30 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <Orders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/categories"
+                element={
+                  <ProtectedRoute>
+                    <CategoryManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/inventory"
+                element={
+                  <ProtectedRoute>
+                    <InventoryManagement />
                   </ProtectedRoute>
                 }
               />

@@ -4,6 +4,9 @@ import createWebStorage from 'redux-persist/es/storage/createWebStorage'
 import cartReducer from './slices/cartSlice'
 import productsReducer from './slices/productSlice'
 import userReducer from './slices/userSlice'
+import categoriesReducer from './slices/categorySlice'
+import usersReducer from './slices/usersSlice'
+import inventoryReducer from './slices/inventorySlice'
 
 const createNoopStorage = () => ({
   getItem: () => Promise.resolve(null),
@@ -23,6 +26,9 @@ const rootReducer = combineReducers({
   cart: cartReducer,
   products: productsReducer,
   user: userReducer,
+  categories: categoriesReducer,
+  users: usersReducer,
+  inventory: inventoryReducer,
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

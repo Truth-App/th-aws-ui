@@ -14,7 +14,12 @@ export const fetchUsers = createAsyncThunk(
 			const response = await fetch(USER_API_URL)
 
 			if (!response.ok) {
-				throw new Error('Failed to fetch users')
+				throw new Error(`Failed to fetch users (${response.status})`)
+			}
+
+			const contentType = response.headers.get('content-type') || ''
+			if (!contentType.includes('application/json')) {
+				throw new Error('Invalid response from users API. Check dev proxy or API URL.')
 			}
 
 			return await response.json()

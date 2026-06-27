@@ -8,7 +8,6 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import MenuItem from "@mui/material/MenuItem";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -32,11 +31,22 @@ const INITIAL_USER_FORM = {
   lastname: "",
   email: "",
   mobile: "",
+  referencenumber: "",
   role: "",
   aadharnumber: "",
   pincode: "",
   address: "",
+  landmark: "",
   imageKeys: [],
+};
+
+const getRoleFromReferenceNumber = (referenceNumber) => {
+  const normalized = (referenceNumber || "").trim().toUpperCase();
+  if (!normalized) return "";
+  if (normalized.startsWith("SS")) return "Stockist";
+  if (normalized.startsWith("S")) return "Dealer";
+  if (normalized.startsWith("A")) return "Super Stockist";
+  return "Customer";
 };
 
 const getUserId = (user) => user.userId || user.email || user.id || "—";
@@ -72,9 +82,11 @@ const mapUserToForm = (selectedUser) => ({
   lastname: selectedUser.lastname || selectedUser.lastName || "",
   email: selectedUser.email || "",
   mobile: selectedUser.mobile || "",
+  referencenumber: selectedUser.referencenumber || selectedUser.referenceNumber || "",
   role: selectedUser.role || "",
   aadharnumber: selectedUser.aadharnumber || selectedUser.aadharNumber || "",
   address: selectedUser.address || "",
+  landmark: selectedUser.landmark || "",
   pincode: selectedUser.pincode || "",
   imageKeys: getUserImageKeys(selectedUser),
 });
@@ -166,14 +178,13 @@ const ImageUploadSection = ({
   </div>
 );
 
-const UserFormFields = ({ user, onChange, disabled = false, isMobile }) => (
+const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMode = false }) => (
   <div
     style={{
-      display: "flex",
-      flexDirection: "column",
+      display: "grid",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(2, minmax(0, 1fr))",
       gap: "1em",
-      width: isMobile ? "100%" : "400px",
-      maxWidth: "100%",
+      width: "100%",
     }}
   >
     <TextField
@@ -219,27 +230,29 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile }) => (
       required={!disabled}
     />
     <TextField
-      select={!disabled}
+      size="small"
+      label="Reference Number"
+      variant="outlined"
+      name="referencenumber"
+      value={user.referencenumber}
+      onChange={onChange}
+      disabled={disabled}
+      required={!disabled && !profileMode}
+      helperText={
+        disabled
+          ? undefined
+          : "A = Super Stockist, SS = Stockist, S = Dealer, other = Customer"
+      }
+    />
+    <TextField
       size="small"
       label="Role"
       variant="outlined"
       name="role"
       value={user.role}
-      onChange={onChange}
-      disabled={disabled}
+      disabled
       required={!disabled}
-    >
-      {!disabled && (
-        <MenuItem value="" disabled>
-          Select role
-        </MenuItem>
-      )}
-      {USER_ROLES.map((role) => (
-        <MenuItem key={role} value={role}>
-          {role}
-        </MenuItem>
-      ))}
-    </TextField>
+    />
     <TextField
       size="small"
       label="Aadhar Number"
@@ -262,13 +275,36 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile }) => (
       inputProps={{ maxLength: 6, readOnly: disabled }}
       required={!disabled}
     />
+    <TextField
+      size="small"
+      label="Landmark"
+      variant="outlined"
+      name="landmark"
+      value={user.landmark}
+      onChange={onChange}
+      disabled={disabled}
+    />
+    <TextField
+      size="small"
+      label="Address"
+      variant="outlined"
+      name="address"
+      value={user.address}
+      onChange={onChange}
+      disabled={disabled}
+      multiline
+      minRows={2}
+      required={!disabled}
+      style={isMobile ? undefined : { gridColumn: "1 / -1" }}
+    />
   </div>
 );
 
-const UserManagement = () => {
+const UserManagement = ({ profileMode = false }) => {
   const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
   const { items: users, status, error } = useSelector((state) => state.users);
+  const authUser = useSelector((state) => state.user.user);
 
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -293,10 +329,13 @@ const UserManagement = () => {
         item.email,
         item.userId,
         item.mobile,
+        item.referencenumber,
+        item.referenceNumber,
         item.role,
         item.aadharnumber,
         item.pincode,
         item.address,
+        item.landmark,
       ]
         .filter(Boolean)
         .join(" ")
@@ -314,8 +353,46 @@ const UserManagement = () => {
     }
   }, [dispatch, status]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate profile form when users list loads */
+  useEffect(() => {
+    if (!profileMode || status !== "succeeded") return;
+
+    const profileEmail = (authUser?.email || "").trim().toLowerCase();
+    if (!profileEmail) return;
+
+    const matchedUser = users.find(
+      (item) => (item.email || "").trim().toLowerCase() === profileEmail
+    );
+
+    if (matchedUser) {
+      setDialogMode("edit");
+      setEditingUserId(matchedUser.id);
+      setUser(mapUserToForm(matchedUser));
+      return;
+    }
+
+    const nameParts = (authUser?.name || "").trim().split(/\s+/).filter(Boolean);
+    setDialogMode("create");
+    setEditingUserId(null);
+    setUser({
+      ...INITIAL_USER_FORM,
+      email: authUser?.email || "",
+      firstname: nameParts[0] || "",
+      lastname: nameParts.slice(1).join(" "),
+    });
+  }, [profileMode, status, users, authUser]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   const handleOnChange = (e) => {
     const { name, value } = e.target;
+    if (name === "referencenumber") {
+      setUser((prev) => ({
+        ...prev,
+        referencenumber: value,
+        role: getRoleFromReferenceNumber(value),
+      }));
+      return;
+    }
     setUser((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -441,13 +518,16 @@ const UserManagement = () => {
       toast.error("Please enter mobile number");
       return false;
     }
-    //10 digits mobile number
     if (!/^\d{10}$/.test(user.mobile.trim())) {
       toast.error("Mobile number must be 10 digits");
       return false;
     }
+    if (!profileMode && !user.referencenumber.trim()) {
+      toast.error("Please enter reference number");
+      return false;
+    }
     if (!user.role) {
-      toast.error("Please select a role");
+      toast.error("Role is set automatically from reference number");
       return false;
     }
     if (!user.aadharnumber.trim()) {
@@ -466,6 +546,10 @@ const UserManagement = () => {
       toast.error("Pincode must be 6 digits");
       return false;
     }
+    if (!user.address.trim()) {
+      toast.error("Please enter address");
+      return false;
+    }
     return true;
   };
 
@@ -482,9 +566,11 @@ const UserManagement = () => {
         lastname: user.lastname.trim(),
         email: user.email.trim(),
         mobile: user.mobile.trim(),
+        referencenumber: user.referencenumber.trim(),
         role: user.role,
         aadharnumber: user.aadharnumber.trim(),
         address: user.address.trim(),
+        landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
         imageKeys: user.imageKeys || [],
         imagekeys: user.imageKeys || [],
@@ -504,13 +590,98 @@ const UserManagement = () => {
       await response.json();
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
       dispatch(fetchUsers());
-      setEditingUserId(null);
-      setUser(INITIAL_USER_FORM);
-      handleClose();
+      if (!profileMode) {
+        setEditingUserId(null);
+        setUser(INITIAL_USER_FORM);
+        handleClose();
+      } else if (!isEditMode) {
+        setDialogMode("edit");
+      }
     } catch (err) {
       toast.error(err?.message || "Unable to save user");
     }
   };
+
+  if (profileMode) {
+    return (
+      <>
+        <ToastContainer
+          position={isMobile ? "top-center" : "top-right"}
+          autoClose={2500}
+          hideProgressBar={false}
+          newestOnTop
+          closeOnClick
+          pauseOnHover
+          theme="colored"
+        />
+        <Card
+          style={{
+            height: "100%",
+            width: "100%",
+            overflowY: "auto",
+            overflowX: "hidden",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+            border: "1px solid #e8efeb",
+          }}
+        >
+          <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
+            <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46", marginBottom: "0.5em" }}>
+              Edit Profile
+            </Typography>
+            <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
+              Update your account details.
+            </Typography>
+
+            {status === "loading" && <Typography style={{ marginTop: "1em" }}>Loading profile...</Typography>}
+            {status === "failed" && (
+              <Typography color="error" style={{ marginTop: "1em" }}>
+                {error}
+              </Typography>
+            )}
+
+            {status === "succeeded" && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1em",
+                  maxWidth: isMobile ? "100%" : "720px",
+                  width: "100%",
+                }}
+              >
+                <UserFormFields
+                  user={user}
+                  onChange={handleOnChange}
+                  isMobile={isMobile}
+                  profileMode={profileMode}
+                />
+                <ImageUploadSection
+                  imageKeys={user.imageKeys || []}
+                  fileInputRef={fileInputRef}
+                  uploadingFiles={uploadingFiles}
+                  onFileUpload={handleFileUpload}
+                  onRemoveFile={handleRemoveFile}
+                />
+                <Button
+                  onClick={handleSaveUser}
+                  disabled={uploadingFiles}
+                  variant="contained"
+                  style={{
+                    alignSelf: "flex-start",
+                    backgroundColor: "#165d46",
+                    textTransform: "none",
+                    fontWeight: "bolder",
+                  }}
+                >
+                  Save Profile
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   return (
     <>
@@ -694,11 +865,16 @@ const UserManagement = () => {
               display: "flex",
               flexDirection: "column",
               gap: "1em",
-              width: isMobile ? "100%" : "400px",
+              width: isMobile ? "100%" : "720px",
               maxWidth: "100%",
             }}
           >
-            <UserFormFields user={user} onChange={handleOnChange} isMobile={isMobile} />
+            <UserFormFields
+              user={user}
+              onChange={handleOnChange}
+              isMobile={isMobile}
+              profileMode={profileMode}
+            />
             <ImageUploadSection
               imageKeys={user.imageKeys || []}
               fileInputRef={fileInputRef}
@@ -725,7 +901,7 @@ const UserManagement = () => {
                 display: "flex",
                 flexDirection: "column",
                 gap: "1em",
-                width: isMobile ? "100%" : "400px",
+                width: isMobile ? "100%" : "720px",
                 maxWidth: "100%",
               }}
             >
@@ -734,6 +910,7 @@ const UserManagement = () => {
                 onChange={() => {}}
                 disabled
                 isMobile={isMobile}
+                profileMode={profileMode}
               />
               <ImageUploadSection
                 imageKeys={viewingUser.imageKeys || []}

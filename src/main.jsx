@@ -17,6 +17,7 @@ import CategoryManagement from "./pages/CategoryManagement.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
 import InventoryManagement from "./pages/InventoryManagement.jsx";
 import ViewOrders from "./pages/ViewOrders.jsx";
+import EditProfile from "./pages/EditProfile.jsx";
 
 import "./helpers/amplify-config";
 
@@ -69,6 +70,14 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <ViewOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile/edit"
+                element={
+                  <ProtectedRoute>
+                    <EditProfile />
                   </ProtectedRoute>
                 }
               />

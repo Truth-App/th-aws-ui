@@ -6,7 +6,7 @@ import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
-import { MdPerson, MdDashboard, MdLogout, MdLogin } from "react-icons/md";
+import { MdPerson, MdDashboard, MdLogout, MdLogin, MdEdit } from "react-icons/md";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
@@ -134,6 +134,12 @@ const Navbar = () => {
                 <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
                   <MdDashboard size={20} />
                   Dashboard
+                </MenuItem>
+              </NavLink>
+              <NavLink to="/profile/edit" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
+                <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
+                  <MdEdit size={20} />
+                  Edit Profile
                 </MenuItem>
               </NavLink>
               <MenuItem

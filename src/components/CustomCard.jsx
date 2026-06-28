@@ -7,6 +7,7 @@ import CategoryCarousel from "./CategoryCarousel";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts } from "../store/slices/productSlice";
+import { fetchCategories } from "../store/slices/categorySlice";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 const CustomCard = () => {
@@ -14,8 +15,17 @@ const CustomCard = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const { items: products, status, error } = useSelector((state) => state.products);
+  const { items: categoryItems, status: categoryStatus } = useSelector((state) => state.categories);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const homeCategories = (categoryItems || [])
+    .filter((category) => category?.isActive !== false)
+    .map((category) => ({
+      title: category?.title || "",
+      imageKey: category?.imageKey || category?.imagekey || "",
+    }))
+    .filter((category) => category.title);
 
   const filteredProducts = products.filter((product) => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -40,6 +50,12 @@ const CustomCard = () => {
       dispatch(fetchProducts());
     }
   }, [dispatch, status]);
+
+  useEffect(() => {
+    if (categoryStatus === "idle") {
+      dispatch(fetchCategories());
+    }
+  }, [dispatch, categoryStatus]);
 
   return (
     <Card
@@ -87,6 +103,8 @@ const CustomCard = () => {
           <CategoryCarousel
             selectedCategory={selectedCategory}
             onCategorySelect={setSelectedCategory}
+            items={homeCategories}
+            useDivisionThemes
           />
         </div>
         <div

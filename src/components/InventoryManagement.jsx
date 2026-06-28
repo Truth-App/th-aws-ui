@@ -341,13 +341,7 @@ const InventoryManagement = () => {
               flexDirection: isMobile ? "column" : "row",
             }}
           >
-            <TextField
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              size="small"
-              label="Search inventory"
-              style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
-            />
+            
             <TextField
               select
               size="small"

@@ -9,6 +9,8 @@ import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "./ProductCard";
 import CategoryCarousel from "./CategoryCarousel";
@@ -37,6 +39,15 @@ const DashboardFeatureDetail = () => {
   const isTablet = useMediaQuery("(max-width:900px)");
   const { items: products, status, error } = useSelector((state) => state.products);
   const { items: categoryItems } = useSelector((state) => state.categories);
+  const catalogCategories = categoryItems.length > 0
+    ? categoryItems
+        .filter((item) => item?.isActive !== false)
+        .map((item) => ({
+          title: item?.title || "",
+          imageKey: item?.imageKey || item?.imagekey || "",
+        }))
+        .filter((item) => item.title)
+    : [];
   const productCategories = categoryItems.length > 0
     ? categoryItems.map((item) => item.title)
     : fallbackCategories;
@@ -321,6 +332,7 @@ const DashboardFeatureDetail = () => {
                 setCategoryFilter(category || "All Items");
                 setPage(1);
               }}
+              items={catalogCategories.length > 0 ? catalogCategories : fallbackCategories}
             />
           </div>
 
@@ -489,6 +501,20 @@ const DashboardFeatureDetail = () => {
                 </MenuItem>
               ))}
             </TextField>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={product.isActive}
+                  onChange={(e) =>
+                    setProduct((prev) => ({
+                      ...prev,
+                      isActive: e.target.checked,
+                    }))
+                  }
+                />
+              }
+              label={product.isActive ? "Active" : "Inactive"}
+            />
             <div>
               <input
                 ref={fileInputRef}

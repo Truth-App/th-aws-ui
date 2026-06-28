@@ -6,6 +6,7 @@ import CardActions from "@mui/material/CardActions";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import IconButton from "@mui/material/IconButton";
+import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { MdClose, MdAdd, MdRemove } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
@@ -16,32 +17,34 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
   const dispatch = useDispatch();
   const selector = useSelector((state) => state.cart);
   const cartProduct = selector.find((item) => item.id === product.id);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [zoomModalOpen, setZoomModalOpen] = useState(false);
+  const [zoomImageIndex, setZoomImageIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const isMobile = useMediaQuery("(max-width:600px)");
+  const shouldWrapActions = useMediaQuery("(max-width:430px)");
 
   const isUpdateMode = actionType === "update";
+  const isInactive = product.isActive === false;
   const defaultImagePath = "/thriftyhomelogo.png";
   const imageKeys = product.imageKeys || product.fileKeys || [];
-  
+  const hasDiscount = Number(product.mrpPrice) > Number(product.customerPrice);
+  const savedPercent = hasDiscount
+    ? Math.round(((Number(product.mrpPrice) - Number(product.customerPrice)) / Number(product.mrpPrice)) * 100)
+    : 0;
+
   let imagePath = defaultImagePath;
   if (imageKeys.length > 0) {
-    imagePath = `https://th-app-product.s3.ap-south-2.amazonaws.com/${imageKeys[currentImageIndex]}`;
+    imagePath = `https://th-app-product.s3.ap-south-2.amazonaws.com/${imageKeys[0]}`;
   }
 
-  const handlePrevImage = (e) => {
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev === 0 ? imageKeys.length - 1 : prev - 1));
-  };
-
-  const handleNextImage = (e) => {
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev === imageKeys.length - 1 ? 0 : prev + 1));
-  };
+  const zoomImagePath =
+    imageKeys.length > 0
+      ? `https://th-app-product.s3.ap-south-2.amazonaws.com/${imageKeys[zoomImageIndex]}`
+      : defaultImagePath;
 
   const handleImageClick = () => {
     setZoomModalOpen(true);
+    setZoomImageIndex(0);
     setZoomLevel(1);
   };
 
@@ -58,29 +61,119 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
     setZoomLevel((prev) => Math.max(prev - 0.2, 1));
   };
 
-  const handleModalPrevImage = () => {
-    setCurrentImageIndex((prev) => (prev === 0 ? imageKeys.length - 1 : prev - 1));
+  const handleZoomPrevImage = () => {
+    if (imageKeys.length <= 1) return;
+    setZoomImageIndex((prev) => (prev === 0 ? imageKeys.length - 1 : prev - 1));
   };
 
-  const handleModalNextImage = () => {
-    setCurrentImageIndex((prev) => (prev === imageKeys.length - 1 ? 0 : prev + 1));
+  const handleZoomNextImage = () => {
+    if (imageKeys.length <= 1) return;
+    setZoomImageIndex((prev) => (prev === imageKeys.length - 1 ? 0 : prev + 1));
   };
+
   return (
     <>
       <Card
-        variant="outlined"
         style={{
           width: "100%",
           display: "flex",
           flexDirection: "column",
+          boxShadow: "none",
+          borderRadius: "10px",
+          backgroundColor: "#ffffff",
         }}
       >
-        <div style={{ backgroundColor: "#f5f5f5" }}>
+        <div
+          style={{
+            backgroundColor: "#f5f5f5",
+            position: "relative",
+            border: "1.2px solid #edf2ee",
+            borderRadius: "10px 10px 0 0",
+          }}
+        >
+          {hasDiscount && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                backgroundColor: "#2f80ed",
+                color: "#fff",
+                fontSize: isMobile ? "0.62rem" : "0.68rem",
+                fontWeight: 700,
+                borderRadius: "0",
+                padding: isMobile ? "3px 4px 5px 4px" : "4px 6px 6px 6px",
+                lineHeight: 1.05,
+                zIndex: 1,
+                textAlign: "center",
+                minWidth: isMobile ? "28px" : "34px",
+                minHeight: isMobile ? "30px" : "34px",
+                clipPath:
+                  "polygon(0 0, 100% 0, 100% 83%, 92% 76%, 84% 83%, 76% 76%, 68% 83%, 60% 76%, 52% 83%, 44% 76%, 36% 83%, 28% 76%, 20% 83%, 12% 76%, 4% 83%, 0 76%)",
+              }}
+            >
+              <span style={{ display: "block" }}>{savedPercent}%</span>
+              <span style={{ display: "block", textTransform: "uppercase" }}>off</span>
+            </div>
+          )}
+
+          {isInactive && isUpdateMode && (
+            <div
+              style={{
+                position: "absolute",
+                top: isMobile ? "4px" : "6px",
+                right: isMobile ? "4px" : "6px",
+                zIndex: 1,
+              }}
+            >
+              <Chip
+                label="In active"
+                size="small"
+                color="error"
+                variant="outlined"
+                sx={{
+                  fontSize: isMobile ? "0.6rem" : "0.7rem",
+                  height: isMobile ? "22px" : "24px",
+                }}
+              />
+            </div>
+          )}
+
+          {isInactive && !isUpdateMode && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 1,
+                pointerEvents: "none",
+                backgroundColor: "rgba(0, 0, 0, 0.32)",
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{
+                  color: "#ffffff",
+                  fontWeight: "bold",
+                  fontSize: isMobile ? "0.9rem" : "1rem",
+                  textAlign: "center",
+                  backgroundColor: "transparent",
+                  padding: 0,
+                  margin: 0,
+                }}
+              >
+                Out of Stock
+              </Typography>
+            </div>
+          )}
+
           <CardMedia
             component="img"
             onClick={handleImageClick}
             sx={{
-              height: 160,
+              height: isMobile ? 102 : 122,
               width: "100%",
               objectFit: "contain",
               cursor: "pointer",
@@ -90,62 +183,25 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             alt={product.title}
           />
         </div>
-        {imageKeys.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              padding: "8px 12px",
-              borderTop: "1px solid rgba(0, 0, 0, 0.08)",
-              borderBottom: "1px solid rgba(0, 0, 0, 0.08)",
+
+        <CardContent
+          style={{
+            flexGrow: 1,
+            padding: isMobile ? "6px 10px" : "7px 11px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <Typography
+            gutterBottom={false}
+            variant="h6"
+            component="div"
+            sx={{
+              fontSize: isMobile ? "0.82rem" : "0.88rem",
+              margin: "0 0 0.2em 0",
+              lineHeight: 1.15,
             }}
           >
-            <Button
-              onClick={handlePrevImage}
-              disabled={imageKeys.length <= 1}
-              size="small"
-              style={{
-                backgroundColor: imageKeys.length <= 1 ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.5)",
-                color: "white",
-                minWidth: "32px",
-                padding: "4px",
-                cursor: imageKeys.length <= 1 ? "not-allowed" : "pointer",
-              }}
-            >
-              ❮
-            </Button>
-            <Typography
-              variant="caption"
-              style={{
-                backgroundColor: "rgba(0, 0, 0, 0.6)",
-                color: "white",
-                padding: "2px 8px",
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
-            >
-              {currentImageIndex + 1} / {imageKeys.length}
-            </Typography>
-            <Button
-              onClick={handleNextImage}
-              disabled={imageKeys.length <= 1}
-              size="small"
-              style={{
-                backgroundColor: imageKeys.length <= 1 ? "rgba(0, 0, 0, 0.3)" : "rgba(0, 0, 0, 0.5)",
-                color: "white",
-                minWidth: "32px",
-                padding: "4px",
-                cursor: imageKeys.length <= 1 ? "not-allowed" : "pointer",
-              }}
-            >
-              ❯
-            </Button>
-          </div>
-        )}
-        <CardContent style={{ flexGrow: 1, padding: "8px 12px" }}>
-          <Typography gutterBottom={false} variant="h6" component="div" sx={{ fontSize: isMobile ? "0.9rem" : "0.94rem", margin: "0 0 0.3em 0", lineHeight: 1.2 }}>
             {product.title}
           </Typography>
 
@@ -153,25 +209,202 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             style={{
               display: "flex",
               justifyContent: "space-between",
-              marginTop: "0.4em",
+              alignItems: shouldWrapActions ? "stretch" : isMobile ? "center" : "flex-end",
+              flexWrap: shouldWrapActions ? "wrap" : "nowrap",
+              gap: shouldWrapActions ? "0.35em" : isMobile ? "0.12em" : "0.45em",
+              marginTop: "auto",
               marginBottom: 0,
             }}
           >
-            <Typography variant="subtitle2" sx={{ color: "text.secondary", fontSize: isMobile ? "0.75rem" : "0.875rem" }}>
-              MRP{" "}
-              <span style={{ textDecoration: "line-through" }}>
-                ₹{product.mrpPrice}
-              </span>
-            </Typography>
-            <Typography variant="subtitle2" sx={{ color: "text.secondary", fontSize: isMobile ? "0.75rem" : "0.875rem" }}>
-              <span style={{ fontWeight: "bold" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+                flex: shouldWrapActions ? "1 1 100%" : "1 1 60px",
+              }}
+            >
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  color: "#165d46",
+                  fontSize: isMobile ? "0.75rem" : "1.04rem",
+                  fontWeight: 700,
+                  lineHeight: 1.05,
+                }}
+              >
                 ₹{product.customerPrice}
-              </span>
-            </Typography>
+              </Typography>
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "#8a8a8a",
+                  fontSize: isMobile ? "0.55rem" : "0.76rem",
+                  textDecoration: "line-through",
+                  lineHeight: 1.05,
+                }}
+              >
+                ₹{product.mrpPrice}
+              </Typography>
+            </div>
+
+            {!isUpdateMode &&
+              (cartProduct ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: isMobile ? "0.1em" : "0.32em",
+                    border: "1px solid #cfd8d2",
+                    borderRadius: "999px",
+                    padding: isMobile ? "0 2px" : "0 5px",
+                    height: isMobile ? "28px" : "32px",
+                    backgroundColor: "#f7faf8",
+                    flexShrink: 0,
+                    marginLeft: "auto",
+                  }}
+                >
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => {
+                      dispatch(removeFromCart(product));
+                    }}
+                    style={{
+                      minWidth: isMobile ? "24px" : "28px",
+                      width: isMobile ? "24px" : "28px",
+                      height: isMobile ? "24px" : "28px",
+                      borderRadius: "999px",
+                      backgroundColor: "#e8efeb",
+                      color: "#165d46",
+                      boxShadow: "none",
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      padding: 0,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: isMobile ? "1rem" : "1.15rem",
+                        fontWeight: 500,
+                        lineHeight: 1,
+                      }}
+                    >
+                      -
+                    </span>
+                  </Button>
+                  <span
+                    style={{
+                      minWidth: "1.8ch",
+                      textAlign: "center",
+                      fontWeight: 700,
+                      color: "#1f3d31",
+                      fontSize: isMobile ? "0.7rem" : "0.88rem",
+                    }}
+                  >
+                    {cartProduct.quantity}
+                  </span>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={product.isActive === false}
+                    onClick={() => {
+                      dispatch(addToCart(product));
+                    }}
+                    style={{
+                      minWidth: isMobile ? "24px" : "28px",
+                      width: isMobile ? "24px" : "28px",
+                      height: isMobile ? "24px" : "28px",
+                      borderRadius: "999px",
+                      backgroundColor: "#165d46",
+                      color: "#fff",
+                      boxShadow: "none",
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      padding: 0,
+                      ...(product.isActive === false
+                        ? {
+                            backgroundColor: "#e0e0e0",
+                            color: "#9e9e9e",
+                          }
+                        : {}),
+                    }}
+                    sx={{
+                      "&.Mui-disabled": {
+                        backgroundColor: "#e0e0e0",
+                        color: "#9e9e9e",
+                      },
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: isMobile ? "1rem" : "1.15rem",
+                        fontWeight: 500,
+                        lineHeight: 1,
+                      }}
+                    >
+                      +
+                    </span>
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    backgroundColor: "transparent",
+                    height: isMobile ? "28px" : "32px",
+                    flexShrink: 0,
+                    marginLeft: "auto",
+                    width: shouldWrapActions ? "100%" : "auto",
+                  }}
+                >
+                  <Button
+                    onClick={() => {
+                      dispatch(addToCart(product));
+                    }}
+                    disabled={product.isActive === false}
+                    size="small"
+                    variant="outlined"
+                    style={{
+                      color: "#165d46",
+                      borderColor: "#165d46",
+                      textTransform: "uppercase",
+                      fontWeight: 700,
+                      borderRadius: "4px",
+                      padding: isMobile ? "0 6px" : "0 14px",
+                      minWidth: isMobile ? "40px" : "68px",
+                      height: isMobile ? "26px" : "30px",
+                      lineHeight: 1,
+                      fontSize: isMobile ? "0.7rem" : "0.875rem",
+                      ...(product.isActive === false
+                        ? {
+                            backgroundColor: "transparent",
+                            color: "#9e9e9e",
+                            borderColor: "#d0d0d0",
+                          }
+                        : {}),
+                    }}
+                    sx={{
+                      "&.Mui-disabled": {
+                        backgroundColor: "transparent",
+                        color: "#9e9e9e",
+                        borderColor: "#d0d0d0",
+                      },
+                    }}
+                  >
+                    Add
+                  </Button>
+                </div>
+              ))}
           </div>
         </CardContent>
-        <CardActions style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "0px 12px 2px 12px" }}>
-          {isUpdateMode ? (
+
+        {isUpdateMode && (
+          <CardActions
+            style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "0px 12px 2px 12px" }}
+          >
             <Button
               onClick={() => onAction?.(product)}
               size="small"
@@ -180,83 +413,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             >
               {actionLabel}
             </Button>
-          ) : cartProduct ? (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.4em",
-                border: "1px solid #cfd8d2",
-                borderRadius: "999px",
-                padding: "0.2em 0.35em",
-                backgroundColor: "#f7faf8",
-              }}
-            >
-              <Button
-                size="small"
-                variant="contained"
-                onClick={() => {
-                  dispatch(removeFromCart(product));
-                }}
-                style={{
-                  minWidth: "30px",
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "999px",
-                  backgroundColor: "#e8efeb",
-                  color: "#165d46",
-                  boxShadow: "none",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                }}
-              >
-                <MdRemove size={16} />
-              </Button>
-              <span
-                style={{
-                  minWidth: "2.2ch",
-                  textAlign: "center",
-                  fontWeight: 700,
-                  color: "#1f3d31",
-                  fontSize: "0.95rem",
-                }}
-              >
-                {cartProduct.quantity}
-              </span>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={() => {
-                  dispatch(addToCart(product));
-                }}
-                style={{
-                  minWidth: "30px",
-                  width: "30px",
-                  height: "30px",
-                  borderRadius: "999px",
-                  backgroundColor: "#165d46",
-                  color: "#fff",
-                  boxShadow: "none",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                }}
-              >
-                <MdAdd size={16} />
-              </Button>
-            </div>
-          ) : (
-            <Button
-              onClick={() => {
-                dispatch(addToCart(product));
-              }}
-              size="small"
-              variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none" }}
-            >
-              Add to cart
-            </Button>
-          )}
-        </CardActions>
+          </CardActions>
+        )}
       </Card>
 
       <Dialog
@@ -302,7 +460,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             }}
           >
             <img
-              src={imagePath}
+              src={zoomImagePath}
               alt={product.title}
               style={{
                 maxWidth: "100%",
@@ -316,11 +474,11 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             {imageKeys.length > 1 && (
               <>
                 <Button
-                  onClick={handleModalPrevImage}
+                  onClick={handleZoomPrevImage}
                   style={{
                     position: "absolute",
                     left: "8px",
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    backgroundColor: "rgba(255, 255, 255, 0.22)",
                     color: "white",
                     minWidth: "40px",
                   }}
@@ -328,11 +486,11 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                   ❮
                 </Button>
                 <Button
-                  onClick={handleModalNextImage}
+                  onClick={handleZoomNextImage}
                   style={{
                     position: "absolute",
                     right: "8px",
-                    backgroundColor: "rgba(255, 255, 255, 0.2)",
+                    backgroundColor: "rgba(255, 255, 255, 0.22)",
                     color: "white",
                     minWidth: "40px",
                   }}
@@ -354,11 +512,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               borderRadius: "8px",
             }}
           >
-            <IconButton
-              onClick={handleZoomOut}
-              disabled={zoomLevel <= 1}
-              style={{ color: "white" }}
-            >
+            <IconButton onClick={handleZoomOut} disabled={zoomLevel <= 1} style={{ color: "white" }}>
               <MdRemove size={20} />
             </IconButton>
             <Typography
@@ -372,11 +526,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             >
               {Math.round(zoomLevel * 100)}%
             </Typography>
-            <IconButton
-              onClick={handleZoomIn}
-              disabled={zoomLevel >= 3}
-              style={{ color: "white" }}
-            >
+            <IconButton onClick={handleZoomIn} disabled={zoomLevel >= 3} style={{ color: "white" }}>
               <MdAdd size={20} />
             </IconButton>
           </div>

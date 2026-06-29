@@ -1,6 +1,6 @@
 import { NavLink } from "react-router";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Avatar from "@mui/material/Avatar";
 import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
@@ -10,6 +10,12 @@ import { MdPerson, MdDashboard, MdLogout, MdLogin, MdEdit } from "react-icons/md
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
+import { fetchUsers } from "../store/slices/usersSlice";
+import {
+  getDashboardHomeLabel,
+  getDashboardHomePath,
+  getUserRoleFromList,
+} from "../constants/dashboardFeatures";
 
 const Navbar = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -18,7 +24,22 @@ const Navbar = () => {
 
   const dispatch = useDispatch();
   const { isAuthenticated, user, status } = useSelector((state) => state.user);
+  const { items: users, status: usersStatus } = useSelector((state) => state.users);
   const authResolving = status === 'idle' || status === 'loading';
+
+  useEffect(() => {
+    if (isAuthenticated && usersStatus === "idle") {
+      dispatch(fetchUsers());
+    }
+  }, [dispatch, isAuthenticated, usersStatus]);
+
+  const userRole = useMemo(
+    () => getUserRoleFromList(users, user?.email),
+    [users, user?.email],
+  );
+
+  const dashboardPath = getDashboardHomePath(userRole);
+  const dashboardLabel = getDashboardHomeLabel(userRole);
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -130,10 +151,10 @@ const Navbar = () => {
                 </MenuItem>
               )}
               <Divider />
-              <NavLink to="/products" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
+              <NavLink to={dashboardPath} style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
                 <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
                   <MdDashboard size={20} />
-                  Dashboard
+                  {dashboardLabel}
                 </MenuItem>
               </NavLink>
               <NavLink to="/profile/edit" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>

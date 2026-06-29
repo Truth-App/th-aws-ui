@@ -5,3 +5,5 @@ export const USER_ROLES = [
   "Dealer",
   "Customer",
 ];
+
+export const ADMIN_ROLE = "Administrator";

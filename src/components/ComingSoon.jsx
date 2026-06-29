@@ -3,7 +3,7 @@ import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-const AdminPlaceholder = ({ title, description }) => {
+const ComingSoon = ({ title, description }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
 
   return (
@@ -20,9 +20,11 @@ const AdminPlaceholder = ({ title, description }) => {
         <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
           {title}
         </Typography>
-        <Typography variant="body2" color="text.secondary" style={{ marginTop: "8px" }}>
-          {description}
-        </Typography>
+        {description && (
+          <Typography variant="body2" color="text.secondary" style={{ marginTop: "8px" }}>
+            {description}
+          </Typography>
+        )}
         <Typography style={{ marginTop: "2em", textAlign: "center", color: "#6f7378" }}>
           Coming soon.
         </Typography>
@@ -31,4 +33,4 @@ const AdminPlaceholder = ({ title, description }) => {
   );
 };
 
-export default AdminPlaceholder;
+export default ComingSoon;

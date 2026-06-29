@@ -1,11 +1,11 @@
 import AdminPageLayout from "../components/AdminPageLayout";
-import AdminPlaceholder from "../components/AdminPlaceholder";
+import OrdersManagementPanel from "../components/OrdersManagement";
 
 const ViewOrders = () => (
   <AdminPageLayout activeFeature="view-orders">
-    <AdminPlaceholder
+    <OrdersManagementPanel
       title="View Orders"
-      description="Admin order list and management will be available here."
+      description="View all orders and open detailed tracking."
     />
   </AdminPageLayout>
 );

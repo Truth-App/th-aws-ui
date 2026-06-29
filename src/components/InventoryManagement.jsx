@@ -21,7 +21,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchInventory } from "../store/slices/inventorySlice";
 import { fetchProducts } from "../store/slices/productSlice";
 import { fetchUsers } from "../store/slices/usersSlice";
-import { INVENTORY_API_URL } from "../constants/api";
+import { createInventory, updateInventory } from "../api/Inventory";
 import { ToastContainer, toast } from "react-toastify";
 import { MdAddBox, MdEdit, MdVisibility } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
@@ -261,8 +261,6 @@ const InventoryManagement = () => {
 
     try {
       const isEditMode = dialogMode === "edit" && editingInventoryId !== null;
-      const endpoint = isEditMode ? `${INVENTORY_API_URL}/${editingInventoryId}` : INVENTORY_API_URL;
-      const method = isEditMode ? "PUT" : "POST";
 
       const payload = {
         productid: inventory.productid,
@@ -270,17 +268,11 @@ const InventoryManagement = () => {
         quantity: Number(inventory.quantity),
       };
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.error || `Failed to ${isEditMode ? "update" : "save"} inventory`);
+      if (isEditMode) {
+        await updateInventory(editingInventoryId, payload);
+      } else {
+        await createInventory(payload);
       }
-
-      await response.json();
       toast.success(isEditMode ? "Inventory updated successfully" : "Inventory added successfully");
       dispatch(fetchInventory());
       setEditingInventoryId(null);

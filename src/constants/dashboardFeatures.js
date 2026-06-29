@@ -1,9 +1,10 @@
 export const DASHBOARD_FEATURES = [
-  { id: "products", label: "Manage Product Catalog", path: "/dashboard" },
-  { id: "categories", label: "Category Management", path: "/categories" },
-  { id: "users", label: "User Management", path: "/users" },
-  { id: "inventory", label: "Inventory Management", path: "/inventory" },
-  { id: "orders", label: "My Orders", path: "/orders" },
-  { id: "view-orders", label: "View Orders", path: "/view-orders" },
-  { id: "earnings", label: "Earnings Summary", path: null },
+  { id: "products", label: "Manage Product Catalog", path: "/products", adminOnly: true  },
+  { id: "categories", label: "Category Management", path: "/categories", adminOnly: true },
+  { id: "users", label: "User Management", path: "/users" , adminOnly: true },
+  { id: "inventory", label: "Inventory Management", path: "/inventory", adminOnly: true },
+  { id: "orders", label: "My Orders", path: "/orders", adminOnly: false },
+  { id: "view-orders", label: "View Orders", path: "/view-orders", adminOnly: true },
+  { id: "earnings", label: "My Earnings Summary", path: "/my-earning", adminOnly: false },
+  { id: "earnings", label: "View Earnings Summary", path: "/view-earning", adminOnly: true },
 ];

@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-import { INVENTORY_API_URL } from '../../constants/api'
+import { getInventory } from '../../api/Inventory'
 
 const initialState = {
 	items: [],
@@ -11,18 +11,7 @@ export const fetchInventory = createAsyncThunk(
 	'inventory/fetchInventory',
 	async (_, thunkAPI) => {
 		try {
-			const response = await fetch(INVENTORY_API_URL)
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch inventory (${response.status})`)
-			}
-
-			const contentType = response.headers.get('content-type') || ''
-			if (!contentType.includes('application/json')) {
-				throw new Error('Invalid response from inventory API. Check dev proxy or API URL.')
-			}
-
-			return await response.json()
+			return await getInventory()
 		} catch (error) {
 			return thunkAPI.rejectWithValue(error.message)
 		}

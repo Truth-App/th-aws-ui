@@ -9,7 +9,7 @@ import Box from '@mui/material/Box';
  * centered spinner. Once resolved, unauthenticated users are redirected to "/".
  *
  * Usage in main.jsx:
- *   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+ *   <Route path="/products" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
  */
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, status } = useSelector((state) => state.user);

@@ -82,7 +82,7 @@ createRoot(document.getElementById("root")).render(
                 }
               />
               <Route
-                path="/dashboard"
+                path="/products"
                 element={
                   <ProtectedRoute>
                     <Dashboard />

@@ -18,8 +18,9 @@ import Paper from "@mui/material/Paper";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUsers } from "../store/slices/usersSlice";
+import { createUser, updateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
-import { USER_API_URL, PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
+import { PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
 import { USER_ROLES } from "../constants/roles";
 import { ToastContainer, toast } from "react-toastify";
 import { MdEdit, MdPersonAdd, MdVisibility } from "react-icons/md";
@@ -558,8 +559,6 @@ const UserManagement = ({ profileMode = false }) => {
 
     try {
       const isEditMode = dialogMode === "edit" && editingUserId !== null;
-      const endpoint = isEditMode ? `${USER_API_URL}/${editingUserId}` : USER_API_URL;
-      const method = isEditMode ? "PUT" : "POST";
 
       const payload = {
         firstname: user.firstname.trim(),
@@ -577,17 +576,11 @@ const UserManagement = ({ profileMode = false }) => {
         images: user.imageKeys || [],
       };
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${isEditMode ? "update" : "save"} user`);
+      if (isEditMode) {
+        await updateUser(editingUserId, payload);
+      } else {
+        await createUser(payload);
       }
-
-      await response.json();
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
       dispatch(fetchUsers());
       if (!profileMode) {

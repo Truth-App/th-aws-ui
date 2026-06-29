@@ -130,7 +130,7 @@ const Navbar = () => {
                 </MenuItem>
               )}
               <Divider />
-              <NavLink to="/dashboard" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
+              <NavLink to="/products" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
                 <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
                   <MdDashboard size={20} />
                   Dashboard

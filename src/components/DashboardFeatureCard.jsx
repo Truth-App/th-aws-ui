@@ -1,11 +1,37 @@
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { DASHBOARD_FEATURES } from "../constants/dashboardFeatures";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchUsers } from "../store/slices/usersSlice";
+import {
+  getUserRoleFromList,
+  getVisibleDashboardFeatures,
+} from "../constants/dashboardFeatures";
 
 const DashboardFeatureCard = ({ activeFeature = "products" }) => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const authUser = useSelector((state) => state.user.user);
+  const { items: users, status } = useSelector((state) => state.users);
+
+  useEffect(() => {
+    if (status === "idle") {
+      dispatch(fetchUsers());
+    }
+  }, [dispatch, status]);
+
+  const userRole = useMemo(
+    () => getUserRoleFromList(users, authUser?.email),
+    [users, authUser?.email],
+  );
+
+  const visibleFeatures = useMemo(
+    () => getVisibleDashboardFeatures(userRole),
+    [userRole],
+  );
 
   return (
     <Card
@@ -17,7 +43,19 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
       }}
     >
       <CardContent>
-        {DASHBOARD_FEATURES.map((feature) => {
+        {userRole && (
+          <Typography
+            variant="body2"
+            style={{
+              marginBottom: "12px",
+              color: "#165d46",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+          </Typography>
+        )}
+        {visibleFeatures.map((feature) => {
           const isActive = activeFeature === feature.id;
           return (
             <Button

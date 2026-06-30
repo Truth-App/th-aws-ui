@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { fetchCurrentUser } from "../store/slices/userSlice";
+import { markPostLoginSetup } from "../helpers/profileHelpers";
 
 const isOAuthCallback = () => {
   if (typeof window === "undefined") return false;
@@ -32,6 +33,7 @@ const AuthInitializer = ({ children }) => {
         if (isOAuthCallback()) {
           await fetchAuthSession();
           cleanOAuthParamsFromUrl();
+          markPostLoginSetup();
         }
       } catch (error) {
         console.error("OAuth callback failed:", error);

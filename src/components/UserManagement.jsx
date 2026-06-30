@@ -17,11 +17,19 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useSearchParams } from "react-router";
 import { fetchUsers } from "../store/slices/usersSlice";
 import { createUser, updateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
 import { PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
 import { USER_ROLES } from "../constants/roles";
+import {
+  getDashboardHomePath,
+  getUserRoleFromList,
+} from "../constants/dashboardFeatures";
+import {
+  markProfileSetupSkipped,
+} from "../helpers/profileHelpers";
 import { ToastContainer, toast } from "react-toastify";
 import { MdEdit, MdPersonAdd, MdVisibility } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
@@ -303,6 +311,9 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMod
 
 const UserManagement = ({ profileMode = false }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isSetupFlow = searchParams.get("setup") === "1";
   const isMobile = useMediaQuery("(max-width:600px)");
   const { items: users, status, error } = useSelector((state) => state.users);
   const authUser = useSelector((state) => state.user.user);
@@ -590,9 +601,21 @@ const UserManagement = ({ profileMode = false }) => {
       } else if (!isEditMode) {
         setDialogMode("edit");
       }
+
+      if (profileMode && isSetupFlow) {
+        const role = getUserRoleFromList(users, authUser?.email);
+        navigate(getDashboardHomePath(role));
+      }
     } catch (err) {
       toast.error(err?.message || "Unable to save user");
     }
+  };
+
+  const handleSkipProfile = () => {
+    if (authUser?.id) {
+      markProfileSetupSkipped(authUser.id);
+    }
+    navigate("/");
   };
 
   if (profileMode) {
@@ -619,10 +642,12 @@ const UserManagement = ({ profileMode = false }) => {
         >
           <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
             <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46", marginBottom: "0.5em" }}>
-              Edit Profile
+              {isSetupFlow ? "Complete Your Profile" : "Edit Profile"}
             </Typography>
             <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
-              Update your account details.
+              {isSetupFlow
+                ? "We saved your Google name and email. Add the remaining details now or skip and complete later."
+                : "Update your account details."}
             </Typography>
 
             {status === "loading" && <Typography style={{ marginTop: "1em" }}>Loading profile...</Typography>}
@@ -655,19 +680,35 @@ const UserManagement = ({ profileMode = false }) => {
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
                 />
-                <Button
-                  onClick={handleSaveUser}
-                  disabled={uploadingFiles}
-                  variant="contained"
-                  style={{
-                    alignSelf: "flex-start",
-                    backgroundColor: "#165d46",
-                    textTransform: "none",
-                    fontWeight: "bolder",
-                  }}
-                >
-                  Save Profile
-                </Button>
+                <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  <Button
+                    onClick={handleSaveUser}
+                    disabled={uploadingFiles}
+                    variant="contained"
+                    style={{
+                      backgroundColor: "#165d46",
+                      textTransform: "none",
+                      fontWeight: "bolder",
+                    }}
+                  >
+                    Save Profile
+                  </Button>
+                  {isSetupFlow && (
+                    <Button
+                      onClick={handleSkipProfile}
+                      disabled={uploadingFiles}
+                      variant="outlined"
+                      style={{
+                        textTransform: "none",
+                        fontWeight: "bolder",
+                        borderColor: "#165d46",
+                        color: "#165d46",
+                      }}
+                    >
+                      Skip for now
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>

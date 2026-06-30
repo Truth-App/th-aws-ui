@@ -5,6 +5,7 @@ import App from "./App.jsx";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AuthInitializer from "./components/AuthInitializer.jsx";
+import ProfileSetupHandler from "./components/ProfileSetupHandler.jsx";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistor, store } from "./store/store";
 import { Provider } from "react-redux";
@@ -31,6 +32,7 @@ createRoot(document.getElementById("root")).render(
       <PersistGate loading={null} persistor={persistor}>
         <BrowserRouter>
           <AuthInitializer>
+            <ProfileSetupHandler>
             <Routes>
               <Route path="/" element={<App />} />
               <Route path="/checkout" element={<Checkout />} />
@@ -108,6 +110,7 @@ createRoot(document.getElementById("root")).render(
                 }
               />
             </Routes>
+            </ProfileSetupHandler>
           </AuthInitializer>
         </BrowserRouter>
       </PersistGate>

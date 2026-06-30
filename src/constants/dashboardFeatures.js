@@ -29,3 +29,9 @@ export const getVisibleDashboardFeatures = (userRole) => {
     isAdmin ? feature.adminOnly : !feature.adminOnly,
   );
 };
+
+export const getDashboardHomePath = (userRole) =>
+  userRole === ADMIN_ROLE ? "/products" : "/orders";
+
+export const getDashboardHomeLabel = (userRole) =>
+  userRole === ADMIN_ROLE ? "Dashboard" : "My Orders";

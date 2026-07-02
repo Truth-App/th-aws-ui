@@ -12,9 +12,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
 import { fetchUsers } from "../store/slices/usersSlice";
 import {
-  getDashboardHomeLabel,
   getDashboardHomePath,
-  getUserRoleFromList,
+  getUserPrivilegesFromList,
+  hasDashboardAccess,
 } from "../constants/dashboardFeatures";
 
 const Navbar = () => {
@@ -33,13 +33,13 @@ const Navbar = () => {
     }
   }, [dispatch, isAuthenticated, usersStatus]);
 
-  const userRole = useMemo(
-    () => getUserRoleFromList(users, user?.email),
+  const userPrivileges = useMemo(
+    () => getUserPrivilegesFromList(users, user?.email),
     [users, user?.email],
   );
 
-  const dashboardPath = getDashboardHomePath(userRole);
-  const dashboardLabel = getDashboardHomeLabel(userRole);
+  const showDashboard = hasDashboardAccess(userPrivileges);
+  const dashboardPath = getDashboardHomePath("", userPrivileges);
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -151,12 +151,14 @@ const Navbar = () => {
                 </MenuItem>
               )}
               <Divider />
-              <NavLink to={dashboardPath} style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
-                <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
-                  <MdDashboard size={20} />
-                  {dashboardLabel}
-                </MenuItem>
-              </NavLink>
+              {showDashboard && (
+                <NavLink to={dashboardPath} style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
+                  <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
+                    <MdDashboard size={20} />
+                    Dashboard
+                  </MenuItem>
+                </NavLink>
+              )}
               <NavLink to="/profile/edit" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
                 <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
                   <MdEdit size={20} />

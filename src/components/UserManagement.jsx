@@ -8,6 +8,10 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import MenuItem from "@mui/material/MenuItem";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormGroup from "@mui/material/FormGroup";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -15,6 +19,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
+import Radio from "@mui/material/Radio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
@@ -22,10 +27,13 @@ import { fetchUsers } from "../store/slices/usersSlice";
 import { createUser, updateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
 import { PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
-import { USER_ROLES } from "../constants/roles";
+import { ADMIN_ROLE, USER_ROLES } from "../constants/roles";
 import {
+  FEATURE_LABELS,
   getDashboardHomePath,
+  getDefaultPrivilegeIdsByRole,
   getUserRoleFromList,
+  parseUserPrivileges,
 } from "../constants/dashboardFeatures";
 import {
   markProfileSetupSkipped,
@@ -36,6 +44,7 @@ import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 const INITIAL_USER_FORM = {
+  userid: "",
   firstname: "",
   lastname: "",
   email: "",
@@ -47,18 +56,63 @@ const INITIAL_USER_FORM = {
   address: "",
   landmark: "",
   imageKeys: [],
-};
-
-const getRoleFromReferenceNumber = (referenceNumber) => {
-  const normalized = (referenceNumber || "").trim().toUpperCase();
-  if (!normalized) return "";
-  if (normalized.startsWith("SS")) return "Stockist";
-  if (normalized.startsWith("S")) return "Dealer";
-  if (normalized.startsWith("A")) return "Super Stockist";
-  return "Customer";
+  privileges: [],
+  discountrate: 0,
 };
 
 const getUserId = (user) => user.userId || user.email || user.id || "—";
+
+const mapReferenceNumberFromUserId = (selectedUser) =>
+  selectedUser?.userId || selectedUser?.referencenumber || selectedUser?.referenceNumber || "";
+
+const getAssignedRoleFromReferenceUser = (selectedUser) => {
+  switch (selectedUser?.role) {
+    case ADMIN_ROLE:
+      return "Super Stockist";
+    case "Super Stockist":
+      return "Stockist";
+    case "Stockist":
+      return "Dealer";
+    case "Dealer":
+      return "Customer";
+    default:
+      return selectedUser?.role || "";
+  }
+};
+
+const getDefaultDiscountRateByRole = (role) => {
+  switch (role) {
+    case "Super Stockist":
+      return 5;
+    case "Stockist":
+      return 2;
+    case "Dealer":
+      return 10;
+    default:
+      return 0;
+  }
+};
+
+const getUserDiscountRate = (selectedUser) => {
+  const raw = selectedUser?.discountrate ?? selectedUser?.discountRate ?? null;
+  if (raw !== null && raw !== undefined && raw !== "") {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : getDefaultDiscountRateByRole(selectedUser?.role);
+  }
+  return getDefaultDiscountRateByRole(selectedUser?.role || "");
+};
+
+const findUserByReferenceNumber = (users, referenceNumber) => {
+  const normalized = (referenceNumber || "").trim();
+  if (!normalized) return null;
+
+  return (
+    users.find(
+      (item) =>
+        mapReferenceNumberFromUserId(item) === normalized || item.userId === normalized,
+    ) || null
+  );
+};
 
 const getUserImageKeys = (selectedUser) => {
   const raw =
@@ -86,18 +140,32 @@ const getUserImageKeys = (selectedUser) => {
   return [];
 };
 
-const mapUserToForm = (selectedUser) => ({
-  firstname: selectedUser.firstname || selectedUser.firstName || "",
-  lastname: selectedUser.lastname || selectedUser.lastName || "",
-  email: selectedUser.email || "",
-  mobile: selectedUser.mobile || "",
-  referencenumber: selectedUser.referencenumber || selectedUser.referenceNumber || "",
-  role: selectedUser.role || "",
-  aadharnumber: selectedUser.aadharnumber || selectedUser.aadharNumber || "",
-  address: selectedUser.address || "",
-  landmark: selectedUser.landmark || "",
-  pincode: selectedUser.pincode || "",
-  imageKeys: getUserImageKeys(selectedUser),
+const getUserPrivileges = (selectedUser) => parseUserPrivileges(selectedUser);
+
+const mapUserToForm = (selectedUser) => {
+  const role = selectedUser.role || "";
+
+  return {
+    userid: selectedUser.userId || "",
+    firstname: selectedUser.firstname || selectedUser.firstName || "",
+    lastname: selectedUser.lastname || selectedUser.lastName || "",
+    email: selectedUser.email || "",
+    mobile: selectedUser.mobile || "",
+    referencenumber: selectedUser.referencenumber || selectedUser.referenceNumber || "",
+    role,
+    aadharnumber: selectedUser.aadharnumber || selectedUser.aadharNumber || "",
+    address: selectedUser.address || "",
+    landmark: selectedUser.landmark || "",
+    pincode: selectedUser.pincode || "",
+    imageKeys: getUserImageKeys(selectedUser),
+    privileges: getUserPrivileges(selectedUser),
+    discountrate: getUserDiscountRate(selectedUser),
+  };
+};
+
+const mapProfileUserToForm = (selectedUser) => ({
+  ...mapUserToForm(selectedUser),
+  userid: selectedUser.userId || "",
 });
 
 const getImageUrl = (imageKey) => `${S3_BASE_URL}/${imageKey}`;
@@ -187,7 +255,79 @@ const ImageUploadSection = ({
   </div>
 );
 
-const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMode = false }) => (
+const PrivilegesSection = ({
+  privileges = [],
+  onToggle,
+  disabled = false,
+}) => (
+  <div style={{ gridColumn: "1 / -1" }}>
+    <Typography
+      variant="body2"
+      style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}
+    >
+      Privileges
+    </Typography>
+    <FormGroup
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+        gap: "0.25em 1em",
+      }}
+    >
+      {FEATURE_LABELS.map((feature) => (
+        <FormControlLabel
+          key={feature.id}
+          control={
+            <Checkbox
+              checked={privileges.includes(feature.id)}
+              onChange={() => onToggle(feature.id)}
+              disabled={disabled}
+              size="small"
+              sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
+            />
+          }
+          label={feature.label}
+        />
+      ))}
+    </FormGroup>
+  </div>
+);
+
+const RoleSelectField = ({ user, onChange, disabled = false, fullWidth = false }) => (
+  <TextField
+    select={!disabled}
+    size="small"
+    label="Role"
+    variant="outlined"
+    name="role"
+    value={user.role}
+    onChange={onChange}
+    disabled={disabled}
+    required={!disabled}
+    fullWidth={fullWidth}
+  >
+    {!disabled && (
+      <MenuItem value="" disabled>
+        Select role
+      </MenuItem>
+    )}
+    {USER_ROLES.map((role) => (
+      <MenuItem key={role} value={role}>
+        {role}
+      </MenuItem>
+    ))}
+  </TextField>
+);
+
+const UserFormFields = ({
+  user,
+  onChange,
+  onPrivilegeToggle,
+  disabled = false,
+  isMobile,
+  profileMode = false,
+  extendedUserForm = false,
+}) => (
   <div
     style={{
       display: "grid",
@@ -196,6 +336,17 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMod
       width: "100%",
     }}
   >
+    {extendedUserForm && (
+      <TextField
+        size="small"
+        label="User ID"
+        variant="outlined"
+        name="userid"
+        value={user.userid || ""}
+        disabled
+        style={{ gridColumn: "1 / -1" }}
+      />
+    )}
     <TextField
       size="small"
       label="First Name"
@@ -238,30 +389,9 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMod
       inputProps={{ maxLength: 10, readOnly: disabled }}
       required={!disabled}
     />
-    <TextField
-      size="small"
-      label="Reference Number"
-      variant="outlined"
-      name="referencenumber"
-      value={user.referencenumber}
-      onChange={onChange}
-      disabled={disabled}
-      required={!disabled && !profileMode}
-      helperText={
-        disabled
-          ? undefined
-          : "A = Super Stockist, SS = Stockist, S = Dealer, other = Customer"
-      }
-    />
-    <TextField
-      size="small"
-      label="Role"
-      variant="outlined"
-      name="role"
-      value={user.role}
-      disabled
-      required={!disabled}
-    />
+    {!extendedUserForm && (
+      <RoleSelectField user={user} onChange={onChange} disabled={disabled} />
+    )}
     <TextField
       size="small"
       label="Aadhar Number"
@@ -306,7 +436,184 @@ const UserFormFields = ({ user, onChange, disabled = false, isMobile, profileMod
       required={!disabled}
       style={isMobile ? undefined : { gridColumn: "1 / -1" }}
     />
+    {!profileMode && (
+      <PrivilegesSection
+        privileges={user.privileges || []}
+        onToggle={onPrivilegeToggle}
+        disabled={disabled}
+      />
+    )}
   </div>
+);
+
+const ProfileUserSelectTable = ({
+  users,
+  filter,
+  onFilterChange,
+  selectedUserId,
+  onSelectUser,
+}) => {
+  const filteredUsers = useMemo(() => {
+    const normalizedFilter = filter.trim().toLowerCase();
+    if (!normalizedFilter) return users;
+
+    return users.filter((item) => {
+      const searchable = [
+        item.firstname,
+        item.firstName,
+        item.lastname,
+        item.lastName,
+        item.email,
+        item.role,
+        item.userId,
+        item.referencenumber,
+        item.referenceNumber,
+        item.id,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(normalizedFilter);
+    });
+  }, [filter, users]);
+
+  return (
+    <div style={{ gridColumn: "1 / -1", marginTop: "0.5em" }}>
+      <Typography
+        variant="body2"
+        style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.75em" }}
+      >
+        Select User
+      </Typography>
+      <TextField
+        value={filter}
+        onChange={(e) => onFilterChange(e.target.value)}
+        size="small"
+        label="Search user"
+        fullWidth
+        style={{ marginBottom: "0.75em" }}
+      />
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        style={{
+          overflowX: "auto",
+          border: "1px solid #e8efeb",
+          boxShadow: "none",
+        }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                First Name
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                Last Name
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                Email
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                Role
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                User ID
+              </TableCell>
+              <TableCell
+                align="center"
+                style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", width: 80 }}
+              >
+                Select
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredUsers.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} style={{ textAlign: "center", color: "#6f7378" }}>
+                  No users match your filter.
+                </TableCell>
+              </TableRow>
+            )}
+            {filteredUsers.map((item) => (
+              <TableRow
+                key={item.id}
+                hover
+                selected={selectedUserId === item.id}
+                onClick={() => onSelectUser(item)}
+                style={{ cursor: "pointer" }}
+              >
+                <TableCell>{item.firstname || item.firstName || "—"}</TableCell>
+                <TableCell>{item.lastname || item.lastName || "—"}</TableCell>
+                <TableCell>{item.email || "—"}</TableCell>
+                <TableCell>{item.role || "—"}</TableCell>
+                <TableCell>{mapReferenceNumberFromUserId(item) || "—"}</TableCell>
+                <TableCell align="center">
+                  <Radio
+                    checked={selectedUserId === item.id}
+                    onChange={() => onSelectUser(item)}
+                    value={item.id}
+                    size="small"
+                    sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </div>
+  );
+};
+
+const ReferenceNumberFields = ({
+  user,
+  users,
+  filter,
+  onFilterChange,
+  selectedReferenceUserId,
+  onSelectUser,
+  onChange,
+  showDiscountRate = false,
+}) => (
+  <>
+    {user.role !== ADMIN_ROLE && (
+      <ProfileUserSelectTable
+        users={users}
+        filter={filter}
+        onFilterChange={onFilterChange}
+        selectedUserId={selectedReferenceUserId}
+        onSelectUser={onSelectUser}
+      />
+    )}
+    <RoleSelectField user={user} onChange={() => {}} disabled fullWidth />
+    <TextField
+      size="small"
+      label="Reference Number"
+      variant="outlined"
+      name="referencenumber"
+      value={user.referencenumber}
+      onChange={onChange}
+      disabled
+      fullWidth
+    />
+    {showDiscountRate && (
+      <TextField
+        size="small"
+        label="Discount Rate (%)"
+        variant="outlined"
+        name="discountrate"
+        type="number"
+        value={user.discountrate ?? 0}
+        onChange={onChange}
+        inputProps={{ min: 0, max: 100, step: 1 }}
+        helperText="Maximum discount is 100%"
+        fullWidth
+      />
+    )}
+  </>
 );
 
 const UserManagement = ({ profileMode = false }) => {
@@ -325,6 +632,8 @@ const UserManagement = ({ profileMode = false }) => {
   const [editingUserId, setEditingUserId] = useState(null);
   const [user, setUser] = useState(INITIAL_USER_FORM);
   const [searchTerm, setSearchTerm] = useState("");
+  const [profileUserFilter, setProfileUserFilter] = useState("");
+  const [selectedReferenceUserId, setSelectedReferenceUserId] = useState(null);
   const [roleFilter, setRoleFilter] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef(null);
@@ -367,20 +676,27 @@ const UserManagement = ({ profileMode = false }) => {
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate profile form when users list loads */
   useEffect(() => {
-    if (!profileMode || status !== "succeeded") return;
+    if (!profileMode || status === "idle" || status === "loading") return;
 
     const profileEmail = (authUser?.email || "").trim().toLowerCase();
     if (!profileEmail) return;
 
-    const matchedUser = users.find(
-      (item) => (item.email || "").trim().toLowerCase() === profileEmail
-    );
+    if (status === "succeeded") {
+      const matchedUser = users.find(
+        (item) => (item.email || "").trim().toLowerCase() === profileEmail
+      );
 
-    if (matchedUser) {
-      setDialogMode("edit");
-      setEditingUserId(matchedUser.id);
-      setUser(mapUserToForm(matchedUser));
-      return;
+      if (matchedUser) {
+        setDialogMode("edit");
+        setEditingUserId(matchedUser.id);
+        const refUser = findUserByReferenceNumber(
+          users,
+          matchedUser.referencenumber || matchedUser.referenceNumber || "",
+        );
+        setSelectedReferenceUserId(refUser?.id || null);
+        setUser(mapProfileUserToForm(matchedUser));
+        return;
+      }
     }
 
     const nameParts = (authUser?.name || "").trim().split(/\s+/).filter(Boolean);
@@ -391,21 +707,60 @@ const UserManagement = ({ profileMode = false }) => {
       email: authUser?.email || "",
       firstname: nameParts[0] || "",
       lastname: nameParts.slice(1).join(" "),
+      role: "Customer",
     });
   }, [profileMode, status, users, authUser]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  const profileReady = status === "succeeded" || (profileMode && status === "failed");
+
   const handleOnChange = (e) => {
     const { name, value } = e.target;
-    if (name === "referencenumber") {
+    if (name === "role") {
       setUser((prev) => ({
         ...prev,
-        referencenumber: value,
-        role: getRoleFromReferenceNumber(value),
+        role: value,
+        privileges: getDefaultPrivilegeIdsByRole(value),
+      }));
+      return;
+    }
+    if (name === "discountrate") {
+      if (value === "") {
+        setUser((prev) => ({ ...prev, discountrate: "" }));
+        return;
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return;
+      setUser((prev) => ({
+        ...prev,
+        discountrate: Math.min(100, Math.max(0, parsed)),
       }));
       return;
     }
     setUser((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePrivilegeToggle = (featureId) => {
+    setUser((prev) => {
+      const currentPrivileges = prev.privileges || [];
+      const nextPrivileges = currentPrivileges.includes(featureId)
+        ? currentPrivileges.filter((id) => id !== featureId)
+        : [...currentPrivileges, featureId];
+
+      return { ...prev, privileges: nextPrivileges };
+    });
+  };
+
+  const handleReferenceUserSelect = (selectedUser) => {
+    const assignedRole = getAssignedRoleFromReferenceUser(selectedUser);
+    setSelectedReferenceUserId(selectedUser.id);
+    setUser((prev) => ({
+      ...prev,
+      referencenumber: mapReferenceNumberFromUserId(selectedUser),
+      role: assignedRole,
+      privileges: getDefaultPrivilegeIdsByRole(assignedRole),
+      discountrate: getDefaultDiscountRateByRole(assignedRole),
+    }));
   };
 
   const sanitizeFileName = (fileName) => {
@@ -486,6 +841,7 @@ const UserManagement = ({ profileMode = false }) => {
   const handleClickOpen = () => {
     setDialogMode("create");
     setEditingUserId(null);
+    setSelectedReferenceUserId(null);
     setUser(INITIAL_USER_FORM);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -496,7 +852,13 @@ const UserManagement = ({ profileMode = false }) => {
   const handleOpenEdit = (selectedUser) => {
     setDialogMode("edit");
     setEditingUserId(selectedUser.id);
-    setUser(mapUserToForm(selectedUser));
+    const refUser = findUserByReferenceNumber(
+      users,
+      selectedUser.referencenumber || selectedUser.referenceNumber || "",
+    );
+    setSelectedReferenceUserId(refUser?.id || null);
+    setProfileUserFilter("");
+    setUser(mapProfileUserToForm(selectedUser));
     setOpen(true);
   };
 
@@ -534,12 +896,8 @@ const UserManagement = ({ profileMode = false }) => {
       toast.error("Mobile number must be 10 digits");
       return false;
     }
-    if (!profileMode && !user.referencenumber.trim()) {
-      toast.error("Please enter reference number");
-      return false;
-    }
     if (!user.role) {
-      toast.error("Role is set automatically from reference number");
+      toast.error("Please select a role");
       return false;
     }
     if (!user.aadharnumber.trim()) {
@@ -562,6 +920,13 @@ const UserManagement = ({ profileMode = false }) => {
       toast.error("Please enter address");
       return false;
     }
+    if (dialogMode === "edit" && !profileMode) {
+      const discountRate = Number(user.discountrate);
+      if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 100) {
+        toast.error("Discount rate must be between 0 and 100");
+        return false;
+      }
+    }
     return true;
   };
 
@@ -583,9 +948,24 @@ const UserManagement = ({ profileMode = false }) => {
         landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
         imageKeys: user.imageKeys || [],
-        imagekeys: user.imageKeys || [],
         images: user.imageKeys || [],
       };
+
+      if (profileMode) {
+        const resolvedPrivileges =
+          user.privileges?.length > 0
+            ? user.privileges
+            : getDefaultPrivilegeIdsByRole(user.role);
+        payload.privileges = resolvedPrivileges;
+        payload.privilages = resolvedPrivileges;
+      } else {
+        payload.privileges = user.privileges || [];
+        payload.privilages = user.privileges || [];
+      }
+
+      if (isEditMode && !profileMode) {
+        payload.discountrate = Math.min(100, Math.max(0, Number(user.discountrate) || 0));
+      }
 
       if (isEditMode) {
         await updateUser(editingUserId, payload);
@@ -604,7 +984,7 @@ const UserManagement = ({ profileMode = false }) => {
 
       if (profileMode && isSetupFlow) {
         const role = getUserRoleFromList(users, authUser?.email);
-        navigate(getDashboardHomePath(role));
+        navigate(getDashboardHomePath(role, user.privileges || []));
       }
     } catch (err) {
       toast.error(err?.message || "Unable to save user");
@@ -652,26 +1032,39 @@ const UserManagement = ({ profileMode = false }) => {
 
             {status === "loading" && <Typography style={{ marginTop: "1em" }}>Loading profile...</Typography>}
             {status === "failed" && (
-              <Typography color="error" style={{ marginTop: "1em" }}>
-                {error}
+              <Typography color="warning.main" style={{ marginTop: "1em" }}>
+                {profileMode
+                  ? "Could not load your saved profile. You can still update your details below."
+                  : error}
               </Typography>
             )}
 
-            {status === "succeeded" && (
+            {profileReady && (
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   gap: "1em",
-                  maxWidth: isMobile ? "100%" : "720px",
+                  maxWidth: "100%",
                   width: "100%",
                 }}
               >
                 <UserFormFields
                   user={user}
                   onChange={handleOnChange}
+                  onPrivilegeToggle={handlePrivilegeToggle}
                   isMobile={isMobile}
                   profileMode={profileMode}
+                  extendedUserForm
+                />
+                <ReferenceNumberFields
+                  user={user}
+                  users={users}
+                  filter={profileUserFilter}
+                  onFilterChange={setProfileUserFilter}
+                  selectedReferenceUserId={selectedReferenceUserId}
+                  onSelectUser={handleReferenceUserSelect}
+                  onChange={handleOnChange}
                 />
                 <ImageUploadSection
                   imageKeys={user.imageKeys || []}
@@ -833,6 +1226,9 @@ const UserManagement = ({ profileMode = false }) => {
                     </TableCell>
                     <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
                       Pincode
+                    </TableCell>                    
+                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                      Reference Number
                     </TableCell>
                     <TableCell
                       align="right"
@@ -852,6 +1248,7 @@ const UserManagement = ({ profileMode = false }) => {
                       <TableCell>{item.mobile || "—"}</TableCell>
                       <TableCell>{item.role || "—"}</TableCell>
                       <TableCell>{item.pincode || "—"}</TableCell>
+                      <TableCell>{item.referencenumber || "—"}</TableCell>
                       <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
                         <IconButton
                           onClick={() => handleOpenView(item)}
@@ -891,7 +1288,7 @@ const UserManagement = ({ profileMode = false }) => {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onClose={handleClose} scroll="paper">
+      <Dialog open={open} onClose={handleClose} scroll="paper" maxWidth={dialogMode === "edit" ? "lg" : "md"} fullWidth={dialogMode === "edit"}>
         <DialogTitle>{dialogMode === "edit" ? "Update User" : "Add User"}</DialogTitle>
         <DialogContent dividers>
           <div
@@ -899,16 +1296,30 @@ const UserManagement = ({ profileMode = false }) => {
               display: "flex",
               flexDirection: "column",
               gap: "1em",
-              width: isMobile ? "100%" : "720px",
-              maxWidth: "100%",
+              width: "100%",
+              maxWidth: dialogMode === "edit" ? "100%" : isMobile ? "100%" : "720px",
             }}
           >
             <UserFormFields
               user={user}
               onChange={handleOnChange}
+              onPrivilegeToggle={handlePrivilegeToggle}
               isMobile={isMobile}
-              profileMode={profileMode}
+              profileMode={false}
+              extendedUserForm={dialogMode === "edit"}
             />
+            {dialogMode === "edit" && (
+              <ReferenceNumberFields
+                user={user}
+                users={users}
+                filter={profileUserFilter}
+                onFilterChange={setProfileUserFilter}
+                selectedReferenceUserId={selectedReferenceUserId}
+                onSelectUser={handleReferenceUserSelect}
+                onChange={handleOnChange}
+                showDiscountRate
+              />
+            )}
             <ImageUploadSection
               imageKeys={user.imageKeys || []}
               fileInputRef={fileInputRef}
@@ -942,9 +1353,18 @@ const UserManagement = ({ profileMode = false }) => {
               <UserFormFields
                 user={viewingUser}
                 onChange={() => {}}
+                onPrivilegeToggle={() => {}}
                 disabled
                 isMobile={isMobile}
-                profileMode={profileMode}
+                profileMode={false}
+              />
+              <TextField
+                size="small"
+                label="Discount Rate (%)"
+                variant="outlined"
+                value={viewingUser.discountrate ?? 0}
+                disabled
+                fullWidth
               />
               <ImageUploadSection
                 imageKeys={viewingUser.imageKeys || []}

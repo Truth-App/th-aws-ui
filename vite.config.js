@@ -14,7 +14,8 @@ export default defineConfig({
       "/api": {
         target: "https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com",
         changeOrigin: true,
-        secure: true,
+        // Avoid "unable to verify the first certificate" in local dev (corporate proxy / SSL chain issues).
+        secure: false,
       },
     },
   },

@@ -20,6 +20,9 @@ import InventoryManagement from "./pages/InventoryManagement.jsx";
 import ViewOrders from "./pages/ViewOrders.jsx";
 import MyEarning from "./pages/MyEarning.jsx";
 import ViewEarning from "./pages/ViewEarning.jsx";
+import OrderFulfillment from "./pages/OrderFulfillment.jsx";
+import OrderApproval from "./pages/OrderApproval.jsx";
+import MyStocks from "./pages/MyStocks.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
 
 import "./helpers/amplify-config";
@@ -90,6 +93,30 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <ViewEarning />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/order-fulfillment"
+                element={
+                  <ProtectedRoute>
+                    <OrderFulfillment />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/order-approval"
+                element={
+                  <ProtectedRoute>
+                    <OrderApproval />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/my-stocks"
+                element={
+                  <ProtectedRoute>
+                    <MyStocks />
                   </ProtectedRoute>
                 }
               />

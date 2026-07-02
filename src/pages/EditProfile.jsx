@@ -7,7 +7,7 @@ const EditProfile = () => (
     <div
       style={{
         padding: "20px",
-        maxWidth: "900px",
+        maxWidth: "1200px",
         margin: "0 auto",
         minHeight: "70vh",
       }}

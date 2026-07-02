@@ -7,8 +7,9 @@ import { useNavigate } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUsers } from "../store/slices/usersSlice";
 import {
+  getUserPrivilegesFromList,
   getUserRoleFromList,
-  getVisibleDashboardFeatures,
+  getVisibleDashboardFeaturesByPrivileges,
 } from "../constants/dashboardFeatures";
 
 const DashboardFeatureCard = ({ activeFeature = "products" }) => {
@@ -28,9 +29,14 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
     [users, authUser?.email],
   );
 
+  const userPrivileges = useMemo(
+    () => getUserPrivilegesFromList(users, authUser?.email),
+    [users, authUser?.email],
+  );
+
   const visibleFeatures = useMemo(
-    () => getVisibleDashboardFeatures(userRole),
-    [userRole],
+    () => getVisibleDashboardFeaturesByPrivileges(userPrivileges),
+    [userPrivileges],
   );
 
   return (
@@ -53,6 +59,15 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
               textAlign: "center",
             }}
           >
+            Role: {userRole}
+          </Typography>
+        )}
+        {visibleFeatures.length === 0 && status === "succeeded" && (
+          <Typography
+            variant="body2"
+            style={{ textAlign: "center", color: "#6f7378", marginTop: "1em" }}
+          >
+            No privileges assigned.
           </Typography>
         )}
         {visibleFeatures.map((feature) => {

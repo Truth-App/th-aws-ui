@@ -1,3 +1,5 @@
+import { getDefaultPrivilegeIdsByRole } from "../constants/dashboardFeatures";
+
 const PROFILE_SKIP_KEY = "th_profile_setup_skipped";
 const POST_LOGIN_SETUP_KEY = "th_post_login_setup";
 
@@ -27,6 +29,7 @@ export const markProfileSetupSkipped = (userId) => {
 
 export const buildGoogleUserPayload = (authUser) => {
   const nameParts = (authUser?.name || "").trim().split(/\s+/).filter(Boolean);
+  const defaultPrivileges = getDefaultPrivilegeIdsByRole("Customer");
 
   return {
     firstname: nameParts[0] || "",
@@ -42,6 +45,7 @@ export const buildGoogleUserPayload = (authUser) => {
     imageKeys: [],
     imagekeys: [],
     images: [],
+    privileges: defaultPrivileges,
   };
 };
 

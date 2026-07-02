@@ -1,6 +1,7 @@
 const API_HOST = "https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com";
 
-export const API_BASE_URL = API_HOST;
+// Use relative /api paths in dev so Vite proxy avoids browser CORS errors.
+export const API_BASE_URL = import.meta.env.DEV ? "" : API_HOST;
 
 export const PRODUCT_API_URL = `${API_BASE_URL}/api/products`;
 export const CATEGORY_API_URL = `${API_BASE_URL}/api/category`;

@@ -95,11 +95,11 @@ const getDefaultDiscountRateByRole = (role) => {
 
 const getUserDiscountRate = (selectedUser) => {
   const raw = selectedUser?.discountrate ?? selectedUser?.discountRate ?? null;
-  if (raw !== null && raw !== undefined && raw !== "") {
-    const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : getDefaultDiscountRateByRole(selectedUser?.role);
+  if (raw === null || raw === undefined || raw === "") {
+    return 0;
   }
-  return getDefaultDiscountRateByRole(selectedUser?.role || "");
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const findUserByReferenceNumber = (users, referenceNumber) => {
@@ -963,9 +963,7 @@ const UserManagement = ({ profileMode = false }) => {
         payload.privilages = user.privileges || [];
       }
 
-      if (isEditMode && !profileMode) {
-        payload.discountrate = Math.min(100, Math.max(0, Number(user.discountrate) || 0));
-      }
+      payload.discountrate = Math.min(100, Math.max(0, Number(user.discountrate) || 0));
 
       if (isEditMode) {
         await updateUser(editingUserId, payload);

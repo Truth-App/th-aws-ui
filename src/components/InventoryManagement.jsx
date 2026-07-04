@@ -120,7 +120,7 @@ const InventoryFormFields = ({
     <TextField
       select={!disabled}
       size="small"
-      label="User (Super Stockist)"
+      label="User (Super Stockist or Administrator)"
       variant="outlined"
       name="userid"
       value={disabled ? getUserDetails(users, inventory.userid) : inventory.userid}
@@ -172,7 +172,7 @@ const InventoryManagement = () => {
   const [userFilter, setUserFilter] = useState("");
 
   const superStockistUsers = useMemo(
-    () => users.filter((user) => user.role === SUPER_STOCKIST_ROLE),
+    () => users.filter((user) => (user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator")),
     [users]
   );
 
@@ -352,7 +352,7 @@ const InventoryManagement = () => {
             <TextField
               select
               size="small"
-              label="Filter by user (Super Stockist)"
+              label="Filter by user (Super Stockist or Administrator)"
               value={userFilter}
               onChange={(e) => setUserFilter(e.target.value)}
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}

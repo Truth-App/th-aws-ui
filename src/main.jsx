@@ -16,6 +16,7 @@ import OrderSuccess from "./pages/OrderSuccess.jsx";
 import Orders from "./pages/Orders.jsx";
 import CategoryManagement from "./pages/CategoryManagement.jsx";
 import UserManagement from "./pages/UserManagement.jsx";
+import UserHierarchy from "./pages/UserHierarchy.jsx";
 import InventoryManagement from "./pages/InventoryManagement.jsx";
 import ViewOrders from "./pages/ViewOrders.jsx";
 import MyEarning from "./pages/MyEarning.jsx";
@@ -61,6 +62,14 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user-hierarchy"
+                element={
+                  <ProtectedRoute>
+                    <UserHierarchy />
                   </ProtectedRoute>
                 }
               />

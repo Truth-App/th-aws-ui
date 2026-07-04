@@ -957,10 +957,10 @@ const UserManagement = ({ profileMode = false }) => {
             ? user.privileges
             : getDefaultPrivilegeIdsByRole(user.role);
         payload.privileges = resolvedPrivileges;
-        payload.privilages = resolvedPrivileges;
+        //payload.privilages = resolvedPrivileges;
       } else {
         payload.privileges = user.privileges || [];
-        payload.privilages = user.privileges || [];
+        //payload.privilages = user.privileges || [];
       }
 
       payload.discountrate = Math.min(100, Math.max(0, Number(user.discountrate) || 0));

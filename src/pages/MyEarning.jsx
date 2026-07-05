@@ -5,7 +5,7 @@ const MyEarning = () => (
   <AdminPageLayout activeFeature="my-earnings">
     <ComingSoon
       title="My Earnings Summary"
-      description="Your earnings summary will be available here."
+      description="Please use View Earnings Summary to load earnings."
     />
   </AdminPageLayout>
 );

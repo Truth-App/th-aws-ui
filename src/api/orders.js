@@ -36,16 +36,24 @@ export const createOrder = async (cart, formData) => {
     console.log("Order payload:", JSON.stringify(payload));
 
     let accessToken = "";
+    let idToken = "";
     try {
       const session = await fetchAuthSession();
       accessToken = session.tokens?.accessToken?.toString() || "";
+      idToken = session.tokens?.idToken?.toString() || "";
     } catch {
       accessToken = "";
+      idToken = "";
     }
 
+    const isAuthenticated = Boolean(accessToken && idToken);
     const headers = {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(isAuthenticated
+        ? {
+            Authorization: `Bearer ${accessToken}`,
+          }
+        : {}),
     };
 
     const response = await fetch(
@@ -56,6 +64,7 @@ export const createOrder = async (cart, formData) => {
         body: JSON.stringify(payload),
       },
     );
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -126,5 +135,150 @@ export const getOrders = async (accessToken) => {
   } catch (error) {
     console.error("Error fetching orders:", error);
     throw error;
+  }
+};
+
+export const updateOrderApproval = async (orderId, approvalData) => {
+  try {
+    const session = await fetchAuthSession();
+    const accessToken = session.tokens?.accessToken?.toString() || "";
+
+    const response = await fetch(
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/${orderId}/approval`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(approvalData),
+      },
+    );
+
+    if (!response.ok) {
+      let message = `Failed to update order approval. Status: ${response.status}`;
+
+      try {
+        const errorBody = await response.json();
+        if (errorBody?.message) {
+          message = errorBody.message;
+        }
+      } catch {
+        // Ignore parse errors and keep fallback message
+      }
+
+      throw new Error(message);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating order approval:", error);
+    throw error;
+  }
+};
+
+export const updateOrderShipment = async (orderId, shipmentData) => {
+  try {
+    const session = await fetchAuthSession();
+    const accessToken = session.tokens?.accessToken?.toString() || "";
+
+    const response = await fetch(
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/${orderId}/approval`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(shipmentData),
+      },
+    );
+
+    if (!response.ok) {
+      let message = `Failed to update order shipment. Status: ${response.status}`;
+
+      try {
+        const errorBody = await response.json();
+        if (errorBody?.message) {
+          message = errorBody.message;
+        }
+      } catch {
+        // Ignore parse errors and keep fallback message
+      }
+
+      throw new Error(message);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating order shipment:", error);
+    throw error;
+  }
+};
+
+export const updateOrderDelivery = async (orderId, deliveryData) => {
+  try {
+    const session = await fetchAuthSession();
+    const accessToken = session.tokens?.accessToken?.toString() || "";
+
+    const response = await fetch(
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/${orderId}/approval`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(deliveryData),
+      },
+    );
+
+    if (!response.ok) {
+      let message = `Failed to update order delivery. Status: ${response.status}`;
+
+      try {
+        const errorBody = await response.json();
+        if (errorBody?.message) {
+          message = errorBody.message;
+        }
+      } catch {
+        // Ignore parse errors and keep fallback message
+      }
+
+      throw new Error(message);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating order delivery:", error);
+    throw error;
+  }
+};
+
+export const getProductStock = async (productIds) => {
+  try {
+    const session = await fetchAuthSession();
+    const accessToken = session.tokens?.accessToken?.toString() || "";
+
+    const response = await fetch(
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/stock`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify({ productIds }),
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch product stock. Status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching product stock:", error);
+    return {};
   }
 };

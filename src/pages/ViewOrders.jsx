@@ -6,6 +6,7 @@ const ViewOrders = () => (
     <OrdersManagementPanel
       title="View Orders"
       description="View all orders and open detailed tracking."
+      showStatusTimelineFilter
     />
   </AdminPageLayout>
 );

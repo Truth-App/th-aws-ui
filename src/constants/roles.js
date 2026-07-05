@@ -7,3 +7,4 @@ export const USER_ROLES = [
 ];
 
 export const ADMIN_ROLE = "Administrator";
+export const SUPER_STOCKIST_ROLE = "Super Stockist";

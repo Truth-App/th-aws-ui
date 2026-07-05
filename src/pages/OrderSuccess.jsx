@@ -5,10 +5,23 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import InputLabel from "@mui/material/InputLabel";
 import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useState } from "react";
-import { MdCheckCircle } from "react-icons/md";
-import { getOrderById } from "../api/orders";
+import { MdArrowBack, MdCheckCircle } from "react-icons/md";
+import { useDispatch, useSelector } from "react-redux";
+import { getOrderById, updateOrderApproval, updateOrderShipment, updateOrderDelivery, getProductStock } from "../api/orders";
+import { getUsers } from "../api/users";
+import { fetchUsers } from "../store/slices/usersSlice";
+import { getUserRoleFromList } from "../constants/dashboardFeatures";
+import { ADMIN_ROLE, SUPER_STOCKIST_ROLE } from "../constants/roles";
 
 const IMAGE_BASE_URL = "https://th-app-product.s3.ap-south-2.amazonaws.com/";
 const TIMELINE_STEPS = ["PLACED", "PAID", "ACCEPTED", "SHIPPED", "DELIVERED"];
@@ -25,6 +38,29 @@ const getProductImageUrl = (product) => {
   return `${IMAGE_BASE_URL}${product.imageKeys[0]}`;
 };
 
+const getOrderProductId = (product) =>
+  String(product?.id || product?.productId || product?._id || product?.inventoryId || "").trim();
+
+const mapStockResponseByProductId = (stockResponse) => {
+  const rows = Array.isArray(stockResponse?.stock)
+    ? stockResponse.stock
+    : Array.isArray(stockResponse)
+      ? stockResponse
+      : [];
+
+  return rows.reduce((acc, row) => {
+    const productId = String(row?.id || row?.productId || row?._id || row?.inventoryId || "").trim();
+    if (!productId) return acc;
+
+    acc[productId] = {
+      ...row,
+      availableStock: row?.availableStock ?? row?.availableQuantity ?? row?.stock ?? 0,
+    };
+
+    return acc;
+  }, {});
+};
+
 const formatTimelineTime = (value) => {
   if (!value) return "";
   const date = new Date(value);
@@ -32,6 +68,19 @@ const formatTimelineTime = (value) => {
   return date.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -56,10 +105,34 @@ const getHistoryTimestamp = (history, expectedStatus) => {
 const getTimelineIndex = (details) => {
   const normalizedOrderStatus = (details?.orderStatus || "").toUpperCase();
   const normalizedPaymentStatus = (details?.paymentStatus || "").toUpperCase();
+  const normalizedAdminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
+  const normalizedShipmentStatus = (
+    details?.shipmentStatus ||
+    details?.shipmentApprovalStatus ||
+    details?.shipmentDecision ||
+    ""
+  )
+    .toUpperCase()
+    .trim();
+  const normalizedDeliveryApprovalStatus = (
+    details?.deliveryApprovalStatus ||
+    details?.deliveryStatus ||
+    details?.deliveryDecision ||
+    ""
+  )
+    .toUpperCase()
+    .trim();
+  const isApprovedStatus = ["ORDER_APPROVED", "APPROVED"].includes(normalizedAdminApprovalStatus);
+  const isShipmentApproved = ["SHIPMENT_APPROVED", "APPROVED"].includes(normalizedShipmentStatus);
+  const isShipmentRejected = ["SHIPMENT_REJECTED", "REJECTED"].includes(normalizedShipmentStatus);
+  const isDeliveryCompleted = ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedDeliveryApprovalStatus);
+  const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
+  const isOrderApprovedStatus = ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
 
-  if (normalizedOrderStatus === "DELIVERED") return 4;
-  if (normalizedOrderStatus === "SHIPPED") return 3;
-  if (normalizedOrderStatus === "ACCEPTED") return 2;
+  if (normalizedOrderStatus === "DELIVERED" || isDeliveryCompleted || isDeliveryFailed) return 4;
+  if (normalizedOrderStatus === "SHIPPED" || isShipmentApproved || isShipmentRejected) return 3;
+  if (isOrderApprovedStatus) return 2;
+  if (isApprovedStatus) return 2;
   if (normalizedPaymentStatus === "PAID") return 1;
   return 0;
 };
@@ -67,32 +140,94 @@ const getTimelineIndex = (details) => {
 const getTimelineStepTimes = (details) => {
   const orderHistory = details?.orderHistory || [];
   const paymentHistory = details?.paymentHistory || [];
+  const normalizedOrderStatus = (details?.orderStatus || "").toUpperCase();
+  const normalizedAdminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
+  const normalizedDeliveryApprovalStatus = (
+    details?.deliveryApprovalStatus ||
+    details?.deliveryStatus ||
+    details?.deliveryDecision ||
+    ""
+  )
+    .toUpperCase()
+    .trim();
+  const adminApprovalDate = details?.adminApprovalDetails?.approvedDate || "";
+  const shipmentApprovedDate =
+    details?.shipmentApprovalDetails?.approvedDate ||
+    details?.shipmentDetails?.approvedDate ||
+    "";
+  const deliveryApprovedDate = details?.deliveryApprovalDetails?.approvedDate || details?.deliveryDetails?.approvedDate || "";
+  const deliveryCompletedDate =
+    details?.deliveryApprovalDetails?.deliveredDate ||
+    details?.deliveryDetails?.deliveredDate ||
+    details?.deliveredDate ||
+    "";
+  const isFinalApprovalStatus = ["ORDER_APPROVED", "APPROVED", "REJECTED"].includes(normalizedAdminApprovalStatus);
+  const isOrderApprovedStatus = ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
+  const isDeliveryCompleted = ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedDeliveryApprovalStatus);
+  const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
 
   return {
     PLACED: getHistoryTimestamp(orderHistory, "PLACED") || details?.createdAt || "",
     PAID: getHistoryTimestamp(paymentHistory, "PAID") || "",
-    ACCEPTED: getHistoryTimestamp(orderHistory, "ACCEPTED"),
-    SHIPPED: getHistoryTimestamp(orderHistory, "SHIPPED"),
-    DELIVERED: getHistoryTimestamp(orderHistory, "DELIVERED"),
+    ACCEPTED:
+      getHistoryTimestamp(orderHistory, "ACCEPTED") ||
+      (isFinalApprovalStatus || isOrderApprovedStatus ? adminApprovalDate : ""),
+    SHIPPED: getHistoryTimestamp(orderHistory, "SHIPPED") || shipmentApprovedDate,
+    DELIVERED:
+      getHistoryTimestamp(orderHistory, "DELIVERED") ||
+      ((isDeliveryCompleted || isDeliveryFailed) ? deliveryCompletedDate || deliveryApprovedDate : ""),
   };
 };
 
 const OrderSuccess = () => {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
+  const authUser = useSelector((state) => state.user.user);
+  const { items: users, status: usersStatus } = useSelector((state) => state.users);
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get("orderId") || "";
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState("");
   const [orderData, setOrderData] = useState(null);
+  const [approvalComment, setApprovalComment] = useState("");
+  const [approvalLoading, setApprovalLoading] = useState(false);
+  const [approvalError, setApprovalError] = useState("");
+  const [approvalMessage, setApprovalMessage] = useState("");
+  const [shipmentComment, setShipmentComment] = useState("");
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
+  const [shipmentLoading, setShipmentLoading] = useState(false);
+  const [shipmentError, setShipmentError] = useState("");
+  const [shipmentMessage, setShipmentMessage] = useState("");
+  const [deliveryStatusChoice, setDeliveryStatusChoice] = useState("");
+  const [deliveryComment, setDeliveryComment] = useState("");
+  const [deliveredDate, setDeliveredDate] = useState("");
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+  const [deliveryError, setDeliveryError] = useState("");
+  const [deliveryMessage, setDeliveryMessage] = useState("");
+  const [stakeholderOverride, setStakeholderOverride] = useState("");
+  const [stakeholderOptions, setStakeholderOptions] = useState([]);
+  const [stakeholderLoading, setStakeholderLoading] = useState(false);
+  const [stakeholderError, setStakeholderError] = useState("");
+  const [productStock, setProductStock] = useState({});
+  const details = orderData?.orderDetails;
+  const hasAssignedStakeholder = Boolean(details?.shippedAdminId || details?.ssStockistId);
+  const shouldShowStakeholderNotMatched = details?.isStakeholderMatched === false && !hasAssignedStakeholder;
 
   // Razorpay locks document.body scroll when its modal opens.
   // If React navigates away before Razorpay restores it, the page is unscrollable.
   // This effect guarantees scroll is always re-enabled when this page mounts.
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate expected delivery date from order details */
   useEffect(() => {
     document.body.style.overflow = "";
     document.body.style.position = "";
     document.documentElement.style.overflow = "";
   }, []);
+
+  useEffect(() => {
+    if (usersStatus === "idle") {
+      dispatch(fetchUsers());
+    }
+  }, [dispatch, usersStatus]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -115,14 +250,352 @@ const OrderSuccess = () => {
     fetchOrder();
   }, [orderId]);
 
-  const details = orderData?.orderDetails;
+  useEffect(() => {
+    const rawExpectedDate =
+      details?.shipmentApprovalDetails?.expectedDeliveryDate ||
+      details?.shipmentDetails?.expectedDeliveryDate ||
+      details?.expectedDeliveryDate ||
+      "";
+
+    if (!rawExpectedDate) {
+      setExpectedDeliveryDate("");
+      return;
+    }
+
+    const date = new Date(rawExpectedDate);
+    if (Number.isNaN(date.getTime())) {
+      setExpectedDeliveryDate("");
+      return;
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    setExpectedDeliveryDate(`${yyyy}-${mm}-${dd}`);
+  }, [details]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect -- reset/fetch stakeholder options based on eligibility */
+  useEffect(() => {
+    const currentUserRole = getUserRoleFromList(users, authUser?.email);
+    const isCurrentUserAdmin = currentUserRole === ADMIN_ROLE;
+    const shouldFetchStakeholders = isCurrentUserAdmin && shouldShowStakeholderNotMatched;
+
+    if (!shouldFetchStakeholders) {
+      setStakeholderOptions([]);
+      setStakeholderError("");
+      setStakeholderOverride("");
+      return;
+    }
+
+    let ignore = false;
+
+    const fetchStakeholders = async () => {
+      setStakeholderLoading(true);
+      setStakeholderError("");
+
+      try {
+        const response = await getUsers();
+        const filteredUsers = Array.isArray(response)
+          ? response.filter((user) => {
+              const role = (user?.role || "").trim();
+              return role === ADMIN_ROLE || role === SUPER_STOCKIST_ROLE;
+            })
+          : [];
+
+        if (!ignore) {
+          setStakeholderOptions(filteredUsers);
+        }
+      } catch (error) {
+        if (!ignore) {
+          setStakeholderOptions([]);
+          setStakeholderError(error?.message || "Failed to fetch stakeholders.");
+        }
+      } finally {
+        if (!ignore) {
+          setStakeholderLoading(false);
+        }
+      }
+    };
+
+    fetchStakeholders();
+
+    return () => {
+      ignore = true;
+    };
+  }, [users, authUser?.email, shouldShowStakeholderNotMatched]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect -- hydrate delivery form fields from order details */
+  useEffect(() => {
+    const rawDeliveryStatus = (
+      details?.deliveryApprovalStatus ||
+      details?.deliveryStatus ||
+      details?.deliveryDecision ||
+      ""
+    )
+      .toUpperCase()
+      .trim();
+
+    if (["DELIVERY_COMPLETED", "DELIVERED"].includes(rawDeliveryStatus)) {
+      setDeliveryStatusChoice("DELIVERED");
+    } else if (["NOT_DELIVERED", "FAILED", "DELIVERY_FAILED"].includes(rawDeliveryStatus)) {
+      setDeliveryStatusChoice("NOT_DELIVERED");
+    } else {
+      setDeliveryStatusChoice("");
+    }
+
+    const rawDeliveryComment =
+      details?.deliveryApprovalDetails?.comments ||
+      details?.deliveryDetails?.comments ||
+      details?.deliveryComment ||
+      "";
+    setDeliveryComment(rawDeliveryComment);
+
+    const rawDeliveredDate =
+      details?.deliveryApprovalDetails?.deliveredDate ||
+      details?.deliveryDetails?.deliveredDate ||
+      details?.deliveredDate ||
+      "";
+
+    if (!rawDeliveredDate) {
+      setDeliveredDate("");
+      return;
+    }
+
+    const date = new Date(rawDeliveredDate);
+    if (Number.isNaN(date.getTime())) {
+      setDeliveredDate("");
+      return;
+    }
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    setDeliveredDate(`${yyyy}-${mm}-${dd}`);
+  }, [details]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const adminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
+  const isAdminApprovalApproved = ["ORDER_APPROVED", "APPROVED"].includes(adminApprovalStatus);
+  const userRole = getUserRoleFromList(users, authUser?.email);
+  const isAdmin = userRole === ADMIN_ROLE;
+  const isSuperStockist = userRole === SUPER_STOCKIST_ROLE;
+  const canManageShipment = isAdmin || isSuperStockist;
+  const hasFinalAdminApproval = ["ORDER_APPROVED", "APPROVED", "REJECTED"].includes(adminApprovalStatus);
+  const adminApprovalDetails = details?.adminApprovalDetails || {};
+  const shipmentStatus = (
+    details?.shipmentStatus ||
+    details?.shipmentApprovalStatus ||
+    details?.shipmentDecision ||
+    "PENDING"
+  )
+    .toUpperCase()
+    .trim();
+  const isShipmentApproved = ["SHIPMENT_APPROVED", "APPROVED"].includes(shipmentStatus);
+  const isShipmentRejected = ["SHIPMENT_REJECTED", "REJECTED"].includes(shipmentStatus);
+  const hasFinalShipmentDecision = isShipmentApproved || isShipmentRejected;
+  const shipmentDetails = details?.shipmentApprovalDetails || details?.shipmentDetails || {};
+  const isOrderApprovedForOps = (details?.orderStatus || "").toUpperCase() === "ORDER_APPROVED";
+  const hasShipmentApprovalPayload =
+    Boolean((details?.shipmentApprovalStatus || "").trim()) ||
+    Boolean(details?.shipmentApprovalDetails);
+  const canShowShipmentCard = isOrderApprovedForOps || hasShipmentApprovalPayload;
+  const canShowDeliveryCard = isShipmentApproved;
+  const isDeliveryUpdateDisabled =
+    deliveryLoading || !deliveryStatusChoice || (deliveryStatusChoice === "DELIVERED" && !deliveredDate);
+  const normalizedDeliveryApprovalStatus = (
+    details?.deliveryApprovalStatus ||
+    details?.deliveryStatus ||
+    details?.deliveryDecision ||
+    ""
+  )
+    .toUpperCase()
+    .trim();
+  const isDeliveryCompleted = ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedDeliveryApprovalStatus);
+  const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
+  const hasFinalDeliveryDecision = isDeliveryCompleted || isDeliveryFailed;
+  const deliveryDetails = details?.deliveryApprovalDetails || details?.deliveryDetails || {};
+  const isAdminApproved =
+    details?.isAdminApproved === true ||
+    String(details?.isAdminApproved || "")
+      .toLowerCase()
+      .trim() === "true";
   const products = details?.products || [];
+  const selectedStakeholderUser = stakeholderOptions.find((user) => {
+    const candidateId = user?.userId || user?.id || user?.email || "";
+    return candidateId === stakeholderOverride;
+  });
+  const selectedStakeholderRoleForApproval =
+    selectedStakeholderUser?.role === ADMIN_ROLE
+      ? "admin"
+      : selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE
+        ? "sStockist"
+        : "";
+  const isSStockistIdMissing = !String(details?.ssStockistId || "").trim();
+  const shouldIncludeStakeholderUpdate =
+    Boolean(stakeholderOverride && selectedStakeholderRoleForApproval) &&
+    (shouldShowStakeholderNotMatched || details?.isGuestOrder === true || isSStockistIdMissing);
   const currentTimelineIndex = getTimelineIndex(details);
   const timelineStepTimes = getTimelineStepTimes(details);
   const totalAmount = products.reduce((sum, item) => sum + (item.subTotal || (item.price || 0) * (item.quantity || 0)), 0);
   const totalMrp = products.reduce((sum, item) => sum + (item.mrpPrice || 0) * (item.quantity || 0), 0);
   const totalSaved = totalMrp - totalAmount;
   const savedPercentage = totalMrp > 0 ? (totalSaved / totalMrp) * 100 : 0;
+  const isShipmentCardEditable = canManageShipment && canShowShipmentCard && !hasFinalShipmentDecision;
+
+  /* eslint-disable react-hooks/set-state-in-effect -- fetch and reset stock when shipment card edit mode toggles */
+  useEffect(() => {
+    if (!isShipmentCardEditable) {
+      setProductStock({});
+      return;
+    }
+
+    const productIds = (details?.products || []).map((product) => getOrderProductId(product)).filter(Boolean);
+
+    if (!productIds.length) {
+      setProductStock({});
+      return;
+    }
+
+    const fetchStock = async () => {
+      try {
+        const stockData = await getProductStock(productIds);
+        setProductStock(mapStockResponseByProductId(stockData));
+      } catch {
+        setProductStock({});
+      }
+    };
+
+    fetchStock();
+  }, [isShipmentCardEditable, details?.products]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleBackClick = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/orders");
+  };
+
+  const handleApproval = async (nextApprovalStatus) => {
+    if (!orderId) return;
+
+    const trimmedComment = approvalComment.trim();
+    setApprovalLoading(true);
+    setApprovalError("");
+    setApprovalMessage("");
+
+    try {
+      const approvalPayload = {
+        approvalType: "ORDER",
+        approvalStatus: nextApprovalStatus,
+        ...(trimmedComment ? { comments: trimmedComment } : {}),
+        ...(shouldIncludeStakeholderUpdate
+          ? {
+              updateStakeholder: [
+                {
+                  userId: stakeholderOverride,
+                  role: selectedStakeholderRoleForApproval,
+                },
+              ],
+            }
+          : {}),
+      };
+
+      await updateOrderApproval(orderId, approvalPayload);
+
+      const refreshedOrder = await getOrderById(orderId);
+      setOrderData(refreshedOrder);
+
+      const nextIsApproved = ["ORDER_APPROVED", "APPROVED"].includes(nextApprovalStatus);
+
+      setApprovalMessage(nextIsApproved ? "Order approved successfully." : "Order rejected successfully.");
+    } catch (error) {
+      setApprovalError(error?.message || "Failed to update approval status.");
+    } finally {
+      setApprovalLoading(false);
+    }
+  };
+
+  const handleShipment = async (nextShipmentStatus) => {
+    if (!orderId) return;
+
+    const trimmedComment = shipmentComment.trim();
+    setShipmentLoading(true);
+    setShipmentError("");
+    setShipmentMessage("");
+
+    try {
+      const normalizedExpectedDeliveryDate = expectedDeliveryDate
+        ? new Date(`${expectedDeliveryDate}T00:00:00.000Z`).toISOString()
+        : "";
+
+      const shipmentPayload = {
+        approvalType: "SHIPMENT",
+        approvalStatus: nextShipmentStatus,
+        ...(normalizedExpectedDeliveryDate ? { expectedDeliveryDate: normalizedExpectedDeliveryDate } : {}),
+        ...(trimmedComment ? { comments: trimmedComment } : {}),
+      };
+
+      await updateOrderShipment(orderId, shipmentPayload);
+
+      const refreshedOrder = await getOrderById(orderId);
+      setOrderData(refreshedOrder);
+
+      setShipmentMessage(nextShipmentStatus === "APPROVED" ? "Shipment approved successfully." : "Shipment rejected successfully.");
+    } catch (error) {
+      setShipmentError(error?.message || "Failed to update shipment status.");
+    } finally {
+      setShipmentLoading(false);
+    }
+  };
+
+  const handleDeliveryUpdate = async () => {
+    if (!deliveryStatusChoice) {
+      setDeliveryError("Please select delivery status.");
+      setDeliveryMessage("");
+      return;
+    }
+
+    if (deliveryStatusChoice === "DELIVERED" && !deliveredDate) {
+      setDeliveryError("Please select delivered date.");
+      setDeliveryMessage("");
+      return;
+    }
+
+    const trimmedComment = deliveryComment.trim();
+    const deliveryApprovalStatus = deliveryStatusChoice === "DELIVERED" ? "DELIVERED" : "FAILED";
+    const normalizedDeliveredDate =
+      deliveryStatusChoice === "DELIVERED" && deliveredDate
+        ? new Date(`${deliveredDate}T00:00:00.000Z`).toISOString()
+        : "";
+
+    setDeliveryLoading(true);
+    setDeliveryError("");
+    setDeliveryMessage("");
+
+    try {
+      const deliveryPayload = {
+        approvalType: "DELIVERY",
+        approvalStatus: deliveryApprovalStatus,
+        ...(trimmedComment ? { comments: trimmedComment } : {}),
+        ...(normalizedDeliveredDate ? { deliveredDate: normalizedDeliveredDate } : {}),
+      };
+
+      await updateOrderDelivery(orderId, deliveryPayload);
+
+      const refreshedOrder = await getOrderById(orderId);
+      setOrderData(refreshedOrder);
+
+      setDeliveryMessage("Delivery status updated successfully.");
+    } catch {
+      setDeliveryError("Failed to update delivery status.");
+    } finally {
+      setDeliveryLoading(false);
+    }
+  };
 
   return (
     <>
@@ -137,6 +610,22 @@ const OrderSuccess = () => {
           gap: "16px",
         }}
       >
+        <div style={{ width: "100%", maxWidth: "900px" }}>
+          <Button
+            variant="outlined"
+            onClick={handleBackClick}
+            startIcon={<MdArrowBack size={18} />}
+            style={{
+              textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "8px",
+              borderColor: "#165d46",
+              color: "#165d46",
+            }}
+          >
+            Back
+          </Button>
+        </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", width: "100%", maxWidth: "900px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <MdCheckCircle size={42} color="#2e7d32" />
@@ -212,6 +701,15 @@ const OrderSuccess = () => {
                       const isNextStep = idx === currentTimelineIndex + 1;
                       const stepTime = timelineStepTimes[step];
                       const formattedStepTime = formatTimelineTime(stepTime);
+                      const isApprovalStep = step === "ACCEPTED";
+                      const isShipmentStep = step === "SHIPPED";
+                      const isDeliveryStep = step === "DELIVERED";
+                      const isRejectedAtApprovalStep = isApprovalStep && adminApprovalStatus === "REJECTED";
+                      const isRejectedAtShipmentStep = isShipmentStep && isShipmentRejected;
+                      const isRejectedAtDeliveryStep = isDeliveryStep && isDeliveryFailed;
+                      const isRejectedStep =
+                        isRejectedAtApprovalStep || isRejectedAtShipmentStep || isRejectedAtDeliveryStep;
+                      const isApprovedAtApprovalStep = isApprovalStep && isAdminApprovalApproved;
 
                       return (
                         <div key={step} style={{ display: "flex", alignItems: "center", flex: 1 }}>
@@ -244,7 +742,24 @@ const OrderSuccess = () => {
                               {TIMELINE_STEP_LABELS[step] || step}
                             </Typography>
                             <div style={{ minHeight: "20px", display: "flex", alignItems: "center" }}>
-                              {isActive && formattedStepTime && (
+                              {isRejectedStep && (
+                                <Chip
+                                  label={
+                                    formattedStepTime
+                                      ? `${isRejectedAtDeliveryStep ? "Failed" : "Rejected"} · ${formattedStepTime}`
+                                      : (isRejectedAtDeliveryStep ? "Failed" : "Rejected")
+                                  }
+                                  size="small"
+                                  style={{
+                                    height: "20px",
+                                    backgroundColor: "#ffebee",
+                                    color: "#c62828",
+                                    border: "1px solid #ef9a9a",
+                                    fontSize: "0.7rem",
+                                  }}
+                                />
+                              )}
+                              {!isRejectedStep && isActive && formattedStepTime && (
                                 <Chip
                                   label={formattedStepTime}
                                   size="small"
@@ -257,7 +772,7 @@ const OrderSuccess = () => {
                                   }}
                                 />
                               )}
-                              {!isActive && isNextStep && (
+                              {!isRejectedStep && !isActive && isNextStep && (
                                 <Chip
                                   label="In Progress"
                                   size="small"
@@ -266,6 +781,19 @@ const OrderSuccess = () => {
                                     backgroundColor: "#fff4e5",
                                     color: "#ed6c02",
                                     border: "1px solid #ffd8a8",
+                                    fontSize: "0.7rem",
+                                  }}
+                                />
+                              )}
+                              {!isRejectedStep && isApprovedAtApprovalStep && isActive && !formattedStepTime && (
+                                <Chip
+                                  label="Accepted"
+                                  size="small"
+                                  style={{
+                                    height: "20px",
+                                    backgroundColor: "#eef7f1",
+                                    color: "#2e7d32",
+                                    border: "1px solid #cae7d3",
                                     fontSize: "0.7rem",
                                   }}
                                 />
@@ -402,6 +930,582 @@ const OrderSuccess = () => {
                 )}
               </CardContent>
             </Card>
+
+            {(
+              <Card
+                variant="outlined"
+                style={{
+                  width: "100%",
+                  maxWidth: "900px",
+                  borderRadius: "12px",
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" style={{ fontWeight: 700, marginBottom: "12px" }}>
+                    Admin Approval
+                  </Typography>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+                    <Chip
+                      label={
+                        hasFinalAdminApproval
+                          ? isAdminApprovalApproved
+                            ? "Approved"
+                            : "Rejected"
+                          : isAdminApproved
+                            ? "Approved"
+                            : "Approval Pending"
+                      }
+                      size="small"
+                      style={{
+                        backgroundColor: hasFinalAdminApproval
+                          ? isAdminApprovalApproved
+                            ? "#e8f5e9"
+                            : "#ffebee"
+                          : isAdminApproved
+                            ? "#e8f5e9"
+                            : "#fff8e1",
+                        color: hasFinalAdminApproval
+                          ? isAdminApprovalApproved
+                            ? "#2e7d32"
+                            : "#c62828"
+                          : isAdminApproved
+                            ? "#2e7d32"
+                            : "#8d6e63",
+                        border: `1px solid ${
+                          hasFinalAdminApproval
+                            ? isAdminApprovalApproved
+                              ? "#a5d6a7"
+                              : "#ef9a9a"
+                            : isAdminApproved
+                              ? "#a5d6a7"
+                              : "#ffe082"
+                        }`,
+                        fontWeight: 600,
+                      }}
+                    />
+                    {details?.isGuestOrder === true && (
+                      <Chip
+                        label="Guest Order"
+                        size="small"
+                        style={{
+                          backgroundColor: "#e3f2fd",
+                          color: "#1565c0",
+                          border: "1px solid #90caf9",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                    {details?.isStakeholderMatched === true && (
+                      <Chip
+                        label="Stakeholder Matched"
+                        size="small"
+                        style={{
+                          backgroundColor: "#e8f5e9",
+                          color: "#2e7d32",
+                          border: "1px solid #a5d6a7",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                    {shouldShowStakeholderNotMatched && (
+                      <Chip
+                        label="Stakeholder Not Matched"
+                        size="small"
+                        style={{
+                          backgroundColor: "#ffebee",
+                          color: "#c62828",
+                          border: "1px solid #ef9a9a",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
+                    {!hasFinalAdminApproval && details?.adminApprovalComment && (
+                      <Typography variant="body2" color="text.secondary">
+                        Last comment: {details.adminApprovalComment}
+                      </Typography>
+                    )}
+                  </div>
+
+                  <div style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {details?.shippedAdminId && (
+                      <Typography variant="body2" color="text.secondary">
+                        Shipped Admin ID = {details.shippedAdminId}
+                      </Typography>
+                    )}
+                    {shouldShowStakeholderNotMatched && (
+                      <>
+                        <FormControl fullWidth size="small" style={{ marginBottom: "8px" }}>
+                          <InputLabel>Assign Stakeholder</InputLabel>
+                          <Select
+                            value={stakeholderOverride}
+                            label="Assign Stakeholder"
+                            onChange={(event) => setStakeholderOverride(event.target.value)}
+                            disabled={stakeholderLoading}
+                            MenuProps={{
+                              PaperProps: {
+                                style: {
+                                  maxHeight: 280,
+                                  maxWidth: "92vw",
+                                },
+                              },
+                            }}
+                          >
+                            <MenuItem value="" disabled>
+                              {stakeholderLoading ? "Loading stakeholders..." : "— Select stakeholder —"}
+                            </MenuItem>
+                            {stakeholderOptions.map((user) => {
+                              const firstName = user?.firstName || user?.firstname || "";
+                              const lastName = user?.lastName || user?.lastname || "";
+                              const fullName = `${firstName} ${lastName}`.trim() || "-";
+                              const optionUserId = user?.userId || user?.id || user?.email || "-";
+                              const optionRole = user?.role || "-";
+                              const optionPincode = user?.pincode || "-";
+                              return (
+                                <MenuItem
+                                  key={`${optionUserId}-${optionRole}`}
+                                  value={optionUserId}
+                                  style={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                                >
+                                  {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
+                                </MenuItem>
+                              );
+                            })}
+                          </Select>
+                        </FormControl>
+                        {!!stakeholderError && (
+                          <Typography variant="body2" color="error" style={{ marginBottom: "8px" }}>
+                            {stakeholderError}
+                          </Typography>
+                        )}
+                      </>
+                    )}
+                    <Typography variant="body2" color="text.secondary">
+                      Superstockist = {details?.ssStockistId || "-"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Stockist = {details?.stockistId || "-"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Dealer = {details?.dealerId || "-"}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      CustomerId = {details?.userId || details?.user?.userId || "-"}
+                    </Typography>
+                  </div>
+
+                  {hasFinalAdminApproval || !isAdmin ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Approved Date = {formatDate(adminApprovalDetails?.approvedDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Comments = {adminApprovalDetails?.comments || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Email = {adminApprovalDetails?.email || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        User ID = {adminApprovalDetails?.userId || "-"}
+                      </Typography>
+                    </div>
+                  ) : (
+                    <>
+                      <TextField
+                        fullWidth
+                        label="Comment (Optional)"
+                        multiline
+                        minRows={2}
+                        value={approvalComment}
+                        onChange={(event) => setApprovalComment(event.target.value)}
+                        placeholder="Add approval/rejection note (optional)"
+                      />
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+                        <Button
+                          variant="contained"
+                          disabled={approvalLoading}
+                          onClick={() => handleApproval("APPROVED")}
+                          style={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            backgroundColor: "#2e7d32",
+                          }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          disabled={approvalLoading}
+                          onClick={() => handleApproval("REJECTED")}
+                          style={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderColor: "#c62828",
+                            color: "#c62828",
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {approvalLoading && isAdmin && (
+                    <Typography variant="body2" color="text.secondary" style={{ marginTop: "10px" }}>
+                      Updating approval status...
+                    </Typography>
+                  )}
+
+                  {!!approvalMessage && isAdmin && (
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                      {approvalMessage}
+                    </Typography>
+                  )}
+
+                  {!!approvalError && isAdmin && (
+                    <Typography variant="body2" color="error" style={{ marginTop: "10px" }}>
+                      {approvalError}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {canManageShipment && isOrderApprovedForOps && (
+              <Card
+                variant="outlined"
+                style={{
+                  width: "100%",
+                  maxWidth: "900px",
+                  borderRadius: "12px",
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" style={{ fontWeight: 700, marginBottom: "12px" }}>
+                    Inventory
+                  </Typography>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {products.map((product, idx) => {
+                      const resolvedProductId = getOrderProductId(product);
+                      const quantity = product.quantity || 0;
+                      const stockInfo = productStock[resolvedProductId] || {};
+                      const availableStock = stockInfo.availableStock ?? stockInfo.availableQuantity ?? stockInfo.stock ?? 0;
+
+                      return (
+                        <Card key={`${resolvedProductId || "item"}-${idx}`} variant="outlined" style={{ borderRadius: "10px" }}>
+                          <CardContent style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+                            <img
+                              src={getProductImageUrl(product)}
+                              alt={product.title || "Product image"}
+                              style={{ width: "64px", height: "64px", objectFit: "contain", borderRadius: "8px", backgroundColor: "#f5f5f5" }}
+                            />
+                            <div style={{ flex: 1, minWidth: "220px" }}>
+                              <Typography variant="subtitle2" style={{ fontWeight: 700 }}>
+                                {product.title || "-"}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
+                                Order Qty: {quantity}
+                              </Typography>
+                              <Typography variant="body2" style={{ marginTop: "4px", fontWeight: 600, color: "#165d46" }}>
+                                Available Stock: {availableStock}
+                              </Typography>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {canShowShipmentCard && (
+              <Card
+                variant="outlined"
+                style={{
+                  width: "100%",
+                  maxWidth: "900px",
+                  borderRadius: "12px",
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" style={{ fontWeight: 700, marginBottom: "12px" }}>
+                    Shipment Approval
+                  </Typography>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+                    <Chip
+                      label={
+                        isShipmentApproved
+                          ? "Approved Shipment"
+                          : isShipmentRejected
+                            ? "Rejected Shipment"
+                            : "Shipment Pending"
+                      }
+                      size="small"
+                      style={{
+                        backgroundColor:
+                          isShipmentApproved
+                            ? "#e8f5e9"
+                            : isShipmentRejected
+                              ? "#ffebee"
+                              : "#fff8e1",
+                        color:
+                          isShipmentApproved
+                            ? "#2e7d32"
+                            : isShipmentRejected
+                              ? "#c62828"
+                              : "#8d6e63",
+                        border: `1px solid ${
+                          isShipmentApproved
+                            ? "#a5d6a7"
+                            : isShipmentRejected
+                              ? "#ef9a9a"
+                              : "#ffe082"
+                        }`,
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+
+                  {hasFinalShipmentDecision || !canManageShipment ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Expected Delivery Date = {formatDate(shipmentDetails?.expectedDeliveryDate || details?.expectedDeliveryDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Approved Date = {formatDate(shipmentDetails?.approvedDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Comments = {shipmentDetails?.comments || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Email = {shipmentDetails?.email || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        User ID = {shipmentDetails?.userId || "-"}
+                      </Typography>
+                    </div>
+                  ) : (
+                    <>
+                      <TextField
+                        fullWidth
+                        type="date"
+                        label="Expected Delivery Date"
+                        value={expectedDeliveryDate}
+                        onChange={(event) => setExpectedDeliveryDate(event.target.value)}
+                        InputLabelProps={{ shrink: true }}
+                      />
+
+                      <TextField
+                        fullWidth
+                        label="Comment (Optional)"
+                        multiline
+                        minRows={2}
+                        value={shipmentComment}
+                        onChange={(event) => setShipmentComment(event.target.value)}
+                        placeholder="Add shipment approval/rejection note (optional)"
+                        style={{ marginTop: "12px" }}
+                      />
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+                        <Button
+                          variant="contained"
+                          disabled={shipmentLoading}
+                          onClick={() => handleShipment("APPROVED")}
+                          style={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            backgroundColor: "#2e7d32",
+                          }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          disabled={shipmentLoading}
+                          onClick={() => handleShipment("REJECTED")}
+                          style={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderColor: "#c62828",
+                            color: "#c62828",
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {shipmentLoading && canManageShipment && (
+                    <Typography variant="body2" color="text.secondary" style={{ marginTop: "10px" }}>
+                      Updating shipment status...
+                    </Typography>
+                  )}
+
+                  {!!shipmentMessage && canManageShipment && (
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                      {shipmentMessage}
+                    </Typography>
+                  )}
+
+                  {!!shipmentError && canManageShipment && (
+                    <Typography variant="body2" color="error" style={{ marginTop: "10px" }}>
+                      {shipmentError}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {canShowDeliveryCard && (
+              <Card
+                variant="outlined"
+                style={{
+                  width: "100%",
+                  maxWidth: "900px",
+                  borderRadius: "12px",
+                }}
+              >
+                <CardContent>
+                  <Typography variant="h6" style={{ fontWeight: 700, marginBottom: "12px" }}>
+                    Delivery Status
+                  </Typography>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
+                    <Chip
+                      label={
+                        isDeliveryCompleted
+                          ? "Delivery Completed"
+                          : isDeliveryFailed
+                            ? "Delivery Failed"
+                            : "Delivery Pending"
+                      }
+                      size="small"
+                      style={{
+                        backgroundColor:
+                          isDeliveryCompleted
+                            ? "#e8f5e9"
+                            : isDeliveryFailed
+                              ? "#ffebee"
+                              : "#fff8e1",
+                        color:
+                          isDeliveryCompleted
+                            ? "#2e7d32"
+                            : isDeliveryFailed
+                              ? "#c62828"
+                              : "#8d6e63",
+                        border: `1px solid ${
+                          isDeliveryCompleted
+                            ? "#a5d6a7"
+                            : isDeliveryFailed
+                              ? "#ef9a9a"
+                              : "#ffe082"
+                        }`,
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+
+                  {hasFinalDeliveryDecision || !canManageShipment ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Approved Date = {formatDate(deliveryDetails?.approvedDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Delivered Date = {formatDate(deliveryDetails?.deliveredDate || details?.deliveredDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Comments = {deliveryDetails?.comments || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Email = {deliveryDetails?.email || "-"}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        User ID = {deliveryDetails?.userId || "-"}
+                      </Typography>
+                    </div>
+                  ) : (
+                    <>
+                      <FormControl component="fieldset" style={{ width: "100%" }}>
+                        <RadioGroup
+                          row
+                          value={deliveryStatusChoice}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setDeliveryStatusChoice(nextValue);
+                            if (nextValue !== "DELIVERED") {
+                              setDeliveredDate("");
+                            }
+                          }}
+                        >
+                          <FormControlLabel value="DELIVERED" control={<Radio />} label="Delivered" />
+                          <FormControlLabel value="NOT_DELIVERED" control={<Radio />} label="Not Delivered" />
+                        </RadioGroup>
+                      </FormControl>
+
+                      <TextField
+                        fullWidth
+                        label="Comments"
+                        multiline
+                        minRows={2}
+                        value={deliveryComment}
+                        onChange={(event) => setDeliveryComment(event.target.value)}
+                        placeholder="Add delivery comments"
+                        style={{ marginTop: "8px" }}
+                      />
+
+                      {deliveryStatusChoice === "DELIVERED" && (
+                        <TextField
+                          fullWidth
+                          type="date"
+                          label="Delivered Date"
+                          value={deliveredDate}
+                          onChange={(event) => setDeliveredDate(event.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          style={{ marginTop: "12px" }}
+                        />
+                      )}
+
+                      <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+                        <Button
+                          variant="contained"
+                          disabled={isDeliveryUpdateDisabled}
+                          onClick={handleDeliveryUpdate}
+                          style={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            backgroundColor: "#165d46",
+                          }}
+                        >
+                          Update Delivery Status
+                        </Button>
+                      </div>
+                    </>
+                  )}
+
+                  {deliveryLoading && canManageShipment && (
+                    <Typography variant="body2" color="text.secondary" style={{ marginTop: "10px" }}>
+                      Updating delivery status...
+                    </Typography>
+                  )}
+
+                  {!!deliveryMessage && canManageShipment && (
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                      {deliveryMessage}
+                    </Typography>
+                  )}
+
+                  {!!deliveryError && canManageShipment && (
+                    <Typography variant="body2" color="error" style={{ marginTop: "10px" }}>
+                      {deliveryError}
+                    </Typography>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
           </>
         )}

@@ -11,16 +11,21 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import { MdAdd, MdRemove, MdDelete } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addToCart, removeFromCart, clearCart } from "../store/slices/cartSlice";
+import { fetchUsers } from "../store/slices/usersSlice";
 import loadRazorpay from "../helpers/razorpay";
 import { createOrder, verifyPayment } from "../api/orders";
 
 const Checkout = () => {
   const cart = useSelector((state) => state.cart);
+  const authUser = useSelector((state) => state.user.user);
+  const { items: users, status: usersStatus } = useSelector((state) => state.users);
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
+  const [didPrefillAuthBasics, setDidPrefillAuthBasics] = useState(false);
+  const [didPrefillProfileRecord, setDidPrefillProfileRecord] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     phone: "",
@@ -34,6 +39,94 @@ const Checkout = () => {
   const [orderLoading, setOrderLoading] = useState(false);
   const [paymentVerifying, setPaymentVerifying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (!authUser || usersStatus !== "idle") return;
+    dispatch(fetchUsers());
+  }, [authUser, usersStatus, dispatch]);
+
+  useEffect(() => {
+    if (!authUser || didPrefillAuthBasics) return;
+
+    const authFullName = String(authUser?.name || "").trim();
+    const authEmail = String(authUser?.email || "").trim();
+
+    setFormData((prev) => {
+      const next = { ...prev };
+
+      if (!String(prev.fullName || "").trim() && authFullName) {
+        next.fullName = authFullName;
+      }
+      if (!String(prev.email || "").trim() && authEmail) {
+        next.email = authEmail;
+      }
+
+      return next;
+    });
+
+    setDidPrefillAuthBasics(true);
+  }, [authUser, didPrefillAuthBasics]);
+
+  useEffect(() => {
+    if (!authUser || didPrefillProfileRecord || usersStatus !== "succeeded") return;
+
+    const profileEmail = String(authUser?.email || "").trim().toLowerCase();
+    if (!profileEmail) {
+      setDidPrefillProfileRecord(true);
+      return;
+    }
+
+    const matchedUser = users.find(
+      (item) => String(item?.email || "").trim().toLowerCase() === profileEmail,
+    );
+
+    if (!matchedUser) {
+      setDidPrefillProfileRecord(true);
+      return;
+    }
+
+    const firstName = String(matchedUser?.firstname || matchedUser?.firstName || "").trim();
+    const lastName = String(matchedUser?.lastname || matchedUser?.lastName || "").trim();
+    const combinedName = `${firstName} ${lastName}`.trim();
+    const mobileValue = String(matchedUser?.mobile || matchedUser?.phone || "");
+    const normalizedPhone = mobileValue.replace(/\D/g, "").slice(0, 10);
+    const profileEmailValue = String(matchedUser?.email || "").trim();
+    const addressValue = String(matchedUser?.address || "").trim();
+    const landmarkValue = String(matchedUser?.landmark || "").trim();
+    const cityValue = String(matchedUser?.city || "").trim();
+    const normalizedPincode = String(matchedUser?.pincode || "").replace(/\D/g, "").slice(0, 6);
+
+    setFormData((prev) => {
+      const next = { ...prev };
+
+      if (!String(prev.fullName || "").trim() && combinedName) {
+        next.fullName = combinedName;
+      }
+      if (!String(prev.phone || "").trim() && normalizedPhone) {
+        next.phone = normalizedPhone;
+        next.phoneError = normalizedPhone.length !== 10 ? "Phone number must be 10 digits" : "";
+      }
+      if (!String(prev.email || "").trim() && profileEmailValue) {
+        next.email = profileEmailValue;
+      }
+      if (!String(prev.address || "").trim() && addressValue) {
+        next.address = addressValue;
+      }
+      if (!String(prev.landmark || "").trim() && landmarkValue) {
+        next.landmark = landmarkValue;
+      }
+      if (!String(prev.city || "").trim() && cityValue) {
+        next.city = cityValue;
+      }
+      if (!String(prev.pincode || "").trim() && normalizedPincode) {
+        next.pincode = normalizedPincode;
+      }
+
+      return next;
+    });
+
+    setDidPrefillProfileRecord(true);
+  }, [authUser, didPrefillProfileRecord, usersStatus, users]);
 
   const handlePhoneChange = (e) => {
     const value = e.target.value.replace(/\D/g, "");

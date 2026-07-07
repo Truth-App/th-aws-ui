@@ -12,7 +12,8 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import { useEffect, useMemo, useState } from "react";
-import { getUsers } from "../api/users";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { EARNINGS_API_URL } from "../constants/api";
 
 const formatInr = (value) => {
   const normalized = Number(value);
@@ -26,11 +27,31 @@ const formatInr = (value) => {
   }).format(normalized);
 };
 
-const getUsersArray = (response) => {
+const getEarningsArray = (response) => {
   if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.users)) return response.users;
+  if (Array.isArray(response?.earnings)) return response.earnings;
   if (Array.isArray(response?.data)) return response.data;
+  if (response && typeof response === "object" && response.userId) return [response];
   return [];
+};
+
+const fetchEarnings = async () => {
+  const session = await fetchAuthSession();
+  const accessToken = session.tokens?.accessToken?.toString() || "";
+
+  const response = await fetch(EARNINGS_API_URL, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch earnings. Status: ${response.status}`);
+  }
+
+  return await response.json();
 };
 
 const ViewEarning = () => {
@@ -41,13 +62,13 @@ const ViewEarning = () => {
   useEffect(() => {
     let ignore = false;
 
-    const loadUsers = async () => {
+    const loadEarnings = async () => {
       setLoading(true);
       setError("");
 
       try {
-        const usersResponse = await getUsers();
-        const nextUsers = getUsersArray(usersResponse);
+        const earningsResponse = await fetchEarnings();
+        const nextUsers = getEarningsArray(earningsResponse);
 
         if (!ignore) {
           setUsers(nextUsers);
@@ -64,7 +85,7 @@ const ViewEarning = () => {
       }
     };
 
-    loadUsers();
+    loadEarnings();
 
     return () => {
       ignore = true;
@@ -74,7 +95,6 @@ const ViewEarning = () => {
   const rows = useMemo(
     () =>
       users
-        .filter((item) => String(item?.role || "").trim().toLowerCase() !== "customer")
         .map((item, index) => ({
           id: String(item?.userId || item?.id || item?.email || index + 1),
           name: `${item?.firstName || item?.firstname || ""} ${item?.lastName || item?.lastname || ""}`.trim() || "-",
@@ -101,9 +121,7 @@ const ViewEarning = () => {
           <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
             View Earnings Summary
           </Typography>
-          <Typography variant="body2" color="text.secondary" style={{ marginTop: "8px" }}>
-            User details and earnings are loaded automatically from the users API.
-          </Typography>
+
 
           {loading && (
             <div style={{ marginTop: "16px", display: "flex", gap: "10px", alignItems: "center" }}>

@@ -17,7 +17,14 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useState } from "react";
 import { MdArrowBack, MdCheckCircle } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
-import { getOrderById, updateOrderApproval, updateOrderShipment, updateOrderDelivery, getProductStock } from "../api/orders";
+import {
+  getOrderById,
+  updateOrderApproval,
+  updateOrderShipment,
+  updateOrderDelivery,
+  getProductStock,
+  getInvoiceByOrderId,
+} from "../api/orders";
 import { getUsers } from "../api/users";
 import { fetchUsers } from "../store/slices/usersSlice";
 import { getUserRoleFromList } from "../constants/dashboardFeatures";
@@ -209,6 +216,8 @@ const OrderSuccess = () => {
   const [stakeholderLoading, setStakeholderLoading] = useState(false);
   const [stakeholderError, setStakeholderError] = useState("");
   const [productStock, setProductStock] = useState({});
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState("");
   const details = orderData?.orderDetails;
   const hasAssignedStakeholder = Boolean(details?.shippedAdminId || details?.ssStockistId);
   const shouldShowStakeholderNotMatched = details?.isStakeholderMatched === false && !hasAssignedStakeholder;
@@ -432,6 +441,9 @@ const OrderSuccess = () => {
       : selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE
         ? "sStockist"
         : "";
+  const selectedSStockistId =
+    selectedStakeholderRoleForApproval === "sStockist" ? String(stakeholderOverride || "").trim() : "";
+  const resolvedSStockistId = String(selectedSStockistId || details?.ssStockistId || "").trim();
   const isSStockistIdMissing = !String(details?.ssStockistId || "").trim();
   const shouldIncludeStakeholderUpdate =
     Boolean(stakeholderOverride && selectedStakeholderRoleForApproval) &&
@@ -460,7 +472,7 @@ const OrderSuccess = () => {
 
     const fetchStock = async () => {
       try {
-        const stockData = await getProductStock(productIds);
+        const stockData = await getProductStock(productIds, resolvedSStockistId);
         setProductStock(mapStockResponseByProductId(stockData));
       } catch {
         setProductStock({});
@@ -468,7 +480,7 @@ const OrderSuccess = () => {
     };
 
     fetchStock();
-  }, [isShipmentCardEditable, details?.products]);
+  }, [isShipmentCardEditable, details?.products, resolvedSStockistId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleBackClick = () => {
@@ -594,6 +606,28 @@ const OrderSuccess = () => {
       setDeliveryError("Failed to update delivery status.");
     } finally {
       setDeliveryLoading(false);
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!orderId) return;
+
+    setInvoiceLoading(true);
+    setInvoiceError("");
+
+    try {
+      const response = await getInvoiceByOrderId(orderId);
+      const downloadUrl = String(response?.downloadUrl || "").trim();
+
+      if (!downloadUrl) {
+        throw new Error("Invoice download URL is not available yet.");
+      }
+
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setInvoiceError(error?.message || "Failed to download invoice.");
+    } finally {
+      setInvoiceLoading(false);
     }
   };
 
@@ -926,6 +960,28 @@ const OrderSuccess = () => {
                     <Typography variant="body2" color="text.secondary" style={{ marginTop: "6px" }}>
                       Email: thriftyHome@gmail.com | Ph no: 12313221
                     </Typography>
+                    {isAdminApprovalApproved && (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", marginTop: "10px" }}>
+                        <Button
+                          variant="contained"
+                          onClick={handleDownloadInvoice}
+                          disabled={invoiceLoading}
+                          style={{
+                            backgroundColor: "#165d46",
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: "8px",
+                          }}
+                        >
+                          {invoiceLoading ? "Downloading Invoice..." : "Download Invoice"}
+                        </Button>
+                        {!!invoiceError && (
+                          <Typography variant="body2" color="error">
+                            {invoiceError}
+                          </Typography>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>

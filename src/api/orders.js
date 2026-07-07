@@ -255,7 +255,7 @@ export const updateOrderDelivery = async (orderId, deliveryData) => {
   }
 };
 
-export const getProductStock = async (productIds) => {
+export const getProductStock = async (productIds, sStockistId = "") => {
   try {
     const session = await fetchAuthSession();
     const accessToken = session.tokens?.accessToken?.toString() || "";
@@ -268,7 +268,10 @@ export const getProductStock = async (productIds) => {
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ productIds }),
+        body: JSON.stringify({
+          productIds,
+          ...(sStockistId ? { sStockistId } : {}),
+        }),
       },
     );
 
@@ -280,5 +283,43 @@ export const getProductStock = async (productIds) => {
   } catch (error) {
     console.error("Error fetching product stock:", error);
     return {};
+  }
+};
+
+export const getInvoiceByOrderId = async (orderId) => {
+  try {
+    const session = await fetchAuthSession();
+    const accessToken = session.tokens?.accessToken?.toString() || "";
+
+    const response = await fetch(
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/invoice?orderId=${encodeURIComponent(orderId)}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      let message = `Failed to fetch invoice. Status: ${response.status}`;
+
+      try {
+        const errorBody = await response.json();
+        if (errorBody?.message) {
+          message = errorBody.message;
+        }
+      } catch {
+        // Ignore parse errors and keep fallback message
+      }
+
+      throw new Error(message);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching invoice:", error);
+    throw error;
   }
 };

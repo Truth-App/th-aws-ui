@@ -22,9 +22,7 @@ export const FEATURE_LABELS = [
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
   { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
-  { id: "order-fulfillment", label: "Order Fulfillment", path: "/order-fulfillment" },
-  { id: "my-stocks", label: "My Stocks", path: "/my-stocks" },
-  { id: "order-approval", label: "Order Approval", path: "/order-approval" },
+  { id: "my-stocks", label: "My Stocks", path: "/my-stocks" }
 ];
 
 // get Custom Dashboard Features
@@ -34,14 +32,16 @@ export const getCustomDashboardFeatures = () => [
 
 // get Dealer Dashboard Features
 export const getDealerDashboardFeatures = () => [
-  { id: "orders", label: "My Orders", path: "/orders" },  
+  { id: "orders", label: "My Orders", path: "/orders" },
+  { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
 ];
 
 //get Stockist Dashboard Features
 export const getStockistDashboardFeatures = () => [
-  { id: "orders", label: "My Orders", path: "/orders" },  
+  { id: "orders", label: "My Orders", path: "/orders" },
+  { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
 ];
@@ -49,8 +49,9 @@ export const getStockistDashboardFeatures = () => [
 //get Super Stockist Dashboard Features
 export const getSuperStockistDashboardFeatures = () => [
   { id: "orders", label: "My Orders", path: "/orders" },
+  { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
-  { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },  
+  { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },
   { id: "order-fulfillment", label: "Order Fulfillment", path: "/order-fulfillment" },
   { id: "my-stocks", label: "My Stocks", path: "/my-stocks" },
 ];
@@ -63,9 +64,7 @@ export const getAdminDashboardFeatures = () => [
   { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "inventory", label: "Inventory Management", path: "/inventory" }, 
   { id: "view-orders", label: "View Orders", path: "/view-orders" },  
-  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
-  { id: "order-fulfillment", label: "Order Fulfillment", path: "/order-fulfillment" },  
-  { id: "order-approval", label: "Order Approval", path: "/order-approval" },
+  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" } 
 ];
 
 export const getDashboardFeaturesByRole = (role) => {

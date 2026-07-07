@@ -5,6 +5,7 @@ import { fetchUsers } from "../store/slices/usersSlice";
 import { createUser } from "../api/users";
 import {
   buildGoogleUserPayload,
+  canShowEditProfile,
   consumePostLoginSetup,
   findUserByEmail,
   hasSkippedProfileSetup,
@@ -57,6 +58,7 @@ const ProfileSetupHandler = ({ children }) => {
       const shouldOpenSetup =
         consumePostLoginSetup() &&
         !hasSkippedProfileSetup(authUser.id) &&
+        canShowEditProfile(matchedUser) &&
         location.pathname !== "/profile/edit";
 
       if (shouldOpenSetup) {

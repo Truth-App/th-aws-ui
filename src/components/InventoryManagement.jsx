@@ -16,6 +16,7 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
+import Collapse from "@mui/material/Collapse";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchInventory } from "../store/slices/inventorySlice";
@@ -23,7 +24,7 @@ import { fetchProducts } from "../store/slices/productSlice";
 import { fetchUsers } from "../store/slices/usersSlice";
 import { createInventory, updateInventory } from "../api/Inventory";
 import { ToastContainer, toast } from "react-toastify";
-import { MdAddBox, MdEdit, MdVisibility } from "react-icons/md";
+import { MdAddBox, MdEdit, MdVisibility, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
@@ -32,11 +33,100 @@ const SUPER_STOCKIST_ROLE = "Super Stockist";
 const INITIAL_INVENTORY_FORM = {
   productid: "",
   userid: "",
-  quantity: "",
+  stockquantity: "0",
+  stockhistory: [],
+  previousstockquantity: 0,
+  userId: "",
+};
+
+const IST_TIME_ZONE = "Asia/Kolkata";
+
+const getISTDateParts = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: IST_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value || "";
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+};
+
+const getTodayDateString = () => {
+  const { year, month, day, hour, minute, second } = getISTDateParts();
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}+05:30`;
 };
 
 const getItemProductId = (item) => item.productid || item.productId || "";
 const getItemUserId = (item) => item.userid || item.userId || "";
+const getItemStockQuantity = (item) => Number(item?.stockquantity ?? item?.quantity ?? 0);
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const formatStockDateDisplay = (dateStr) => {
+  if (!dateStr) return "—";
+
+  const parsed = new Date(dateStr);
+  if (!Number.isNaN(parsed.getTime()) && String(dateStr).includes("T")) {
+    const { year, month, day, hour, minute, second } = getISTDateParts(parsed);
+    const monthIndex = Number(month) - 1;
+    if (monthIndex >= 0 && monthIndex <= 11) {
+      return `${Number(day)} ${MONTH_LABELS[monthIndex]} ${year}, ${hour}:${minute}:${second} IST`;
+    }
+  }
+
+  const normalized = String(dateStr).slice(0, 10);
+  const [year, month, day] = normalized.split("-");
+  if (!year || !month || !day) return dateStr;
+
+  const monthIndex = Number(month) - 1;
+  if (monthIndex < 0 || monthIndex > 11) return dateStr;
+
+  return `${Number(day)} ${MONTH_LABELS[monthIndex]} ${year}`;
+};
+
+const normalizeStockHistoryEntry = (entry) => ({
+  quantity: entry?.quantity ?? entry?.stockquantity ?? entry?.stockQuantity ?? 0,
+  stockdate: entry?.stockdate || entry?.stockDate || "",
+});
+
+const getStockHistory = (item) => {
+  const raw = item?.stockhistory ?? item?.stockHistory ?? null;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(normalizeStockHistoryEntry);
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(normalizeStockHistoryEntry);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const getUserReferenceNumber = (user) =>
+  user?.referencenumber || user?.referenceNumber || "";
+
+const getUserReferenceIdForInventory = (users, selectedUserId) => {
+  const selectedUser = users.find((item) => item.id === selectedUserId);
+  if (!selectedUser) return "";
+  return getUserReferenceNumber(selectedUser) || selectedUser.userId || "";
+};
 
 const getProductLabel = (products, productId) => {
   const product = products.find((item) => item.id === productId);
@@ -61,21 +151,70 @@ const getUserDetails = (users, userId) => {
   if (!user) return "—";
 
   const name = getUserLabel(users, userId);
-  const details = [
-    user.role,
-    user.email,
-    user.mobile,
-    user.userId,
-  ].filter(Boolean);
+  const details = [user.role, user.email, user.mobile, user.userId].filter(Boolean);
 
   return details.length > 0 ? `${name} (${details.join(", ")})` : name;
 };
 
-const mapInventoryToForm = (item) => ({
+const mapInventoryToViewForm = (item) => ({
   productid: getItemProductId(item),
   userid: getItemUserId(item),
-  quantity: item.quantity ?? "",
+  stockquantity: getItemStockQuantity(item),
+  stockhistory: getStockHistory(item),
 });
+
+const mapInventoryToEditForm = (item) => {
+  const existingQuantity = Number(getItemStockQuantity(item)) || 0;
+
+  return {
+    productid: getItemProductId(item),
+    userid: getItemUserId(item),
+    stockquantity: String(existingQuantity),
+    previousstockquantity: existingQuantity,
+    stockhistory: getStockHistory(item),
+  };
+};
+
+const StockHistoryTable = ({ history = [], title = "Stock History" }) => (
+  <div style={{ marginTop: "0.5em" }}>
+    <Typography variant="body2" style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}>
+      {title}
+    </Typography>
+    <TableContainer
+      component={Paper}
+      variant="outlined"
+      style={{ border: "1px solid #e8efeb", boxShadow: "none" }}
+    >
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              Quantity
+            </TableCell>
+            <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              Stock Date
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {history.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={2} style={{ textAlign: "center", color: "#6f7378" }}>
+                No stock history yet.
+              </TableCell>
+            </TableRow>
+          )}
+          {history.map((entry, index) => (
+            <TableRow key={`${entry.stockdate}-${entry.quantity}-${index}`}>
+              <TableCell>{entry.quantity ?? "—"}</TableCell>
+              <TableCell>{formatStockDateDisplay(entry.stockdate)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </div>
+);
 
 const InventoryFormFields = ({
   inventory,
@@ -85,6 +224,8 @@ const InventoryFormFields = ({
   onChange,
   disabled = false,
   isMobile,
+  isEditMode = false,
+  showStockHistory = false,
 }) => (
   <div
     style={{
@@ -103,10 +244,10 @@ const InventoryFormFields = ({
       name="productid"
       value={disabled ? getProductLabel(products, inventory.productid) : inventory.productid}
       onChange={onChange}
-      disabled={disabled}
+      disabled={disabled || isEditMode}
       required={!disabled}
     >
-      {!disabled && (
+      {!disabled && !isEditMode && (
         <MenuItem value="" disabled>
           Select product
         </MenuItem>
@@ -125,10 +266,10 @@ const InventoryFormFields = ({
       name="userid"
       value={disabled ? getUserDetails(users, inventory.userid) : inventory.userid}
       onChange={onChange}
-      disabled={disabled}
+      disabled={disabled || isEditMode}
       required={!disabled}
     >
-      {!disabled && (
+      {!disabled && !isEditMode && (
         <MenuItem value="" disabled>
           Select user
         </MenuItem>
@@ -139,20 +280,84 @@ const InventoryFormFields = ({
         </MenuItem>
       ))}
     </TextField>
-    <TextField
-      type="number"
-      size="small"
-      label="Quantity"
-      variant="outlined"
-      name="quantity"
-      value={inventory.quantity}
-      onChange={onChange}
-      disabled={disabled}
-      inputProps={{ min: 0, readOnly: disabled }}
-      required={!disabled}
-    />
+    {disabled && (
+      <TextField
+        size="small"
+        label="Stock Quantity"
+        variant="outlined"
+        value={inventory.stockquantity ?? "—"}
+        disabled
+      />
+    )}
+    {!disabled && (
+      <TextField
+        type="number"
+        size="small"
+        label="Stock Quantity"
+        variant="outlined"
+        name="stockquantity"
+        value={inventory.stockquantity ?? ""}
+        onChange={onChange}
+        inputProps={{ min: 0 }}
+        required
+      />
+    )}
+    {showStockHistory && <StockHistoryTable history={inventory.stockhistory || []} />}
   </div>
 );
+
+const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView, onToggleEdit }) => {
+  const productId = getItemProductId(item);
+  const userId = getItemUserId(item);
+  const stockHistory = getStockHistory(item);
+
+  return (
+    <>
+      <TableRow hover>
+        <TableCell>{getProductLabel(products, productId)}</TableCell>
+        <TableCell>{getUserLabel(users, userId)}</TableCell>
+        <TableCell>{getItemStockQuantity(item) ?? "—"}</TableCell>
+        <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
+          <IconButton
+            onClick={() => onToggleView(item)}
+            size="small"
+            aria-label="View inventory"
+            style={{ color: "#165d46" }}
+          >
+            <MdVisibility size={20} />
+          </IconButton>
+          <IconButton
+            onClick={() => onToggleEdit(item)}
+            size="small"
+            aria-label="Edit inventory"
+            style={{ color: "#165d46" }}
+          >
+            <MdEdit size={20} />
+          </IconButton>
+        </TableCell>
+        <TableCell align="center" style={{ width: 40 }}>
+          <IconButton
+            size="small"
+            onClick={onToggle}
+            aria-label={expanded ? "Collapse stock history" : "Expand stock history"}
+            style={{ color: "#165d46" }}
+          >
+            {expanded ? <MdKeyboardArrowUp size={20} /> : <MdKeyboardArrowDown size={20} />}
+          </IconButton>
+        </TableCell>
+      </TableRow>
+      <TableRow>
+        <TableCell colSpan={5} style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}>
+          <Collapse in={expanded} timeout="auto" unmountOnExit>
+            <div style={{ padding: "0.75em 0 1em" }}>
+              <StockHistoryTable history={stockHistory} />
+            </div>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+};
 
 const InventoryManagement = () => {
   const dispatch = useDispatch();
@@ -170,10 +375,11 @@ const InventoryManagement = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [productFilter, setProductFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
+  const [expandedRowId, setExpandedRowId] = useState(null);
 
   const superStockistUsers = useMemo(
-    () => users.filter((user) => (user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator")),
-    [users]
+    () => users.filter((user) => user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator"),
+    [users],
   );
 
   useEffect(() => {
@@ -197,9 +403,9 @@ const InventoryManagement = () => {
       const productLabel = getProductLabel(products, productId).toLowerCase();
       const userLabel = getUserLabel(users, userId).toLowerCase();
       const userRole = getUserRole(users, userId).toLowerCase();
-      const quantity = String(item.quantity ?? "");
+      const stockQuantity = String(getItemStockQuantity(item) ?? "");
 
-      const searchable = [productLabel, userLabel, userRole, quantity].join(" ");
+      const searchable = [productLabel, userLabel, userRole, stockQuantity].join(" ");
       const matchesSearch = !normalizedSearchTerm || searchable.includes(normalizedSearchTerm);
       const matchesProduct = !productFilter || productId === productFilter;
       const matchesUser = !userFilter || userId === userFilter;
@@ -209,25 +415,33 @@ const InventoryManagement = () => {
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
+    if (name === "userid") {
+      setInventory((prev) => ({
+        ...prev,
+        userid: value,
+        userId: getUserReferenceIdForInventory(users, value),
+      }));
+      return;
+    }
     setInventory((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleClickOpen = () => {
     setDialogMode("create");
     setEditingInventoryId(null);
-    setInventory(INITIAL_INVENTORY_FORM);
+    setInventory({ ...INITIAL_INVENTORY_FORM, stockquantity: "0" });
     setOpen(true);
   };
 
   const handleOpenEdit = (selectedItem) => {
     setDialogMode("edit");
     setEditingInventoryId(selectedItem.id);
-    setInventory(mapInventoryToForm(selectedItem));
+    setInventory(mapInventoryToEditForm(selectedItem));
     setOpen(true);
   };
 
   const handleOpenView = (selectedItem) => {
-    setViewingInventory(mapInventoryToForm(selectedItem));
+    setViewingInventory(mapInventoryToViewForm(selectedItem));
     setViewOpen(true);
   };
 
@@ -249,11 +463,31 @@ const InventoryManagement = () => {
       toast.error("Please select a user");
       return false;
     }
-    if (inventory.quantity === "" || Number(inventory.quantity) < 0) {
-      toast.error("Please enter a valid quantity");
+    if (inventory.stockquantity === "" || Number(inventory.stockquantity) < 0) {
+      toast.error("Please enter a valid stock quantity");
       return false;
     }
     return true;
+  };
+
+  const buildStockHistoryPayload = (existingHistory = [], isEditMode = false) => {
+    const newQuantity = Number(inventory.stockquantity);
+    const updatedQuantity = newQuantity + (isEditMode ? Number(inventory.previousstockquantity) : 0);
+    const stockdate = getTodayDateString();
+    let stockhistory = [...existingHistory];
+
+    stockhistory = [...stockhistory, { quantity: newQuantity, stockdate }];
+    /*
+    if (isEditMode) { 
+        stockhistory = [...stockhistory, { quantity: updatedQuantity, stockdate }];
+    } else if (newQuantity > 0) {
+      stockhistory = [{ quantity: updatedQuantity, stockdate }];
+    } */
+
+    return {
+      stockquantity: updatedQuantity,
+      stockhistory,
+    };
   };
 
   const handleSaveInventory = async () => {
@@ -261,17 +495,25 @@ const InventoryManagement = () => {
 
     try {
       const isEditMode = dialogMode === "edit" && editingInventoryId !== null;
+      const stockPayload = buildStockHistoryPayload(
+        isEditMode ? inventory.stockhistory || [] : [],
+        isEditMode,
+      );
 
       const payload = {
         productid: inventory.productid,
         userid: inventory.userid,
-        quantity: Number(inventory.quantity),
+        stockquantity: stockPayload.stockquantity,
+        stockhistory: stockPayload.stockhistory,
       };
 
       if (isEditMode) {
         await updateInventory(editingInventoryId, payload);
       } else {
-        await createInventory(payload);
+        await createInventory({
+          ...payload,
+          userId: inventory.userId || getUserReferenceIdForInventory(users, inventory.userid),
+        });
       }
       toast.success(isEditMode ? "Inventory updated successfully" : "Inventory added successfully");
       dispatch(fetchInventory());
@@ -333,7 +575,6 @@ const InventoryManagement = () => {
               flexDirection: isMobile ? "column" : "row",
             }}
           >
-            
             <TextField
               select
               size="small"
@@ -363,7 +604,7 @@ const InventoryManagement = () => {
                   {user.firstname || user.firstName} {user.lastname || user.lastName}
                 </MenuItem>
               ))}
-            </TextField>            
+            </TextField>
           </div>
 
           {status === "loading" && <Typography style={{ marginTop: "1em" }}>Loading inventory...</Typography>}
@@ -394,46 +635,35 @@ const InventoryManagement = () => {
                       User
                     </TableCell>
                     <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
-                      Quantity
-                    </TableCell>    
+                      Stock Quantity
+                    </TableCell>
                     <TableCell
                       align="right"
                       style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", minWidth: 120 }}
                     >
                       Action
                     </TableCell>
+                    <TableCell
+                      align="center"
+                      style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", width: 40 }}
+                    />
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredInventory.map((item) => {
-                    const productId = getItemProductId(item);
-                    const userId = getItemUserId(item);
-                    return (
-                      <TableRow key={item.id} hover>
-                        <TableCell>{getProductLabel(products, productId)}</TableCell>
-                        <TableCell>{getUserLabel(users, userId)}</TableCell>                        
-                        <TableCell>{item.quantity ?? "—"}</TableCell>                       
-                        <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
-                          <IconButton
-                            onClick={() => handleOpenView(item)}
-                            size="small"
-                            aria-label="View inventory"
-                            style={{ color: "#165d46" }}
-                          >
-                            <MdVisibility size={20} />
-                          </IconButton>
-                          <IconButton
-                            onClick={() => handleOpenEdit(item)}
-                            size="small"
-                            aria-label="Edit inventory"
-                            style={{ color: "#165d46" }}
-                          >
-                            <MdEdit size={20} />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {filteredInventory.map((item) => (
+                    <InventoryRow
+                      key={item.id}
+                      item={item}
+                      products={products}
+                      users={users}
+                      expanded={expandedRowId === item.id}
+                      onToggle={() =>
+                        setExpandedRowId((prev) => (prev === item.id ? null : item.id))
+                      }
+                      onToggleView={handleOpenView}
+                      onToggleEdit={handleOpenEdit}
+                    />
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -463,6 +693,8 @@ const InventoryManagement = () => {
             superStockistUsers={superStockistUsers}
             onChange={handleOnChange}
             isMobile={isMobile}
+            isEditMode={dialogMode === "edit"}
+            showStockHistory={dialogMode === "edit"}
           />
         </DialogContent>
         <DialogActions>
@@ -485,6 +717,7 @@ const InventoryManagement = () => {
               onChange={() => {}}
               disabled
               isMobile={isMobile}
+              showStockHistory
             />
           )}
         </DialogContent>

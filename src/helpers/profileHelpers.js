@@ -1,4 +1,5 @@
 import { getDefaultPrivilegeIdsByRole } from "../constants/dashboardFeatures";
+import { ADMIN_ROLE } from "../constants/roles";
 
 const PROFILE_SKIP_KEY = "th_profile_setup_skipped";
 const POST_LOGIN_SETUP_KEY = "th_post_login_setup";
@@ -47,6 +48,8 @@ export const buildGoogleUserPayload = (authUser) => {
     images: [],
     privileges: defaultPrivileges,
     discountrate: 0,
+    accountno: "",
+    ifsccode: "",
   };
 };
 
@@ -58,4 +61,19 @@ export const findUserByEmail = (users, email) => {
     users.find((user) => (user.email || "").trim().toLowerCase() === normalizedEmail) ||
     null
   );
+};
+
+export const canShowEditProfile = (user) => {
+  if (!user) return true;
+  if (user.role === ADMIN_ROLE) return true;
+
+  const raw = user.canshoweditprofile ?? user.canShowEditProfile;
+  if (raw === undefined || raw === null) return true;
+  if (typeof raw === "string") {
+    const normalized = raw.trim().toLowerCase();
+    if (normalized === "false" || normalized === "0") return false;
+    if (normalized === "true" || normalized === "1") return true;
+    return true;
+  }
+  return Boolean(raw);
 };

@@ -7,12 +7,17 @@ import Chip from "@mui/material/Chip";
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchUsers } from "../store/slices/usersSlice";
+import { ADMIN_ROLE } from "../constants/roles";
 import {
   buildUserHierarchy,
+  countDirectChildren,
   countHierarchyNodes,
+  findViewerUser,
   getUserDisplayId,
   getUserDisplayName,
   getUserReferenceNumber,
+  getVisibleLevelRoles,
+  HIERARCHY_LEVEL_LABELS,
 } from "../helpers/userHierarchyHelpers";
 
 const ROLE_COLORS = {
@@ -30,6 +35,7 @@ const HierarchyNode = ({ node, depth = 0, defaultExpanded = true, searchTerm = "
   const role = node.user.role || "—";
   const referenceNumber = getUserReferenceNumber(node.user);
   const hasChildren = node.children.length > 0;
+  const directCount = countDirectChildren(node);
   const roleStyle = ROLE_COLORS[role] || { bg: "#f5f5f5", color: "#424242" };
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -98,6 +104,11 @@ const HierarchyNode = ({ node, depth = 0, defaultExpanded = true, searchTerm = "
             fontWeight: 600,
           }}
         />
+        {hasChildren && (
+          <Typography variant="caption" style={{ color: "#165d46", fontWeight: 600, minWidth: "72px" }}>
+            {directCount} User{directCount === 1 ? "" : "s"}
+          </Typography>
+        )}
         <Typography variant="caption" style={{ color: "#6f7378", minWidth: "120px" }}>
           Ref: {referenceNumber || "—"}
         </Typography>
@@ -139,8 +150,33 @@ const nodeMatchesSearch = (node, normalizedSearch) => {
   return matches || node.children.some((child) => nodeMatchesSearch(child, normalizedSearch));
 };
 
+const RoleLevelSummary = ({ roleCounts, visibleRoles }) => (
+  <div
+    style={{
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "0.5em",
+      marginBottom: "1em",
+    }}
+  >
+    {visibleRoles.map((role) => (
+      <Chip
+        key={role}
+        label={`${HIERARCHY_LEVEL_LABELS[role]}: ${roleCounts[role] || 0}`}
+        size="small"
+        style={{
+          backgroundColor: ROLE_COLORS[role]?.bg || "#f5f5f5",
+          color: ROLE_COLORS[role]?.color || "#424242",
+          fontWeight: 600,
+        }}
+      />
+    ))}
+  </div>
+);
+
 const UserHierarchy = () => {
   const dispatch = useDispatch();
+  const authUser = useSelector((state) => state.user.user);
   const { items: users, status, error } = useSelector((state) => state.users);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandAll, setExpandAll] = useState(true);
@@ -151,8 +187,35 @@ const UserHierarchy = () => {
     }
   }, [dispatch, status]);
 
-  const { roots, unlinked } = useMemo(() => buildUserHierarchy(users), [users]);
+  const viewerUser = useMemo(
+    () => findViewerUser(users, authUser?.email),
+    [users, authUser?.email],
+  );
+  const viewerRole = viewerUser?.role || "";
+
+  const { roots, unlinked, roleCounts, isCustomerViewer, isScopedView } = useMemo(
+    () => buildUserHierarchy(users, viewerUser),
+    [users, viewerUser],
+  );
+
   const linkedCount = useMemo(() => countHierarchyNodes(roots), [roots]);
+  const visibleLevelRoles = useMemo(
+    () => getVisibleLevelRoles(viewerRole, isScopedView),
+    [viewerRole, isScopedView],
+  );
+
+  const hierarchyDescription = useMemo(() => {
+    if (isCustomerViewer) {
+      return "Customer accounts do not have users below them in the hierarchy.";
+    }
+    if (viewerRole === ADMIN_ROLE) {
+      return "Full hierarchy from administrators. Each user's reference number points to their parent's User ID.";
+    }
+    if (isScopedView) {
+      return `Showing your downline only (${viewerRole}). Users are linked by reference number to parent User ID.`;
+    }
+    return "Tree built from User ID and Reference Number.";
+  }, [isCustomerViewer, isScopedView, viewerRole]);
 
   return (
     <Card
@@ -170,52 +233,63 @@ const UserHierarchy = () => {
           User Management Hierarchy
         </Typography>
         <Typography variant="body2" style={{ color: "#6f7378", marginBottom: "1em" }}>
-          Tree built from User ID and Reference Number. Each user&apos;s reference number points to
-          their parent&apos;s User ID.
+          {hierarchyDescription}
         </Typography>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "0.75em",
-            marginBottom: "1em",
-            alignItems: "center",
-          }}
-        >
-          <TextField
-            size="small"
-            label="Search hierarchy"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ flex: "1 1 220px", minWidth: "220px" }}
-          />
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={() => setExpandAll((prev) => !prev)}
-            style={{ color: "#165d46", borderColor: "#165d46", textTransform: "none" }}
+        {!isCustomerViewer && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.75em",
+              marginBottom: "1em",
+              alignItems: "center",
+            }}
           >
-            {expandAll ? "Collapse all" : "Expand all"}
-          </Button>
-        </div>
+            <TextField
+              size="small"
+              label="Search hierarchy"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ flex: "1 1 220px", minWidth: "220px" }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setExpandAll((prev) => !prev)}
+              style={{ color: "#165d46", borderColor: "#165d46", textTransform: "none" }}
+            >
+              {expandAll ? "Collapse all" : "Expand all"}
+            </Button>
+          </div>
+        )}
 
         {status === "loading" && <Typography>Loading users...</Typography>}
         {status === "failed" && (
           <Typography color="error">{error || "Unable to load users."}</Typography>
         )}
 
-        {status === "succeeded" && (
+        {status === "succeeded" && isCustomerViewer && (
+          <Typography style={{ color: "#6f7378", textAlign: "center", marginTop: "2em" }}>
+            No hierarchy available for Customer role.
+          </Typography>
+        )}
+
+        {status === "succeeded" && !isCustomerViewer && (
           <>
+            <RoleLevelSummary roleCounts={roleCounts} visibleRoles={visibleLevelRoles} />
+
             <Typography variant="body2" style={{ color: "#165d46", marginBottom: "0.75em", fontWeight: 600 }}>
-              {linkedCount} linked user{linkedCount === 1 ? "" : "s"}
-              {unlinked.length > 0 ? ` · ${unlinked.length} unlinked` : ""}
+              {linkedCount} user{linkedCount === 1 ? "" : "s"} in hierarchy
+              {!isScopedView && unlinked.length > 0 ? ` · ${unlinked.length} unlinked` : ""}
             </Typography>
 
-              <div key={expandAll ? "expanded" : "collapsed"} style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+            <div key={expandAll ? "expanded" : "collapsed"} style={{ flex: 1, overflow: "auto", minHeight: 0 }}>
               {roots.length === 0 && (
                 <Typography style={{ color: "#6f7378", textAlign: "center", marginTop: "2em" }}>
-                  No administrator users found to build hierarchy.
+                  {isScopedView
+                    ? "No downline users found for your account."
+                    : "No administrator users found to build hierarchy."}
                 </Typography>
               )}
 
@@ -228,13 +302,13 @@ const UserHierarchy = () => {
                 />
               ))}
 
-              {unlinked.length > 0 && (
+              {!isScopedView && unlinked.length > 0 && (
                 <div style={{ marginTop: "1.5em" }}>
                   <Typography
                     variant="subtitle2"
                     style={{ color: "#165d46", fontWeight: 700, marginBottom: "0.75em" }}
                   >
-                    Unlinked Users
+                    Unlinked Users ({unlinked.length})
                   </Typography>
                   <Typography variant="caption" style={{ color: "#6f7378", display: "block", marginBottom: "0.75em" }}>
                     Users not connected to an administrator tree (missing or invalid reference number).

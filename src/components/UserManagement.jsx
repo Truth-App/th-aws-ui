@@ -58,6 +58,8 @@ const INITIAL_USER_FORM = {
   imageKeys: [],
   privileges: [],
   discountrate: 0,
+  accountno: "",
+  ifsccode: "",
 };
 
 const getUserId = (user) => user.userId || user.email || user.id || "—";
@@ -157,6 +159,8 @@ const mapUserToForm = (selectedUser) => {
     address: selectedUser.address || "",
     landmark: selectedUser.landmark || "",
     pincode: selectedUser.pincode || "",
+    accountno: selectedUser.accountno || selectedUser.accountNo || selectedUser.accountnumber || "",
+    ifsccode: selectedUser.ifsccode || selectedUser.ifscCode || "",
     imageKeys: getUserImageKeys(selectedUser),
     privileges: getUserPrivileges(selectedUser),
     discountrate: getUserDiscountRate(selectedUser),
@@ -413,6 +417,7 @@ const UserFormFields = ({
       disabled={disabled}
       inputProps={{ maxLength: 6, readOnly: disabled }}
       required={!disabled}
+      helperText={!disabled ? "Enter the correct pin code" : undefined}
     />
     <TextField
       size="small"
@@ -436,6 +441,30 @@ const UserFormFields = ({
       required={!disabled}
       style={isMobile ? undefined : { gridColumn: "1 / -1" }}
     />
+    {(profileMode || extendedUserForm) && (
+      <>
+        <TextField
+          size="small"
+          label="Account No"
+          variant="outlined"
+          name="accountno"
+          value={user.accountno || ""}
+          onChange={onChange}
+          disabled={disabled}
+          inputProps={{ readOnly: disabled }}
+        />
+        <TextField
+          size="small"
+          label="IFSC Code"
+          variant="outlined"
+          name="ifsccode"
+          value={user.ifsccode || ""}
+          onChange={onChange}
+          disabled={disabled}
+          inputProps={{ maxLength: 11, readOnly: disabled }}
+        />
+      </>
+    )}
     {!profileMode && (
       <PrivilegesSection
         privileges={user.privileges || []}
@@ -577,28 +606,45 @@ const ReferenceNumberFields = ({
   onSelectUser,
   onChange,
   showDiscountRate = false,
+  profileMode = false,
+  disabled = false,
 }) => (
   <>
-    {user.role !== ADMIN_ROLE && (
-      <ProfileUserSelectTable
-        users={users}
-        filter={filter}
-        onFilterChange={onFilterChange}
-        selectedUserId={selectedReferenceUserId}
-        onSelectUser={onSelectUser}
+    {profileMode ? (
+      <TextField
+        size="small"
+        label="Reference Number"
+        variant="outlined"
+        name="referencenumber"
+        value={user.referencenumber}
+        onChange={onChange}
+        disabled={disabled || user.role === ADMIN_ROLE}
+        fullWidth
       />
+    ) : (
+      <>
+        {user.role !== ADMIN_ROLE && (
+          <ProfileUserSelectTable
+            users={users}
+            filter={filter}
+            onFilterChange={onFilterChange}
+            selectedUserId={selectedReferenceUserId}
+            onSelectUser={onSelectUser}
+          />
+        )}
+        <RoleSelectField user={user} onChange={() => {}} disabled fullWidth />
+        <TextField
+          size="small"
+          label="Reference Number"
+          variant="outlined"
+          name="referencenumber"
+          value={user.referencenumber}
+          onChange={onChange}
+          disabled
+          fullWidth
+        />
+      </>
     )}
-    <RoleSelectField user={user} onChange={() => {}} disabled fullWidth />
-    <TextField
-      size="small"
-      label="Reference Number"
-      variant="outlined"
-      name="referencenumber"
-      value={user.referencenumber}
-      onChange={onChange}
-      disabled
-      fullWidth
-    />
     {showDiscountRate && (
       <TextField
         size="small"
@@ -608,8 +654,9 @@ const ReferenceNumberFields = ({
         type="number"
         value={user.discountrate ?? 0}
         onChange={onChange}
-        inputProps={{ min: 0, max: 100, step: 1 }}
-        helperText="Maximum discount is 100%"
+        disabled={disabled}
+        inputProps={{ min: 0, max: 100, step: 1, readOnly: disabled }}
+        helperText={!disabled ? "Maximum discount is 100%" : undefined}
         fullWidth
       />
     )}
@@ -947,6 +994,8 @@ const UserManagement = ({ profileMode = false }) => {
         address: user.address.trim(),
         landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
+        accountno: user.accountno?.trim() || "",
+        ifsccode: user.ifsccode?.trim() || "",
         imageKeys: user.imageKeys || [],
         images: user.imageKeys || [],
       };
@@ -1063,6 +1112,7 @@ const UserManagement = ({ profileMode = false }) => {
                   selectedReferenceUserId={selectedReferenceUserId}
                   onSelectUser={handleReferenceUserSelect}
                   onChange={handleOnChange}
+                  profileMode
                 />
                 <ImageUploadSection
                   imageKeys={user.imageKeys || []}
@@ -1309,12 +1359,8 @@ const UserManagement = ({ profileMode = false }) => {
             {dialogMode === "edit" && (
               <ReferenceNumberFields
                 user={user}
-                users={users}
-                filter={profileUserFilter}
-                onFilterChange={setProfileUserFilter}
-                selectedReferenceUserId={selectedReferenceUserId}
-                onSelectUser={handleReferenceUserSelect}
                 onChange={handleOnChange}
+                profileMode
                 showDiscountRate
               />
             )}
@@ -1355,14 +1401,14 @@ const UserManagement = ({ profileMode = false }) => {
                 disabled
                 isMobile={isMobile}
                 profileMode={false}
+                extendedUserForm
               />
-              <TextField
-                size="small"
-                label="Discount Rate (%)"
-                variant="outlined"
-                value={viewingUser.discountrate ?? 0}
+              <ReferenceNumberFields
+                user={viewingUser}
+                onChange={() => {}}
+                profileMode
+                showDiscountRate
                 disabled
-                fullWidth
               />
               <ImageUploadSection
                 imageKeys={viewingUser.imageKeys || []}

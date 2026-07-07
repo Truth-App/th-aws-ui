@@ -1,4 +1,4 @@
-import { NavLink } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useState, useEffect, useMemo } from "react";
 import Avatar from "@mui/material/Avatar";
@@ -16,6 +16,7 @@ import {
   getUserPrivilegesFromList,
   hasDashboardAccess,
 } from "../constants/dashboardFeatures";
+import { canShowEditProfile, findUserByEmail } from "../helpers/profileHelpers";
 
 const Navbar = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -23,6 +24,7 @@ const Navbar = () => {
   const [anchorEl, setAnchorEl] = useState(null);
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { isAuthenticated, user, status } = useSelector((state) => state.user);
   const { items: users, status: usersStatus } = useSelector((state) => state.users);
   const authResolving = status === 'idle' || status === 'loading';
@@ -35,6 +37,11 @@ const Navbar = () => {
 
   const userPrivileges = useMemo(
     () => getUserPrivilegesFromList(users, user?.email),
+    [users, user?.email],
+  );
+
+  const matchedDbUser = useMemo(
+    () => findUserByEmail(users, user?.email),
     [users, user?.email],
   );
 
@@ -69,6 +76,15 @@ const Navbar = () => {
   const handleLogout = () => {
     handleClose();
     dispatch(logoutUser());
+  };
+
+  const handleEditProfileClick = () => {
+    handleClose();
+    if (canShowEditProfile(matchedDbUser)) {
+      navigate("/profile/edit");
+      return;
+    }
+    navigate("/");
   };
 
   const open = Boolean(anchorEl);
@@ -159,12 +175,13 @@ const Navbar = () => {
                   </MenuItem>
                 </NavLink>
               )}
-              <NavLink to="/profile/edit" style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
-                <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
-                  <MdEdit size={20} />
-                  Edit Profile
-                </MenuItem>
-              </NavLink>
+              <MenuItem
+                onClick={handleEditProfileClick}
+                sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}
+              >
+                <MdEdit size={20} />
+                Edit Profile
+              </MenuItem>
               <MenuItem
                 onClick={handleLogout}
                 sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em", color: "#c0392b" }}

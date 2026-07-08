@@ -24,8 +24,6 @@ export const HIERARCHY_LEVEL_LABELS = {
   Customer: "Customers",
 };
 
-export const HIERARCHY_VIEWER_ROLES = ["Super Stockist", "Stockist", "Dealer"];
-
 export const getUserDisplayId = (user) => (user?.userId || user?.userid || "").trim();
 
 export const getUserReferenceNumber = (user) =>
@@ -37,6 +35,9 @@ export const getUserDisplayName = (user) => {
   const fullName = `${first} ${last}`.trim();
   return fullName || user?.email || "—";
 };
+
+/** Users without a reference number are hierarchy roots (treated as admin). */
+export const isAdminRootUser = (user) => !getUserReferenceNumber(user);
 
 export const sortUsersByHierarchy = (list) =>
   [...list].sort((a, b) => {
@@ -111,92 +112,62 @@ export const findViewerUser = (users, email) => {
   );
 };
 
+const findEnrichedViewer = (enriched, viewerUser) => {
+  if (!viewerUser) return null;
+
+  return (
+    enriched.find(
+      (user) =>
+        user.id === viewerUser.id ||
+        (viewerUser.email &&
+          (user.email || "").trim().toLowerCase() === viewerUser.email.trim().toLowerCase()),
+    ) || null
+  );
+};
+
 export const buildUserHierarchy = (users = [], viewerUser = null) => {
   const enriched = enrichUsers(users);
   const childrenByParentId = buildChildrenMap(enriched);
-  const viewerRole = viewerUser?.role || "";
+  const viewerRecord = findEnrichedViewer(enriched, viewerUser);
+  const viewerIsAdminRoot = viewerRecord ? isAdminRootUser(viewerRecord) : true;
 
-  if (viewerRole === "Customer") {
-    return {
-      roots: [],
-      unlinked: [],
-      roleCounts: countRolesInHierarchy([]),
-      isCustomerViewer: true,
-      isScopedView: false,
-    };
-  }
-
-  const viewerRecord = viewerUser
-    ? enriched.find(
-        (user) =>
-          user.id === viewerUser.id ||
-          (viewerUser.email &&
-            (user.email || "").trim().toLowerCase() === viewerUser.email.trim().toLowerCase()),
-      )
-    : null;
-
-  if (viewerRole === ADMIN_ROLE) {
-    const visited = new Set();
-    const collectVisited = (node) => {
-      visited.add(node.user.id);
-      node.children.forEach(collectVisited);
-    };
-
-    const adminRoots = sortUsersByHierarchy(enriched.filter((user) => user.role === ADMIN_ROLE));
-    const roots = adminRoots.map((user) => {
-      const node = buildNode(user, childrenByParentId);
-      collectVisited(node);
-      return node;
-    });
-
-    const unlinked = sortUsersByHierarchy(enriched.filter((user) => !visited.has(user.id)));
-
-    return {
-      roots,
-      unlinked,
-      roleCounts: countRolesInHierarchy(roots),
-      isCustomerViewer: false,
-      isScopedView: false,
-    };
-  }
-
-  if (viewerRecord && HIERARCHY_VIEWER_ROLES.includes(viewerRole)) {
+  if (viewerRecord && !viewerIsAdminRoot) {
     const rootNode = buildNode(viewerRecord, childrenByParentId);
 
     return {
       roots: [rootNode],
       unlinked: [],
       roleCounts: countRolesInHierarchy([rootNode]),
-      isCustomerViewer: false,
+      isAdminViewer: false,
       isScopedView: true,
     };
   }
 
+  const visited = new Set();
+  const collectVisited = (node) => {
+    visited.add(node.user.id);
+    node.children.forEach(collectVisited);
+  };
+
+  const adminRoots = sortUsersByHierarchy(enriched.filter((user) => isAdminRootUser(user)));
+  const roots = adminRoots.map((user) => {
+    const node = buildNode(user, childrenByParentId);
+    collectVisited(node);
+    return node;
+  });
+
+  const unlinked = sortUsersByHierarchy(
+    enriched.filter((user) => user._ref && !visited.has(user.id)),
+  );
+
   return {
-    roots: [],
-    unlinked: [],
-    roleCounts: countRolesInHierarchy([]),
-    isCustomerViewer: false,
+    roots,
+    unlinked,
+    roleCounts: countRolesInHierarchy(roots),
+    isAdminViewer: true,
     isScopedView: false,
   };
 };
 
-export const getVisibleLevelRoles = (viewerRole, isScopedView) => {
-  if (viewerRole === ADMIN_ROLE) {
-    return HIERARCHY_LEVEL_ROLES;
-  }
-
-  if (viewerRole === "Super Stockist") {
-    return ["Super Stockist", "Stockist", "Dealer", "Customer"];
-  }
-
-  if (viewerRole === "Stockist") {
-    return ["Stockist", "Dealer", "Customer"];
-  }
-
-  if (viewerRole === "Dealer") {
-    return ["Dealer", "Customer"];
-  }
-
-  return isScopedView ? HIERARCHY_LEVEL_ROLES.filter((role) => role !== ADMIN_ROLE) : [];
-};
+export const getVisibleLevelRoles = (roleCounts) =>
+  HIERARCHY_LEVEL_ROLES.filter((role) => (roleCounts[role] || 0) > 0);

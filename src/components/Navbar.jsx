@@ -16,7 +16,6 @@ import {
   getUserPrivilegesFromList,
   hasDashboardAccess,
 } from "../constants/dashboardFeatures";
-import { canShowEditProfile, findUserByEmail } from "../helpers/profileHelpers";
 
 const Navbar = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -37,11 +36,6 @@ const Navbar = () => {
 
   const userPrivileges = useMemo(
     () => getUserPrivilegesFromList(users, user?.email),
-    [users, user?.email],
-  );
-
-  const matchedDbUser = useMemo(
-    () => findUserByEmail(users, user?.email),
     [users, user?.email],
   );
 
@@ -80,11 +74,7 @@ const Navbar = () => {
 
   const handleEditProfileClick = () => {
     handleClose();
-    if (canShowEditProfile(matchedDbUser)) {
-      navigate("/profile/edit");
-      return;
-    }
-    navigate("/");
+    navigate("/profile/edit");
   };
 
   const open = Boolean(anchorEl);

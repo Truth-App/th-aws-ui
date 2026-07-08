@@ -43,6 +43,7 @@ export const buildGoogleUserPayload = (authUser) => {
     address: "",
     landmark: "",
     pincode: "",
+    supportedpincodes: [],
     imageKeys: [],
     imagekeys: [],
     images: [],

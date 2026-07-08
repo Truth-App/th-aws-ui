@@ -106,6 +106,13 @@ const getUserDiscountRate = (selectedUser) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const BANK_DETAILS_ROLES = new Set(["Super Stockist", "Stockist", "Dealer"]);
+const SUPPORTED_PINCODE_ROLE = "Super Stockist";
+
+const shouldShowBankDetails = (role) => BANK_DETAILS_ROLES.has(role);
+const shouldShowSupportedPincodes = (currentUserRole, targetUserRole) =>
+  currentUserRole === ADMIN_ROLE && targetUserRole === SUPPORTED_PINCODE_ROLE;
+
 const findUserByReferenceNumber = (users, referenceNumber) => {
   const normalized = (referenceNumber || "").trim();
   if (!normalized) return null;
@@ -459,6 +466,7 @@ const UserFormFields = ({
   onPrivilegeToggle,
   onAddSupportedPincode,
   onRemoveSupportedPincode,
+  showSupportedPincodes = false,
   disabled = false,
   isMobile,
   profileMode = false,
@@ -551,12 +559,14 @@ const UserFormFields = ({
       required={!disabled}
       helperText={!disabled ? "Enter the correct pin code" : undefined}
     />
-    <SupportedPincodesSection
-      supportedpincodes={user.supportedpincodes || []}
-      disabled={disabled}
-      onAdd={onAddSupportedPincode}
-      onRemove={onRemoveSupportedPincode}
-    />
+    {showSupportedPincodes && (
+      <SupportedPincodesSection
+        supportedpincodes={user.supportedpincodes || []}
+        disabled={disabled}
+        onAdd={onAddSupportedPincode}
+        onRemove={onRemoveSupportedPincode}
+      />
+    )}
     <TextField
       size="small"
       label="Landmark"
@@ -579,7 +589,7 @@ const UserFormFields = ({
       required={!disabled}
       style={isMobile ? undefined : { gridColumn: "1 / -1" }}
     />
-    {(profileMode || extendedUserForm) && (
+    {shouldShowBankDetails(user.role) && (
       <>
         <TextField
           size="small"
@@ -899,6 +909,20 @@ const UserManagement = ({ profileMode = false }) => {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const profileReady = status === "succeeded" || (profileMode && status === "failed");
+  const currentDbUserRole = useMemo(() => {
+    const profileEmail = (authUser?.email || "").trim().toLowerCase();
+    if (!profileEmail) return "";
+
+    const matchedUser = users.find(
+      (item) => (item.email || "").trim().toLowerCase() === profileEmail,
+    );
+    return matchedUser?.role || "";
+  }, [authUser?.email, users]);
+  const canManageSupportedPincodes = shouldShowSupportedPincodes(currentDbUserRole, user.role);
+  const canViewSupportedPincodes = shouldShowSupportedPincodes(
+    currentDbUserRole,
+    viewingUser?.role || "",
+  );
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
@@ -907,6 +931,10 @@ const UserManagement = ({ profileMode = false }) => {
         ...prev,
         role: value,
         privileges: getDefaultPrivilegeIdsByRole(value),
+        ...(shouldShowBankDetails(value) ? {} : { accountno: "", ifsccode: "" }),
+        ...(shouldShowSupportedPincodes(currentDbUserRole, value)
+          ? {}
+          : { supportedpincodes: [] }),
       }));
       return;
     }
@@ -961,6 +989,10 @@ const UserManagement = ({ profileMode = false }) => {
       role: assignedRole,
       privileges: getDefaultPrivilegeIdsByRole(assignedRole),
       discountrate: getDefaultDiscountRateByRole(assignedRole),
+      ...(shouldShowBankDetails(assignedRole) ? {} : { accountno: "", ifsccode: "" }),
+      ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
+        ? {}
+        : { supportedpincodes: [] }),
     }));
   };
 
@@ -1117,7 +1149,7 @@ const UserManagement = ({ profileMode = false }) => {
       toast.error("Pincode must be 6 digits");
       return false;
     }
-    const supportedpincodes = user.supportedpincodes || [];
+    const supportedpincodes = canManageSupportedPincodes ? user.supportedpincodes || [] : [];
     if (supportedpincodes.some((pincode) => !/^\d{6}$/.test(pincode))) {
       toast.error("Each pincode must be 6 digits");
       return false;
@@ -1141,7 +1173,7 @@ const UserManagement = ({ profileMode = false }) => {
 
     try {
       const isEditMode = dialogMode === "edit" && editingUserId !== null;
-      const supportedpincodes = user.supportedpincodes || [];
+      const supportedpincodes = canManageSupportedPincodes ? user.supportedpincodes || [] : [];
 
       const payload = {
         firstname: user.firstname.trim(),
@@ -1155,8 +1187,8 @@ const UserManagement = ({ profileMode = false }) => {
         landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
         supportedpincodes,
-        accountno: user.accountno?.trim() || "",
-        ifsccode: user.ifsccode?.trim() || "",
+        accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || "" : "",
+        ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || "" : "",
         imageKeys: user.imageKeys || [],
         images: user.imageKeys || [],
       };
@@ -1263,6 +1295,7 @@ const UserManagement = ({ profileMode = false }) => {
                   onPrivilegeToggle={handlePrivilegeToggle}
                   onAddSupportedPincode={handleAddSupportedPincode}
                   onRemoveSupportedPincode={handleRemoveSupportedPincode}
+                  showSupportedPincodes={canManageSupportedPincodes}
                   isMobile={isMobile}
                   profileMode={profileMode}
                   extendedUserForm
@@ -1499,6 +1532,7 @@ const UserManagement = ({ profileMode = false }) => {
               onPrivilegeToggle={handlePrivilegeToggle}
               onAddSupportedPincode={handleAddSupportedPincode}
               onRemoveSupportedPincode={handleRemoveSupportedPincode}
+              showSupportedPincodes={canManageSupportedPincodes}
               isMobile={isMobile}
               profileMode={false}
               extendedUserForm={dialogMode === "edit"}
@@ -1547,6 +1581,7 @@ const UserManagement = ({ profileMode = false }) => {
                 onPrivilegeToggle={() => {}}
                 onAddSupportedPincode={() => {}}
                 onRemoveSupportedPincode={() => {}}
+                showSupportedPincodes={canViewSupportedPincodes}
                 disabled
                 isMobile={isMobile}
                 profileMode={false}

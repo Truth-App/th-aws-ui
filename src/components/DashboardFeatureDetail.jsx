@@ -25,9 +25,10 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 
 const INITIAL_PRODUCT_FORM = {
   title: "",
-  description: "",
   mrpPrice: "",
   customerPrice: "",
+  dealerPrice: "",
+  stockistPrice: "",
   category: "",
   isActive: true,
   imageKeys: [],
@@ -96,7 +97,13 @@ const DashboardFeatureDetail = () => {
     const { name, value } = e.target;
     setProduct((prev) => ({
       ...prev,
-      [name]: name === "mrpPrice" || name === "customerPrice" ? Number(value) : value,
+      [name]:
+        name === "mrpPrice" ||
+        name === "customerPrice" ||
+        name === "dealerPrice" ||
+        name === "stockistPrice"
+          ? Number(value)
+          : value,
     }));
   };
 
@@ -115,9 +122,10 @@ const DashboardFeatureDetail = () => {
     setEditingProductId(selectedProduct.id);
     setProduct({
       title: selectedProduct.title || "",
-      description: selectedProduct.description || "",
       mrpPrice: selectedProduct.mrpPrice ?? "",
       customerPrice: selectedProduct.customerPrice ?? "",
+      dealerPrice: selectedProduct.dealerPrice ?? "",
+      stockistPrice: selectedProduct.stockistPrice ?? "",
       category: selectedProduct.category || "Laundry Care",
       isActive: selectedProduct.isActive ?? true,
       imageKeys: selectedProduct.imageKeys || selectedProduct.images || selectedProduct.fileKeys || [],
@@ -229,7 +237,14 @@ const DashboardFeatureDetail = () => {
 
   const handleSaveProduct = async () => {
     // Validate required fields
-    if (!product.title || !product.description || !product.mrpPrice || !product.customerPrice || !product.category) {
+    if (
+      !product.title ||
+      !product.mrpPrice ||
+      !product.customerPrice ||
+      product.dealerPrice === "" ||
+      product.stockistPrice === "" ||
+      !product.category
+    ) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -448,18 +463,6 @@ const DashboardFeatureDetail = () => {
               required
             />
             <TextField
-              size="small"
-              multiline
-              id="outlined-basic"
-              label="Product Description"
-              variant="outlined"
-              minRows={3}
-              name="description"
-              value={product.description}
-              onChange={handleOnChange}
-              required
-            />
-            <TextField
               type="number"
               size="small"
               id="outlined-basic"
@@ -478,6 +481,28 @@ const DashboardFeatureDetail = () => {
               variant="outlined"
               name="customerPrice"
               value={product.customerPrice}
+              onChange={handleOnChange}
+              required
+            />
+            <TextField
+              type="number"
+              size="small"
+              id="outlined-dealer-price"
+              label="Dealer Price"
+              variant="outlined"
+              name="dealerPrice"
+              value={product.dealerPrice}
+              onChange={handleOnChange}
+              required
+            />
+            <TextField
+              type="number"
+              size="small"
+              id="outlined-stockist-price"
+              label="Stockist Price"
+              variant="outlined"
+              name="stockistPrice"
+              value={product.stockistPrice}
               onChange={handleOnChange}
               required
             />

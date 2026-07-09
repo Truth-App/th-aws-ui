@@ -27,12 +27,35 @@ const INITIAL_PRODUCT_FORM = {
   title: "",
   mrpPrice: "",
   customerPrice: "",
-  dealerPrice: "",
+  superStockistPrice: "",
   stockistPrice: "",
+  dealerPrice: "",
   category: "",
   isActive: true,
   imageKeys: [],
 };
+
+const PRODUCT_PRICE_FIELDS = new Set([
+  "mrpPrice",
+  "customerPrice",
+  "superStockistPrice",
+  "stockistPrice",
+  "dealerPrice",
+]);
+
+const mapProductToForm = (selectedProduct) => ({
+  title: selectedProduct.title || "",
+  mrpPrice: selectedProduct.mrpPrice ?? "",
+  customerPrice: selectedProduct.customerPrice ?? "",
+  superStockistPrice:
+    selectedProduct.superStockistPrice ?? selectedProduct.superstockistprice ?? "",
+  stockistPrice: selectedProduct.stockistPrice ?? "",
+  dealerPrice: selectedProduct.dealerPrice ?? "",
+  category: selectedProduct.category || "",
+  isActive: selectedProduct.isActive ?? true,
+  imageKeys:
+    selectedProduct.imageKeys || selectedProduct.images || selectedProduct.fileKeys || [],
+});
 
 const DashboardFeatureDetail = () => {
   const dispatch = useDispatch();
@@ -97,13 +120,7 @@ const DashboardFeatureDetail = () => {
     const { name, value } = e.target;
     setProduct((prev) => ({
       ...prev,
-      [name]:
-        name === "mrpPrice" ||
-        name === "customerPrice" ||
-        name === "dealerPrice" ||
-        name === "stockistPrice"
-          ? Number(value)
-          : value,
+      [name]: PRODUCT_PRICE_FIELDS.has(name) ? Number(value) : value,
     }));
   };
 
@@ -120,16 +137,7 @@ const DashboardFeatureDetail = () => {
   const handleOpenEdit = (selectedProduct) => {
     setDialogMode("edit");
     setEditingProductId(selectedProduct.id);
-    setProduct({
-      title: selectedProduct.title || "",
-      mrpPrice: selectedProduct.mrpPrice ?? "",
-      customerPrice: selectedProduct.customerPrice ?? "",
-      dealerPrice: selectedProduct.dealerPrice ?? "",
-      stockistPrice: selectedProduct.stockistPrice ?? "",
-      category: selectedProduct.category || "Laundry Care",
-      isActive: selectedProduct.isActive ?? true,
-      imageKeys: selectedProduct.imageKeys || selectedProduct.images || selectedProduct.fileKeys || [],
-    });
+    setProduct(mapProductToForm(selectedProduct));
     setOpen(true);
   };
 
@@ -241,6 +249,7 @@ const DashboardFeatureDetail = () => {
       !product.title ||
       !product.mrpPrice ||
       !product.customerPrice ||
+      product.superStockistPrice === "" ||
       product.dealerPrice === "" ||
       product.stockistPrice === "" ||
       !product.category
@@ -333,23 +342,25 @@ const DashboardFeatureDetail = () => {
             </Button>
           </div>
 
-          <div
-            style={{
-              marginTop: 0,
-              backgroundColor: "#fafbf9",
-              padding: 0,
-              borderRadius: "8px",
-            }}
-          >
-            <CategoryCarousel
-              selectedCategory={categoryFilter === "All Items" ? null : categoryFilter}
-              onCategorySelect={(category) => {
-                setCategoryFilter(category || "All Items");
-                setPage(1);
+          {categoryFilter === "All Items" && (
+            <div
+              style={{
+                marginTop: 0,
+                backgroundColor: "#fafbf9",
+                padding: 0,
+                borderRadius: "8px",
               }}
-              items={catalogCategories.length > 0 ? catalogCategories : fallbackCategories}
-            />
-          </div>
+            >
+              <CategoryCarousel
+                selectedCategory={null}
+                onCategorySelect={(category) => {
+                  setCategoryFilter(category || "All Items");
+                  setPage(1);
+                }}
+                items={catalogCategories.length > 0 ? catalogCategories : fallbackCategories}
+              />
+            </div>
+          )}
 
           <div
             style={{
@@ -372,6 +383,44 @@ const DashboardFeatureDetail = () => {
               label="Search products"
             />
           </div>
+
+          {categoryFilter !== "All Items" && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5em",
+                marginTop: "0.75em",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setCategoryFilter("All Items");
+                  setPage(1);
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  color: "#6f7378",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  fontSize: "0.875rem",
+                }}
+              >
+                Home
+              </button>
+              <Typography variant="body2" style={{ color: "#6f7378" }}>
+                &gt;
+              </Typography>
+              <Typography variant="body2" style={{ color: "#165d46", fontWeight: 600 }}>
+                {categoryFilter}
+              </Typography>
+            </div>
+          )}
 
           {status === "loading" && <Typography style={{ marginTop: "1em" }}>Loading products...</Typography>}
           {status === "failed" && (
@@ -443,7 +492,9 @@ const DashboardFeatureDetail = () => {
         </CardContent>
       </Card>
       <Dialog open={open} onClose={handleClose} scroll="paper">
-        <DialogTitle id="scroll-dialog-title">{dialogMode === "edit" ? "Update Product" : "Add New Product"}</DialogTitle>
+        <DialogTitle id="scroll-dialog-title">
+          {dialogMode === "edit" ? "Update Product" : "Add New Product"}
+        </DialogTitle>
         <DialogContent dividers>
           <DialogContentText
             id="scroll-dialog-description"
@@ -477,7 +528,7 @@ const DashboardFeatureDetail = () => {
               type="number"
               size="small"
               id="outlined-basic"
-              label="Discounted Price"
+              label="Customer Price"
               variant="outlined"
               name="customerPrice"
               value={product.customerPrice}
@@ -503,6 +554,17 @@ const DashboardFeatureDetail = () => {
               variant="outlined"
               name="stockistPrice"
               value={product.stockistPrice}
+              onChange={handleOnChange}
+              required
+            />
+            <TextField
+              type="number"
+              size="small"
+              id="outlined-super-stockist-price"
+              label="Super Stockist Price"
+              variant="outlined"
+              name="superStockistPrice"
+              value={product.superStockistPrice}
               onChange={handleOnChange}
               required
             />
@@ -550,62 +612,64 @@ const DashboardFeatureDetail = () => {
                 accept="image/*"
               />
               {uploadingFiles && <Typography variant="body2" style={{ marginTop: "0.5em", color: "#1976d2" }}>Uploading files...</Typography>}
-              {product.imageKeys && product.imageKeys.length > 0 && (
-                <div style={{ marginTop: "1em" }}>
-                  <Typography variant="body2" style={{ fontWeight: "bold", marginBottom: "0.5em" }}>
-                    Uploaded Images:
-                  </Typography>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "0.75em" }}>
-                    {product.imageKeys.map((key, index) => (
-                      <div
-                        key={index}
+            </div>
+            {product.imageKeys && product.imageKeys.length > 0 && (
+              <div style={{ marginTop: "1em" }}>
+                <Typography variant="body2" style={{ fontWeight: "bold", marginBottom: "0.5em" }}>
+                  Uploaded Images:
+                </Typography>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "0.75em" }}>
+                  {product.imageKeys.map((key, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        position: "relative",
+                        width: "100%",
+                        paddingBottom: "100%",
+                        backgroundColor: "#f0f0f0",
+                        borderRadius: "4px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <img
+                        src={`https://th-app-product.s3.ap-south-2.amazonaws.com/${key}`}
+                        alt="Uploaded thumbnail"
                         style={{
-                          position: "relative",
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
                           width: "100%",
-                          paddingBottom: "100%",
-                          backgroundColor: "#f0f0f0",
-                          borderRadius: "4px",
-                          overflow: "hidden",
+                          height: "100%",
+                          objectFit: "contain",
+                          padding: "4px",
+                        }}
+                      />
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleRemoveFile(index)}
+                        style={{
+                          position: "absolute",
+                          top: "2px",
+                          right: "2px",
+                          padding: "2px 4px",
+                          minWidth: "auto",
                         }}
                       >
-                        <img
-                          src={`https://th-app-product.s3.ap-south-2.amazonaws.com/${key}`}
-                          alt="Uploaded thumbnail"
-                          style={{
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "contain",
-                            padding: "4px",
-                          }}
-                        />
-                        <Button
-                          size="small"
-                          color="error"
-                          onClick={() => handleRemoveFile(index)}
-                          style={{
-                            position: "absolute",
-                            top: "2px",
-                            right: "2px",
-                            padding: "2px 4px",
-                            minWidth: "auto",
-                          }}
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                        ✕
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleSaveProduct}>{dialogMode === "edit" ? "Update product" : "Add product"}</Button>
+          <Button onClick={handleSaveProduct}>
+            {dialogMode === "edit" ? "Update product" : "Add product"}
+          </Button>
         </DialogActions>
       </Dialog>
     </>

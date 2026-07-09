@@ -92,21 +92,57 @@ const CustomCard = () => {
             variant="outlined"
           />
         </div>
-        <div
-          style={{
-            marginTop: "1em",
-            backgroundColor: "#fafbf9",
-            padding: 0,
-            borderRadius: "8px",
-          }}
-        >
-          <CategoryCarousel
-            selectedCategory={selectedCategory}
-            onCategorySelect={setSelectedCategory}
-            items={homeCategories}
-            useDivisionThemes
-          />
-        </div>
+        {!selectedCategory && (
+          <div
+            style={{
+              marginTop: "1em",
+              backgroundColor: "#fafbf9",
+              padding: 0,
+              borderRadius: "8px",
+            }}
+          >
+            <CategoryCarousel
+              selectedCategory={selectedCategory}
+              onCategorySelect={setSelectedCategory}
+              items={homeCategories}
+              useDivisionThemes
+            />
+          </div>
+        )}
+        {selectedCategory && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5em",
+              marginTop: "0.75em",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              style={{
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                color: "#6f7378",
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                fontSize: "0.875rem",
+              }}
+            >
+              Home
+            </button>
+            <Typography variant="body2" style={{ color: "#6f7378" }}>
+              &gt;
+            </Typography>
+            <Typography variant="body2" style={{ color: "#165d46", fontWeight: 600 }}>
+              {selectedCategory}
+            </Typography>
+          </div>
+        )}
         <div
           style={{
             display: "flex",

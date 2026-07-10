@@ -60,6 +60,7 @@ const INITIAL_USER_FORM = {
   imageKeys: [],
   privileges: [],
   discountrate: 0,
+  bankname: "",
   accountno: "",
   ifsccode: "",
 };
@@ -203,6 +204,7 @@ const mapUserToForm = (selectedUser) => {
     landmark: selectedUser.landmark || "",
     pincode: selectedUser.pincode || "",
     supportedpincodes: getUserSupportedPincodes(selectedUser),
+    bankname: selectedUser.bankname || selectedUser.bankName || "",
     accountno: selectedUser.accountno || selectedUser.accountNo || selectedUser.accountnumber || "",
     ifsccode: selectedUser.ifsccode || selectedUser.ifscCode || "",
     imageKeys: getUserImageKeys(selectedUser),
@@ -497,6 +499,8 @@ const UserFormFields = ({
       variant="outlined"
       name="firstname"
       value={user.firstname}
+      helperText="Please enter the correct first name, as per the Bank records"
+      maxLength={50}
       onChange={onChange}
       disabled={disabled}
       required={!disabled}
@@ -507,6 +511,8 @@ const UserFormFields = ({
       variant="outlined"
       name="lastname"
       value={user.lastname}
+      helperText="Please enter the correct last name, as per the Bank records"
+      maxLength={50}
       onChange={onChange}
       disabled={disabled}
       required={!disabled}
@@ -591,6 +597,16 @@ const UserFormFields = ({
     />
     {shouldShowBankDetails(user.role) && (
       <>
+        <TextField
+          size="small"
+          label="Bank Name"
+          variant="outlined"
+          name="bankname"
+          value={user.bankname || ""}
+          onChange={onChange}
+          disabled={disabled}
+          inputProps={{ readOnly: disabled }}
+        />
         <TextField
           size="small"
           label="Account No"
@@ -931,7 +947,7 @@ const UserManagement = ({ profileMode = false }) => {
         ...prev,
         role: value,
         privileges: getDefaultPrivilegeIdsByRole(value),
-        ...(shouldShowBankDetails(value) ? {} : { accountno: "", ifsccode: "" }),
+        ...(shouldShowBankDetails(value) ? {} : { bankname: "", accountno: "", ifsccode: "" }),
         ...(shouldShowSupportedPincodes(currentDbUserRole, value)
           ? {}
           : { supportedpincodes: [] }),
@@ -989,7 +1005,7 @@ const UserManagement = ({ profileMode = false }) => {
       role: assignedRole,
       privileges: getDefaultPrivilegeIdsByRole(assignedRole),
       discountrate: getDefaultDiscountRateByRole(assignedRole),
-      ...(shouldShowBankDetails(assignedRole) ? {} : { accountno: "", ifsccode: "" }),
+      ...(shouldShowBankDetails(assignedRole) ? {} : { bankname: "", accountno: "", ifsccode: "" }),
       ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
         ? {}
         : { supportedpincodes: [] }),
@@ -1187,6 +1203,7 @@ const UserManagement = ({ profileMode = false }) => {
         landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
         supportedpincodes,
+        bankname: shouldShowBankDetails(user.role) ? user.bankname?.trim() || "" : "",
         accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || "" : "",
         ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || "" : "",
         imageKeys: user.imageKeys || [],

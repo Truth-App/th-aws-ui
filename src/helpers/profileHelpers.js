@@ -49,6 +49,7 @@ export const buildGoogleUserPayload = (authUser) => {
     images: [],
     privileges: defaultPrivileges,
     discountrate: 0,
+    bankname: "",
     accountno: "",
     ifsccode: "",
   };

@@ -1,7 +1,7 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
-export const createOrder = async (cart, formData) => {
-  console.log("createOrder called with:", { cart, formData });
+export const createOrder = async (cart, formData, isPaymentCOD = false) => {
+  console.log("createOrder called with:", { cart, formData, isPaymentCOD });
   try {
     const products = cart.map((item) => ({
       id: item.id,
@@ -31,6 +31,7 @@ export const createOrder = async (cart, formData) => {
       amount: { total },
       user,
       shippingAddress,
+      ...(isPaymentCOD && { isPaymentCOD: true }),
     };
 
     console.log("Order payload:", JSON.stringify(payload));
@@ -255,23 +256,20 @@ export const updateOrderDelivery = async (orderId, deliveryData) => {
   }
 };
 
-export const getProductStock = async (productIds, sStockistId = "") => {
+export const getProductStock = async (orderId) => {
   try {
     const session = await fetchAuthSession();
     const accessToken = session.tokens?.accessToken?.toString() || "";
 
     const response = await fetch(
-      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/stock`,
+      `https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/orders/inventory`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({
-          productIds,
-          ...(sStockistId ? { sStockistId } : {}),
-        }),
+        body: JSON.stringify({ orderId }),
       },
     );
 

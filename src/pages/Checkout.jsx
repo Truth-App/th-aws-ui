@@ -8,6 +8,11 @@ import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import CircularProgress from "@mui/material/CircularProgress";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import FormControl from "@mui/material/FormControl";
+import FormLabel from "@mui/material/FormLabel";
+import RadioGroup from "@mui/material/RadioGroup";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Radio from "@mui/material/Radio";
 import { MdAdd, MdRemove, MdDelete } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router";
@@ -33,12 +38,12 @@ const Checkout = () => {
     phoneError: "",
     address: "",
     landmark: "",
-    city: "",
     pincode: "",
   });
   const [orderLoading, setOrderLoading] = useState(false);
   const [paymentVerifying, setPaymentVerifying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   useEffect(() => {
     if (!authUser || usersStatus !== "idle") return;
@@ -93,7 +98,6 @@ const Checkout = () => {
     const profileEmailValue = String(matchedUser?.email || "").trim();
     const addressValue = String(matchedUser?.address || "").trim();
     const landmarkValue = String(matchedUser?.landmark || "").trim();
-    const cityValue = String(matchedUser?.city || "").trim();
     const normalizedPincode = String(matchedUser?.pincode || "").replace(/\D/g, "").slice(0, 6);
 
     setFormData((prev) => {
@@ -114,9 +118,6 @@ const Checkout = () => {
       }
       if (!String(prev.landmark || "").trim() && landmarkValue) {
         next.landmark = landmarkValue;
-      }
-      if (!String(prev.city || "").trim() && cityValue) {
-        next.city = cityValue;
       }
       if (!String(prev.pincode || "").trim() && normalizedPincode) {
         next.pincode = normalizedPincode;
@@ -152,12 +153,12 @@ const Checkout = () => {
       alert("Please enter your address");
       return;
     }
-    if (!formData.city.trim()) {
-      alert("Please enter your city");
-      return;
-    }
     if (!formData.pincode.trim()) {
       alert("Please enter your pincode");
+      return;
+    }
+    if (!paymentMethod) {
+      alert("Please select a payment method");
       return;
     }
 
@@ -165,6 +166,27 @@ const Checkout = () => {
 
     try {
       setOrderLoading(true);
+      
+      // For COD, pass isPaymentCOD flag
+      const orderResponse = await createOrder(cart, formData, paymentMethod === "cod");
+      setOrderLoading(false);
+      
+      if (!orderResponse || !orderResponse.orderId) {
+        setIsProcessing(false);
+        alert("Failed to place order.");
+        return;
+      }
+      
+      console.log("order api response", JSON.stringify(orderResponse));
+
+      // For COD, navigate directly to order page
+      if (paymentMethod === "cod") {
+        dispatch(clearCart());
+        navigate(`/order?orderId=${encodeURIComponent(orderResponse.orderId)}`);
+        return;
+      }
+
+      // For Online Payment, proceed with Razorpay
       const loaded = await loadRazorpay();
       if (!loaded) {
         setOrderLoading(false);
@@ -172,14 +194,6 @@ const Checkout = () => {
         alert("Razorpay SDK failed to load. Are you online?");
         return;
       }
-      const orderResponse = await createOrder(cart, formData);
-      setOrderLoading(false);
-      if (!orderResponse || !orderResponse.orderId) {
-        setIsProcessing(false);
-        alert("Failed to place order.");
-        return;
-      }
-      console.log("order api response", JSON.stringify(orderResponse));
 
       const options = {
         key: "rzp_test_T3m0sPls4a7PvD",
@@ -517,15 +531,6 @@ const Checkout = () => {
               style={{ marginBottom: "12px" }}
             />
             <TextField
-              label="City"
-              value={formData.city}
-              onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
-              fullWidth
-              size="small"
-              style={{ marginBottom: "12px" }}
-              required
-            />
-            <TextField
               label="Pincode"
               value={formData.pincode}
               onChange={(e) => setFormData((prev) => ({ ...prev, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
@@ -535,6 +540,40 @@ const Checkout = () => {
               style={{ marginBottom: "16px" }}
               required
             />
+            <Card
+              variant="outlined"
+              style={{
+                borderRadius: "8px",
+                marginBottom: "16px",
+                padding: "12px",
+                backgroundColor: "#fff",
+                borderColor: "#d0d0d0",
+                borderWidth: "0.5px",
+              }}
+            >
+              <CardContent style={{ padding: "12px", "&:last-child": { paddingBottom: "12px" } }}>
+                <FormControl fullWidth>
+                  <FormLabel style={{ marginBottom: "8px", fontSize: "0.875rem", fontWeight: 600 }}>Payment Method *</FormLabel>
+                  <RadioGroup
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    row
+                    style={{ gap: "16px" }}
+                  >
+                    <FormControlLabel
+                      value="cod"
+                      control={<Radio size="small" />}
+                      label="Cash on Delivery"
+                    />
+                    <FormControlLabel
+                      value="online"
+                      control={<Radio size="small" />}
+                      label="Online Payment"
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </CardContent>
+            </Card>
             <Button
               variant="contained"
               fullWidth

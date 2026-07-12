@@ -1,7 +1,7 @@
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
+import InputBase from "@mui/material/InputBase";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -18,6 +18,7 @@ import {
   getUserReferenceNumber,
   getVisibleLevelRoles,
 } from "../helpers/userHierarchyHelpers";
+import { MdSearch } from "react-icons/md";
 
 const ROLE_COLORS = {
   Administrator: { bg: "#e8f5e9", color: "#1b5e20" },
@@ -248,8 +249,9 @@ const UserHierarchy = () => {
       style={{
         width: "100%",
         height: "100%",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-        border: "1px solid #e8efeb",
+        boxShadow: "none",
+        border: "none",
+        backgroundColor: "#ffffff",
         display: "flex",
         flexDirection: "column",
       }}
@@ -258,10 +260,11 @@ const UserHierarchy = () => {
         <Typography
           variant="h6"
           style={{
-            color: "#165d46",
+            color: "#1a1a1a",
             fontWeight: 700,
-            marginBottom: "0.25em",
-            fontSize: isMobile ? "1rem" : undefined,
+            marginBottom: "0.2em",
+            fontSize: isMobile ? "1.05rem" : "1.25rem",
+            letterSpacing: "-0.01em",
           }}
         >
           User Management Hierarchy
@@ -271,8 +274,8 @@ const UserHierarchy = () => {
           style={{
             color: "#6f7378",
             marginBottom: "1em",
-            fontSize: isMobile ? "0.8rem" : undefined,
-            lineHeight: 1.4,
+            fontSize: isMobile ? "0.8rem" : "0.875rem",
+            lineHeight: 1.45,
           }}
         >
           {hierarchyDescription}
@@ -288,23 +291,51 @@ const UserHierarchy = () => {
             flexDirection: isMobile ? "column" : "row",
           }}
         >
-          <TextField
-            size="small"
-            label="Search hierarchy"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ flex: "1 1 auto", width: isMobile ? "100%" : undefined, minWidth: isMobile ? 0 : "220px" }}
-            fullWidth={isMobile}
-          />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              flex: "1 1 auto",
+              minWidth: isMobile ? 0 : "220px",
+              width: isMobile ? "100%" : "auto",
+              height: isMobile ? "42px" : "46px",
+              padding: "0 14px",
+              borderRadius: "12px",
+              backgroundColor: "#f8f8f8",
+              border: "1px solid #e8e8e8",
+              boxSizing: "border-box",
+            }}
+          >
+            <MdSearch size={20} color="#868686" style={{ flexShrink: 0 }} />
+            <InputBase
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder='Search "hierarchy"'
+              fullWidth
+              sx={{
+                fontSize: isMobile ? "0.85rem" : "0.9rem",
+                color: "#1a1a1a",
+                "& input::placeholder": {
+                  color: "#9a9a9a",
+                  opacity: 1,
+                },
+              }}
+            />
+          </div>
           <Button
             size="small"
             variant="outlined"
             onClick={() => setExpandAll((prev) => !prev)}
             style={{
-              color: "#165d46",
-              borderColor: "#165d46",
+              color: "#0c831f",
+              borderColor: "#0c831f",
               textTransform: "none",
+              fontWeight: 600,
+              borderRadius: "8px",
+              height: isMobile ? "42px" : "46px",
               width: isMobile ? "100%" : "auto",
+              padding: "0 14px",
             }}
           >
             {expandAll ? "Collapse all" : "Expand all"}

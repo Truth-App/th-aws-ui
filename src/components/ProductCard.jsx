@@ -2,7 +2,6 @@ import Card from "@mui/material/Card";
 import CardMedia from "@mui/material/CardMedia";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import CardActions from "@mui/material/CardActions";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import IconButton from "@mui/material/IconButton";
@@ -13,7 +12,21 @@ import { useSelector, useDispatch } from "react-redux";
 import { addToCart, removeFromCart } from "../store/slices/cartSlice";
 import { useState } from "react";
 
-const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Product", onAction }) => {
+const getProductUnitLabel = (product) => {
+  const raw =
+    product?.unit ||
+    product?.packSize ||
+    product?.quantityLabel ||
+    product?.size ||
+    "";
+  if (raw) return String(raw);
+
+  const title = product?.title || "";
+  const match = title.match(/(\d+(?:\.\d+)?\s?(?:ml|l|g|kg|pcs?|pack|pcs))/i);
+  return match ? match[1].replace(/\s+/g, " ") : "1 pc";
+};
+
+const ProductCard = ({ product, actionType = "cart", actionLabel = "Update", onAction }) => {
   const dispatch = useDispatch();
   const selector = useSelector((state) => state.cart);
   const cartProduct = selector.find((item) => item.id === product.id);
@@ -21,7 +34,6 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
   const [zoomImageIndex, setZoomImageIndex] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const isMobile = useMediaQuery("(max-width:600px)");
-  const shouldWrapActions = useMediaQuery("(max-width:430px)");
 
   const isUpdateMode = actionType === "update";
   const isInactive = product.isActive === false;
@@ -31,6 +43,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
   const savedPercent = hasDiscount
     ? Math.round(((Number(product.mrpPrice) - Number(product.customerPrice)) / Number(product.mrpPrice)) * 100)
     : 0;
+  const unitLabel = getProductUnitLabel(product);
 
   let imagePath = defaultImagePath;
   if (imageKeys.length > 0) {
@@ -81,14 +94,14 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
           boxShadow: "none",
           borderRadius: "10px",
           backgroundColor: "#ffffff",
+          border: "1px solid #e8e8e8",
+          overflow: "hidden",
         }}
       >
         <div
           style={{
-            backgroundColor: "#f5f5f5",
+            backgroundColor: "#ffffff",
             position: "relative",
-            border: "1.2px solid #edf2ee",
-            borderRadius: "10px 10px 0 0",
           }}
         >
           {hasDiscount && (
@@ -97,7 +110,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 position: "absolute",
                 top: 0,
                 left: 0,
-                backgroundColor: "#2f80ed",
+                backgroundColor: "#2563eb",
                 color: "#fff",
                 fontSize: isMobile ? "0.62rem" : "0.68rem",
                 fontWeight: 700,
@@ -173,11 +186,12 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             component="img"
             onClick={handleImageClick}
             sx={{
-              height: isMobile ? 102 : 122,
+              height: isMobile ? 120 : 140,
               width: "100%",
               objectFit: "contain",
               cursor: "pointer",
-              backgroundColor: "#f5f5f5",
+              backgroundColor: "#ffffff",
+              padding: "10px",
             }}
             src={imagePath}
             alt={product.title}
@@ -185,236 +199,239 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
         </div>
 
         <CardContent
-          style={{
+          sx={{
             flexGrow: 1,
-            padding: isMobile ? "6px 10px" : "7px 11px",
             display: "flex",
             flexDirection: "column",
+            gap: "0.3em",
+            padding: isMobile ? "8px 10px 10px !important" : "10px 12px 12px !important",
+            "&:last-child": {
+              paddingBottom: isMobile ? "10px !important" : "12px !important",
+            },
           }}
         >
           <Typography
-            gutterBottom={false}
-            variant="h6"
             component="div"
             sx={{
-              fontSize: isMobile ? "0.82rem" : "0.88rem",
-              margin: "0 0 0.2em 0",
-              lineHeight: 1.15,
+              fontSize: isMobile ? "0.8rem" : "0.88rem",
+              fontWeight: 700,
+              color: "#1a1a1a",
+              lineHeight: 1.25,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              minHeight: isMobile ? "2em" : "2.2em",
             }}
           >
             {product.title}
+          </Typography>
+
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#8a8a8a",
+              fontSize: isMobile ? "0.68rem" : "0.74rem",
+              lineHeight: 1.2,
+            }}
+          >
+            {unitLabel}
           </Typography>
 
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: shouldWrapActions ? "stretch" : isMobile ? "center" : "flex-end",
-              flexWrap: shouldWrapActions ? "wrap" : "nowrap",
-              gap: shouldWrapActions ? "0.35em" : isMobile ? "0.12em" : "0.45em",
+              alignItems: "center",
+              gap: "8px",
               marginTop: "auto",
-              marginBottom: 0,
+              paddingTop: "0.4em",
+              width: "100%",
+              minWidth: 0,
             }}
           >
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
+                flex: "1 1 0",
                 minWidth: 0,
-                flex: shouldWrapActions ? "1 1 100%" : "1 1 60px",
+                overflow: "hidden",
               }}
             >
               <Typography
-                variant="subtitle1"
                 sx={{
-                  color: "#165d46",
-                  fontSize: isMobile ? "0.75rem" : "1.04rem",
+                  color: "#1a1a1a",
+                  fontSize: isMobile ? "0.82rem" : "0.95rem",
                   fontWeight: 700,
-                  lineHeight: 1.05,
+                  lineHeight: 1.15,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}
               >
                 ₹{product.customerPrice}
               </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: "#8a8a8a",
-                  fontSize: isMobile ? "0.55rem" : "0.76rem",
-                  textDecoration: "line-through",
-                  lineHeight: 1.05,
-                }}
-              >
-                ₹{product.mrpPrice}
-              </Typography>
+              {hasDiscount && (
+                <Typography
+                  variant="caption"
+                  component="div"
+                  sx={{
+                    color: "#8a8a8a",
+                    fontSize: isMobile ? "0.6rem" : "0.68rem",
+                    textDecoration: "line-through",
+                    lineHeight: 1.2,
+                    marginTop: "1px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  ₹{product.mrpPrice}
+                </Typography>
+              )}
             </div>
 
-            {!isUpdateMode &&
-              (cartProduct ? (
-                <div
+            {isUpdateMode ? (
+              <Button
+                onClick={() => onAction?.(product)}
+                size="small"
+                variant="contained"
+                style={{
+                  backgroundColor: "#0c831f",
+                  textTransform: "none",
+                  fontWeight: 700,
+                  borderRadius: "6px",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {actionLabel}
+              </Button>
+            ) : cartProduct ? (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: isMobile ? "0.1em" : "0.32em",
+                  border: "1px solid #0c831f",
+                  borderRadius: "6px",
+                  padding: isMobile ? "0 2px" : "0 4px",
+                  height: isMobile ? "28px" : "30px",
+                  backgroundColor: "#f0fdf4",
+                  flexShrink: 0,
+                  marginLeft: "auto",
+                }}
+              >
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => {
+                    dispatch(removeFromCart(product));
+                  }}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: isMobile ? "0.1em" : "0.32em",
-                    border: "1px solid #cfd8d2",
-                    borderRadius: "999px",
-                    padding: isMobile ? "0 2px" : "0 5px",
-                    height: isMobile ? "28px" : "32px",
-                    backgroundColor: "#f7faf8",
-                    flexShrink: 0,
-                    marginLeft: "auto",
+                    minWidth: isMobile ? "24px" : "26px",
+                    width: isMobile ? "24px" : "26px",
+                    height: isMobile ? "24px" : "26px",
+                    borderRadius: "4px",
+                    backgroundColor: "#e8efeb",
+                    color: "#0c831f",
+                    boxShadow: "none",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    padding: 0,
                   }}
                 >
-                  <Button
-                    size="small"
-                    variant="contained"
-                    onClick={() => {
-                      dispatch(removeFromCart(product));
-                    }}
-                    style={{
-                      minWidth: isMobile ? "24px" : "28px",
-                      width: isMobile ? "24px" : "28px",
-                      height: isMobile ? "24px" : "28px",
-                      borderRadius: "999px",
-                      backgroundColor: "#e8efeb",
-                      color: "#165d46",
-                      boxShadow: "none",
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      padding: 0,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: isMobile ? "1rem" : "1.15rem",
-                        fontWeight: 500,
-                        lineHeight: 1,
-                      }}
-                    >
-                      -
-                    </span>
-                  </Button>
-                  <span
-                    style={{
-                      minWidth: "1.8ch",
-                      textAlign: "center",
-                      fontWeight: 700,
-                      color: "#1f3d31",
-                      fontSize: isMobile ? "0.7rem" : "0.88rem",
-                    }}
-                  >
-                    {cartProduct.quantity}
-                  </span>
-                  <Button
-                    size="small"
-                    variant="contained"
-                    disabled={product.isActive === false}
-                    onClick={() => {
-                      dispatch(addToCart(product));
-                    }}
-                    style={{
-                      minWidth: isMobile ? "24px" : "28px",
-                      width: isMobile ? "24px" : "28px",
-                      height: isMobile ? "24px" : "28px",
-                      borderRadius: "999px",
-                      backgroundColor: "#165d46",
-                      color: "#fff",
-                      boxShadow: "none",
-                      fontWeight: 700,
-                      lineHeight: 1,
-                      padding: 0,
-                      ...(product.isActive === false
-                        ? {
-                            backgroundColor: "#e0e0e0",
-                            color: "#9e9e9e",
-                          }
-                        : {}),
-                    }}
-                    sx={{
-                      "&.Mui-disabled": {
-                        backgroundColor: "#e0e0e0",
-                        color: "#9e9e9e",
-                      },
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: isMobile ? "1rem" : "1.15rem",
-                        fontWeight: 500,
-                        lineHeight: 1,
-                      }}
-                    >
-                      +
-                    </span>
-                  </Button>
-                </div>
-              ) : (
-                <div
+                  -
+                </Button>
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "flex-end",
-                    backgroundColor: "transparent",
-                    height: isMobile ? "28px" : "32px",
-                    flexShrink: 0,
-                    marginLeft: "auto",
-                    width: shouldWrapActions ? "100%" : "auto",
+                    minWidth: "1.8ch",
+                    textAlign: "center",
+                    fontWeight: 700,
+                    color: "#1f3d31",
+                    fontSize: isMobile ? "0.7rem" : "0.82rem",
                   }}
                 >
-                  <Button
-                    onClick={() => {
-                      dispatch(addToCart(product));
-                    }}
-                    disabled={product.isActive === false}
-                    size="small"
-                    variant="outlined"
-                    style={{
-                      color: "#165d46",
-                      borderColor: "#165d46",
-                      textTransform: "uppercase",
-                      fontWeight: 700,
-                      borderRadius: "4px",
-                      padding: isMobile ? "0 6px" : "0 14px",
-                      minWidth: isMobile ? "40px" : "68px",
-                      height: isMobile ? "26px" : "30px",
-                      lineHeight: 1,
-                      fontSize: isMobile ? "0.7rem" : "0.875rem",
-                      ...(product.isActive === false
-                        ? {
-                            backgroundColor: "transparent",
-                            color: "#9e9e9e",
-                            borderColor: "#d0d0d0",
-                          }
-                        : {}),
-                    }}
-                    sx={{
-                      "&.Mui-disabled": {
+                  {cartProduct.quantity}
+                </span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={product.isActive === false}
+                  onClick={() => {
+                    dispatch(addToCart(product));
+                  }}
+                  style={{
+                    minWidth: isMobile ? "24px" : "26px",
+                    width: isMobile ? "24px" : "26px",
+                    height: isMobile ? "24px" : "26px",
+                    borderRadius: "4px",
+                    backgroundColor: "#0c831f",
+                    color: "#fff",
+                    boxShadow: "none",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    padding: 0,
+                    ...(product.isActive === false
+                      ? {
+                          backgroundColor: "#e0e0e0",
+                          color: "#9e9e9e",
+                        }
+                      : {}),
+                  }}
+                  sx={{
+                    "&.Mui-disabled": {
+                      backgroundColor: "#e0e0e0",
+                      color: "#9e9e9e",
+                    },
+                  }}
+                >
+                  +
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={() => {
+                  dispatch(addToCart(product));
+                }}
+                disabled={product.isActive === false}
+                size="small"
+                variant="outlined"
+                style={{
+                  color: "#0c831f",
+                  borderColor: "#0c831f",
+                  textTransform: "uppercase",
+                  fontWeight: 700,
+                  borderRadius: "6px",
+                  padding: isMobile ? "0 6px" : "0 10px",
+                  minWidth: isMobile ? "44px" : "54px",
+                  width: "auto",
+                  height: isMobile ? "28px" : "30px",
+                  lineHeight: 1,
+                  fontSize: isMobile ? "0.68rem" : "0.78rem",
+                  flexShrink: 0,
+                  marginLeft: "auto",
+                  boxSizing: "border-box",
+                  ...(product.isActive === false
+                    ? {
                         backgroundColor: "transparent",
                         color: "#9e9e9e",
                         borderColor: "#d0d0d0",
-                      },
-                    }}
-                  >
-                    Add
-                  </Button>
-                </div>
-              ))}
+                      }
+                    : {}),
+                }}
+                sx={{
+                  "&.Mui-disabled": {
+                    backgroundColor: "transparent",
+                    color: "#9e9e9e",
+                    borderColor: "#d0d0d0",
+                  },
+                }}
+              >
+                ADD
+              </Button>
+            )}
           </div>
         </CardContent>
-
-        {isUpdateMode && (
-          <CardActions
-            style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "0px 12px 2px 12px" }}
-          >
-            <Button
-              onClick={() => onAction?.(product)}
-              size="small"
-              variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
-            >
-              {actionLabel}
-            </Button>
-          </CardActions>
-        )}
       </Card>
 
       <Dialog

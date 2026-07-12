@@ -9,6 +9,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import InputBase from "@mui/material/InputBase";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../store/slices/categorySlice";
@@ -16,6 +17,7 @@ import { CATEGORY_API_URL, PRESIGNED_URL_API, S3_BASE_URL } from "../constants/a
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { MdSearch } from "react-icons/md";
 
 const INITIAL_CATEGORY_FORM = {
   title: "",
@@ -236,8 +238,9 @@ const CategoryManagement = () => {
           width: "100%",
           overflowY: "auto",
           overflowX: "hidden",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          boxShadow: "none",
+          border: "none",
+          backgroundColor: "#ffffff",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -255,31 +258,46 @@ const CategoryManagement = () => {
               variant="contained"
               style={{
                 margin: "5px 0",
-                backgroundColor: "#165d46",
+                backgroundColor: "#0c831f",
                 textTransform: "none",
-                fontWeight: "bolder",
+                fontWeight: 700,
+                borderRadius: "8px",
+                padding: "6px 14px",
               }}
             >
-              + Add Category
+              + Add
             </Button>
           </div>
-          
+
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
-              marginTop: isMobile ? "0.25em" : "1em",
-              flexWrap: "wrap",
-              flexDirection: isMobile ? "column" : "row",
+              gap: "8px",
+              marginTop: isMobile ? "0.5em" : "0.75em",
+              width: "100%",
+              height: isMobile ? "42px" : "46px",
+              padding: "0 14px",
+              borderRadius: "12px",
+              backgroundColor: "#f8f8f8",
+              border: "1px solid #e8e8e8",
+              boxSizing: "border-box",
             }}
           >
-            <TextField
+            <MdSearch size={20} color="#868686" style={{ flexShrink: 0 }} />
+            <InputBase
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              size="small"
-              style={{ flex: isMobile ? "0 0 auto" : "1 1 260px", width: "100%" }}
-              label="Search categories"
+              placeholder='Search "categories"'
+              fullWidth
+              sx={{
+                fontSize: isMobile ? "0.85rem" : "0.9rem",
+                color: "#1a1a1a",
+                "& input::placeholder": {
+                  color: "#9a9a9a",
+                  opacity: 1,
+                },
+              }}
             />
           </div>
 
@@ -307,31 +325,43 @@ const CategoryManagement = () => {
                 <Card
                   key={item.id}
                   variant="outlined"
-                  style={{ display: "flex", flexDirection: "column" }}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    borderRadius: "10px",
+                    border: "1px solid #e8e8e8",
+                    boxShadow: "none",
+                    overflow: "hidden",
+                  }}
                 >
                   <CardMedia
                     component="img"
                     height="140"
                     image={getImageUrl(item.imageKey)}
                     alt={item.title}
-                    style={{ objectFit: "contain", backgroundColor: "#f5f5f5" }}
+                    style={{ objectFit: "contain", backgroundColor: "#ffffff", padding: "10px" }}
                   />
                   <CardContent style={{ padding: "8px 12px", flexGrow: 1 }}>
                     <Typography
                       variant="body2"
-                      style={{ fontWeight: 600, color: "#165d46", textAlign: "center" }}
+                      style={{ fontWeight: 700, color: "#1a1a1a", textAlign: "center" }}
                     >
                       {item.title}
                     </Typography>
                   </CardContent>
-                  <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
+                  <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 10px" }}>
                     <Button
                       onClick={() => handleOpenEdit(item)}
                       size="small"
                       variant="contained"
-                      style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
+                      style={{
+                        backgroundColor: "#0c831f",
+                        textTransform: "none",
+                        fontWeight: 700,
+                        borderRadius: "6px",
+                      }}
                     >
-                      Update Category
+                      Update
                     </Button>
                   </CardActions>
                 </Card>
@@ -427,7 +457,7 @@ const CategoryManagement = () => {
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
           <Button onClick={handleSaveCategory} disabled={uploadingFile}>
-            {dialogMode === "edit" ? "Update category" : "Add category"}
+            {dialogMode === "edit" ? "Update" : "Add"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -8,6 +8,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import InputBase from "@mui/material/InputBase";
 import MenuItem from "@mui/material/MenuItem";
 import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -22,6 +23,7 @@ import { PRODUCT_API_URL, PRESIGNED_URL_API } from "../constants/api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { MdSearch } from "react-icons/md";
 
 const INITIAL_PRODUCT_FORM = {
   title: "",
@@ -314,8 +316,9 @@ const DashboardFeatureDetail = () => {
           width: "100%",
           overflowY: "auto",
           overflowX: "hidden",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          boxShadow: "none",
+          border: "none",
+          backgroundColor: "#ffffff",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -333,12 +336,14 @@ const DashboardFeatureDetail = () => {
               variant="contained"
               style={{
                 margin: "5px 0",
-                backgroundColor: "#165d46",
+                backgroundColor: "#0c831f",
                 textTransform: "none",
-                fontWeight: "bolder",
+                fontWeight: 700,
+                borderRadius: "8px",
+                padding: "6px 14px",
               }}
             >
-              + Add new Product
+              + Add
             </Button>
           </div>
 
@@ -346,9 +351,8 @@ const DashboardFeatureDetail = () => {
             <div
               style={{
                 marginTop: 0,
-                backgroundColor: "#fafbf9",
+                backgroundColor: "#ffffff",
                 padding: 0,
-                borderRadius: "8px",
               }}
             >
               <CategoryCarousel
@@ -358,6 +362,7 @@ const DashboardFeatureDetail = () => {
                   setPage(1);
                 }}
                 items={catalogCategories.length > 0 ? catalogCategories : fallbackCategories}
+                variant="blinkit"
               />
             </div>
           )}
@@ -366,21 +371,34 @@ const DashboardFeatureDetail = () => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
-              marginTop: isMobile ? "0.25em" : "1em",
-              flexWrap: "wrap",
-              flexDirection: isMobile ? "column" : "row",
+              gap: "8px",
+              marginTop: isMobile ? "0.5em" : "0.75em",
+              width: "100%",
+              height: isMobile ? "42px" : "46px",
+              padding: "0 14px",
+              borderRadius: "12px",
+              backgroundColor: "#f8f8f8",
+              border: "1px solid #e8e8e8",
+              boxSizing: "border-box",
             }}
           >
-            <TextField
+            <MdSearch size={20} color="#868686" style={{ flexShrink: 0 }} />
+            <InputBase
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
-              size="small"
-              style={{ flex: isMobile ? "0 0 auto" : "1 1 260px", width: "100%" }}
-              label="Search products"
+              placeholder='Search "products"'
+              fullWidth
+              sx={{
+                fontSize: isMobile ? "0.85rem" : "0.9rem",
+                color: "#1a1a1a",
+                "& input::placeholder": {
+                  color: "#9a9a9a",
+                  opacity: 1,
+                },
+              }}
             />
           </div>
 
@@ -416,7 +434,7 @@ const DashboardFeatureDetail = () => {
               <Typography variant="body2" style={{ color: "#6f7378" }}>
                 &gt;
               </Typography>
-              <Typography variant="body2" style={{ color: "#165d46", fontWeight: 600 }}>
+              <Typography variant="body2" style={{ color: "#0c831f", fontWeight: 600 }}>
                 {categoryFilter}
               </Typography>
             </div>
@@ -433,10 +451,14 @@ const DashboardFeatureDetail = () => {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isMobile ? "repeat(2, minmax(0, 1fr))" : isTablet ? "repeat(2, minmax(0, 1fr))" : "repeat(auto-fill, minmax(240px, 240px))",
-                gap: isMobile ? "8px" : "16px",
+                gridTemplateColumns: isMobile
+                  ? "repeat(2, minmax(0, 1fr))"
+                  : isTablet
+                    ? "repeat(3, minmax(0, 1fr))"
+                    : "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: isMobile ? "10px" : "14px",
                 marginTop: isMobile ? "0.5em" : "0.75em",
-                justifyContent: isTablet ? "stretch" : "center",
+                justifyContent: "stretch",
               }}
             >
               {visibleProducts.map((item) => (
@@ -444,7 +466,7 @@ const DashboardFeatureDetail = () => {
                   <ProductCard
                     product={item}
                     actionType="update"
-                    actionLabel="Update Product"
+                    actionLabel="Update"
                     onAction={handleOpenEdit}
                   />
                 </div>

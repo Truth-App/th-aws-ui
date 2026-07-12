@@ -6,7 +6,15 @@ import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
-import { MdPerson, MdDashboard, MdLogout, MdLogin, MdEdit } from "react-icons/md";
+import InputBase from "@mui/material/InputBase";
+import {
+  MdPerson,
+  MdDashboard,
+  MdLogout,
+  MdLogin,
+  MdEdit,
+  MdSearch,
+} from "react-icons/md";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
@@ -17,7 +25,7 @@ import {
   hasDashboardAccess,
 } from "../constants/dashboardFeatures";
 
-const Navbar = () => {
+const Navbar = ({ showSearch = false, searchTerm = "", onSearchChange }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const [anchorEl, setAnchorEl] = useState(null);
@@ -26,7 +34,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user, status } = useSelector((state) => state.user);
   const { items: users, status: usersStatus } = useSelector((state) => state.users);
-  const authResolving = status === 'idle' || status === 'loading';
+  const authResolving = status === "idle" || status === "loading";
 
   useEffect(() => {
     if (isAuthenticated && usersStatus === "idle") {
@@ -61,7 +69,7 @@ const Navbar = () => {
         console.error("Google sign-in failed:", error);
         alert(
           error.message ||
-            "Sign-in failed. Use the same URL you started from (for example http://localhost:5173)."
+            "Sign-in failed. Use the same URL you started from (for example http://localhost:5173).",
         );
       }
     }
@@ -79,118 +87,287 @@ const Navbar = () => {
 
   const open = Boolean(anchorEl);
 
-  return (
+  const searchField = showSearch ? (
     <div
       style={{
         display: "flex",
-        flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
-        height: "auto",
-        borderBottom: "1.5px solid #dee6de",
-        padding: 0,
-        backgroundColor: "#f5f7f0",
-        gap: 0,
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+        gap: "8px",
+        flex: 1,
+        minWidth: 0,
+        maxWidth: isMobile ? "100%" : isTablet ? "420px" : "560px",
+        width: isMobile ? "100%" : "auto",
+        height: isMobile ? "42px" : "46px",
+        padding: "0 14px",
+        borderRadius: "12px",
+        backgroundColor: "#f8f8f8",
+        border: "1px solid #e8e8e8",
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ fontFamily: "Montserrat, sans-serif", fontWeight: "600", fontSize: "1.5em", fontStyle: "bold" }}>
-        <NavLink to="/" end
-        style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 0 }}
-        >
-        <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isMobile ? "150px" : isTablet ? "170px" : "190px", height: isMobile ? "48px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />
-        <span style={{ fontSize: isMobile ? "0.75em" : "0.85em", fontWeight: 650, color: "inherit", whiteSpace: "nowrap", marginLeft: "-0.3em" }}>Thrifty Home</span>
-        </NavLink>
-      </div>
+      <MdSearch size={20} color="#868686" style={{ flexShrink: 0 }} />
+      <InputBase
+        value={searchTerm}
+        onChange={(e) => onSearchChange?.(e.target.value)}
+        placeholder='Search "products"'
+        fullWidth
+        sx={{
+          fontSize: isMobile ? "0.85rem" : "0.9rem",
+          color: "#1a1a1a",
+          "& input::placeholder": {
+            color: "#9a9a9a",
+            opacity: 1,
+          },
+        }}
+      />
+    </div>
+  ) : null;
+
+  return (
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 1200,
+        backgroundColor: "#ffffff",
+        borderBottom: "1px solid #eeeeee",
+        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.04)",
+      }}
+    >
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          width: "auto",
-          gap: "1.5em",
-          fontFamily: "Montserrat, sans-serif",
-          fontWeight: "500",
-          flexWrap: "wrap",
+          flexDirection: isMobile ? "column" : "row",
+          alignItems: isMobile ? "stretch" : "center",
+          justifyContent: "space-between",
+          gap: isMobile ? "10px" : "16px",
+          padding: isMobile ? "10px 12px 12px" : "10px 20px",
+          maxWidth: "1400px",
+          margin: "0 auto",
+          width: "100%",
+          boxSizing: "border-box",
         }}
       >
-        <button
-          onClick={handleProfileClick}
+        <div
           style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: "4px",
-            paddingRight: "12px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            justifyContent: "space-between",
+            gap: isMobile ? "10px" : "18px",
+            minWidth: 0,
+            width: isMobile ? "100%" : "auto",
           }}
         >
-          {authResolving ? (
-            <CircularProgress size={24} sx={{ color: "#165d46" }} />
-          ) : (
-            <Avatar
-              src={user?.picture ?? undefined}
-              sx={{ width: 36, height: 36, backgroundColor: "#165d46", cursor: "pointer" }}
-            >
-              {!user?.picture && <MdPerson size={20} color="white" />}
-            </Avatar>
-          )}
-        </button>
+          <NavLink
+            to="/"
+            end
+            style={{
+              textDecoration: "none",
+              color: "inherit",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              flexShrink: 0,
+            }}
+          >
+            <img
+              src="/thriftyhomelogo.png"
+              alt="Thrifty Home"
+              style={{
+                width: isMobile ? "42px" : "52px",
+                height: isMobile ? "42px" : "52px",
+                objectFit: "contain",
+              }}
+            />
+            {!isMobile && (
+              <span
+                style={{
+                  fontFamily: "Montserrat, sans-serif",
+                  fontSize: "1.05rem",
+                  fontWeight: 700,
+                  color: "#1a1a1a",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Thrifty Home
+              </span>
+            )}
+          </NavLink>
 
-        <Popover
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleClose}
-          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-          transformOrigin={{ vertical: "top", horizontal: "right" }}
-        >
-          {isAuthenticated ? (
-            <>
-              {user?.name && (
-                <MenuItem
-                  disabled
-                  sx={{ fontFamily: "Montserrat, sans-serif", fontSize: "0.8em", opacity: "1 !important", color: "#555" }}
-                >
-                  {user.name}
-                </MenuItem>
-              )}
-              <Divider />
-              {showDashboard && (
-                <NavLink to={dashboardPath} style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
-                  <MenuItem sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}>
-                    <MdDashboard size={20} />
-                    Dashboard
-                  </MenuItem>
-                </NavLink>
-              )}
-              <MenuItem
-                onClick={handleEditProfileClick}
-                sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}
-              >
-                <MdEdit size={20} />
-                Edit Profile
-              </MenuItem>
-              <MenuItem
-                onClick={handleLogout}
-                sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em", color: "#c0392b" }}
-              >
-                <MdLogout size={20} />
-                Logout
-              </MenuItem>
-            </>
-          ) : (
-            <MenuItem
-              onClick={handleLogin}
-              sx={{ fontFamily: "Montserrat, sans-serif", display: "flex", alignItems: "center", gap: "0.5em" }}
+          {isMobile && (
+            <button
+              onClick={handleProfileClick}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                flexShrink: 0,
+              }}
             >
-              <MdLogin size={20} />
-              Sign in with Google
-            </MenuItem>
+              {authResolving ? (
+                <CircularProgress size={22} sx={{ color: "#0c831f" }} />
+              ) : isAuthenticated ? (
+                <Avatar
+                  src={user?.picture ?? undefined}
+                  sx={{ width: 32, height: 32, backgroundColor: "#0c831f", cursor: "pointer" }}
+                >
+                  {!user?.picture && <MdPerson size={18} color="white" />}
+                </Avatar>
+              ) : (
+                <span
+                  style={{
+                    fontFamily: "Montserrat, sans-serif",
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    color: "#1a1a1a",
+                  }}
+                >
+                  Login
+                </span>
+              )}
+            </button>
           )}
-        </Popover>
+        </div>
+
+        {!isMobile && searchField}
+
+        {isMobile && searchField}
+
+        {!isMobile && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              flexShrink: 0,
+              fontFamily: "Montserrat, sans-serif",
+            }}
+          >
+            {authResolving ? (
+              <CircularProgress size={24} sx={{ color: "#0c831f" }} />
+            ) : isAuthenticated ? (
+              <button
+                onClick={handleProfileClick}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "4px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <Avatar
+                  src={user?.picture ?? undefined}
+                  sx={{ width: 36, height: 36, backgroundColor: "#0c831f", cursor: "pointer" }}
+                >
+                  {!user?.picture && <MdPerson size={20} color="white" />}
+                </Avatar>
+              </button>
+            ) : (
+              <button
+                onClick={handleProfileClick}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "8px 4px",
+                  fontFamily: "Montserrat, sans-serif",
+                  fontWeight: 700,
+                  fontSize: "0.95rem",
+                  color: "#1a1a1a",
+                }}
+              >
+                Login
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {isAuthenticated ? (
+          <>
+            {user?.name && (
+              <MenuItem
+                disabled
+                sx={{
+                  fontFamily: "Montserrat, sans-serif",
+                  fontSize: "0.8em",
+                  opacity: "1 !important",
+                  color: "#555",
+                }}
+              >
+                {user.name}
+              </MenuItem>
+            )}
+            <Divider />
+            {showDashboard && (
+              <NavLink to={dashboardPath} style={{ textDecoration: "none", color: "inherit" }} onClick={handleClose}>
+                <MenuItem
+                  sx={{
+                    fontFamily: "Montserrat, sans-serif",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5em",
+                  }}
+                >
+                  <MdDashboard size={20} />
+                  Dashboard
+                </MenuItem>
+              </NavLink>
+            )}
+            <MenuItem
+              onClick={handleEditProfileClick}
+              sx={{
+                fontFamily: "Montserrat, sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5em",
+              }}
+            >
+              <MdEdit size={20} />
+              Edit Profile
+            </MenuItem>
+            <MenuItem
+              onClick={handleLogout}
+              sx={{
+                fontFamily: "Montserrat, sans-serif",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5em",
+                color: "#c0392b",
+              }}
+            >
+              <MdLogout size={20} />
+              Logout
+            </MenuItem>
+          </>
+        ) : (
+          <MenuItem
+            onClick={handleLogin}
+            sx={{
+              fontFamily: "Montserrat, sans-serif",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5em",
+            }}
+          >
+            <MdLogin size={20} />
+            Sign in with Google
+          </MenuItem>
+        )}
+      </Popover>
     </div>
   );
 };

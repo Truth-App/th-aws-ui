@@ -8,6 +8,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import InputBase from "@mui/material/InputBase";
 import MenuItem from "@mui/material/MenuItem";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -38,7 +39,7 @@ import {
   markProfileSetupSkipped,
 } from "../helpers/profileHelpers";
 import { ToastContainer, toast } from "react-toastify";
-import { MdEdit, MdPersonAdd, MdVisibility } from "react-icons/md";
+import { MdEdit, MdVisibility, MdSearch } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -1210,18 +1211,17 @@ const UserManagement = ({ profileMode = false }) => {
           width: "100%",
           overflowY: "auto",
           overflowX: "hidden",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          boxShadow: "none",
+          border: "none",
+          backgroundColor: "#ffffff",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
-          
           <div
             style={{
-              marginTop: 0,
-              backgroundColor: "#fafbf9",
+              marginTop: "0.5em",
+              backgroundColor: "#ffffff",
               padding: 0,
-              borderRadius: "8px",
             }}
           >
             <CategoryCarousel
@@ -1235,18 +1235,31 @@ const UserManagement = ({ profileMode = false }) => {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "12px",
-              marginTop: isMobile ? "0.25em" : "1em",
-              flexWrap: "wrap",
-              flexDirection: isMobile ? "column" : "row",
+              gap: "8px",
+              marginTop: isMobile ? "0.5em" : "0.75em",
+              width: "100%",
+              height: isMobile ? "42px" : "46px",
+              padding: "0 14px",
+              borderRadius: "12px",
+              backgroundColor: "#f8f8f8",
+              border: "1px solid #e8e8e8",
+              boxSizing: "border-box",
             }}
           >
-            <TextField
+            <MdSearch size={20} color="#868686" style={{ flexShrink: 0 }} />
+            <InputBase
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              size="small"
-              style={{ flex: isMobile ? "0 0 auto" : "1 1 260px", width: "100%" }}
-              label="Search users"
+              placeholder='Search "users"'
+              fullWidth
+              sx={{
+                fontSize: isMobile ? "0.85rem" : "0.9rem",
+                color: "#1a1a1a",
+                "& input::placeholder": {
+                  color: "#9a9a9a",
+                  opacity: 1,
+                },
+              }}
             />
           </div>
 
@@ -1397,7 +1410,7 @@ const UserManagement = ({ profileMode = false }) => {
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>
           <Button onClick={handleSaveUser} disabled={uploadingFiles}>
-            {dialogMode === "edit" ? "Update user" : "Add user"}
+            {dialogMode === "edit" ? "Update" : "Add"}
           </Button>
         </DialogActions>
       </Dialog>

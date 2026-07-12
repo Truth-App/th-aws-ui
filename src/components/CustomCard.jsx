@@ -1,7 +1,6 @@
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import ProductCard from "./ProductCard";
 import CategoryCarousel from "./CategoryCarousel";
 import { useEffect, useState } from "react";
@@ -10,13 +9,12 @@ import { fetchProducts } from "../store/slices/productSlice";
 import { fetchCategories } from "../store/slices/categorySlice";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-const CustomCard = () => {
+const CustomCard = ({ searchTerm = "" }) => {
   const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const { items: products, status, error } = useSelector((state) => state.products);
   const { items: categoryItems, status: categoryStatus } = useSelector((state) => state.categories);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   const homeCategories = (categoryItems || [])
@@ -62,50 +60,31 @@ const CustomCard = () => {
       variant="outlined"
       style={{
         minHeight: "70vh",
-        borderRadius: "16px",
-        padding: isMobile ? "0.25em 0.5em 0.75em" : "0.35em 1em 1em",
-        margin: isMobile ? "0.75em" : "1.5em",
+        borderRadius: "0",
+        padding: isMobile ? "0.5em 0.75em 1em" : "0.75em 1.25em 1.25em",
+        margin: isMobile ? "0" : "0",
         overflowY: "auto",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+        boxShadow: "none",
+        border: "none",
+        backgroundColor: "#ffffff",
       }}
     >
-      <CardContent sx={{ p: 1, pt: 0, '&:last-child': { pb: 1 } }}>
+      <CardContent sx={{ p: 0, "&:last-child": { pb: 1 } }}>
         {status === "loading" && <Typography>Loading products...</Typography>}
         {status === "failed" && <Typography color="error">{error}</Typography>}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "16px",
-            marginTop: "1em",
-            flexDirection: isMobile ? "column" : "row",
-          }}
-        >
-          <TextField
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            size="small"
-            fullWidth
-            style={{ flex: 1, width: "100%" }}
-            id="outlined-basic"
-            label="Search groceries by name or description"
-            variant="outlined"
-          />
-        </div>
         {!selectedCategory && (
           <div
             style={{
-              marginTop: "1em",
-              backgroundColor: "#fafbf9",
+              marginTop: "0.5em",
+              backgroundColor: "#ffffff",
               padding: 0,
-              borderRadius: "8px",
             }}
           >
             <CategoryCarousel
               selectedCategory={selectedCategory}
               onCategorySelect={setSelectedCategory}
               items={homeCategories}
-              useDivisionThemes
+              variant="blinkit"
             />
           </div>
         )}
@@ -138,23 +117,26 @@ const CustomCard = () => {
             <Typography variant="body2" style={{ color: "#6f7378" }}>
               &gt;
             </Typography>
-            <Typography variant="body2" style={{ color: "#165d46", fontWeight: 600 }}>
+            <Typography variant="body2" style={{ color: "#0c831f", fontWeight: 600 }}>
               {selectedCategory}
             </Typography>
           </div>
         )}
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "16px",
-            marginTop: "1.5em",
-            flexDirection: "row",
-            justifyContent: "center",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "repeat(2, minmax(0, 1fr))"
+              : isTablet
+                ? "repeat(3, minmax(0, 1fr))"
+                : "repeat(auto-fill, minmax(180px, 1fr))",
+            gap: isMobile ? "10px" : "14px",
+            marginTop: "1.25em",
+            width: "100%",
           }}
         >
           {filteredProducts.map((product) => (
-            <div style={{ flex: isMobile ? "1 1 calc(33.33% - 16px)" : isTablet ? "1 1 calc(33.33% - 16px)" : "0 0 240px", display: "flex", minWidth: 0 }} key={product.id}>
+            <div key={product.id} style={{ minWidth: 0, display: "flex" }}>
               <ProductCard product={product} />
             </div>
           ))}

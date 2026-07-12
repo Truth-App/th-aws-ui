@@ -47,9 +47,25 @@ const statusColor = (status) => {
   return "#555";
 };
 
+const isCODOrder = (order) => {
+  const normalizedPaymentStatus = (order?.paymentStatus || "").toUpperCase().trim();
+  const normalizedPaymentMode = (
+    order?.paymentMode ||
+    order?.paymentMethod ||
+    order?.paymentType ||
+    ""
+  )
+    .toUpperCase()
+    .trim();
+  const codFlagValue = String(order?.isPaymentCOD || "").toLowerCase().trim();
+
+  return normalizedPaymentStatus === "COD" || normalizedPaymentMode === "COD" || codFlagValue === "true";
+};
+
 const getOrderTimelineStatus = (order) => {
   const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase();
   const normalizedPaymentStatus = (order?.paymentStatus || "").toUpperCase();
+  const isPaymentCOD = isCODOrder(order);
 
   // Steps beyond PAID take priority
   if (["ACCEPTED", "SHIPPED", "DELIVERED"].includes(normalizedOrderStatus)) {
@@ -57,7 +73,7 @@ const getOrderTimelineStatus = (order) => {
   }
 
   // Payment PAID takes priority over order status of PLACED
-  if (["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || ["PAID", "SUCCESS"].includes(normalizedOrderStatus)) {
+  if (isPaymentCOD || ["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || ["PAID", "SUCCESS"].includes(normalizedOrderStatus)) {
     return "PAID";
   }
 
@@ -150,11 +166,13 @@ const OrdersManagement = ({
     const normalizedDeliveryApprovalStatus = (order?.deliveryApprovalStatus || "").toUpperCase().trim();
 
     if (selectedStatus === "PLACED") {
-      return normalizedOrderStatus === "PLACED" && normalizedPaymentStatus === "PAYMENT_PENDING";
+      const isPaymentCOD = isCODOrder(order);
+      return normalizedOrderStatus === "PLACED" && normalizedPaymentStatus === "PAYMENT_PENDING" && !isPaymentCOD;
     }
 
     if (selectedStatus === "PAID") {
-      if (normalizedPaymentStatus !== "PAID") return false;
+      const isPaymentCOD = isCODOrder(order);
+      if (normalizedPaymentStatus !== "PAID" && !isPaymentCOD) return false;
 
       const matchesPendingApproval = approvalChecks.pendingApproval && normalizedOrderStatus === "PLACED";
       const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
@@ -532,6 +550,18 @@ const OrdersManagement = ({
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      {(() => {
+                        const normalizedPaymentStatus = (order.paymentStatus || "").toUpperCase();
+                        const isPaymentCOD = isCODOrder(order);
+                        const paymentLabel = isPaymentCOD
+                          ? "Cash on Delivery"
+                          : normalizedPaymentStatus === "PAYMENT_PENDING"
+                            ? "Payment Pending"
+                            : (order.paymentStatus || "UNKNOWN");
+                        const isPaymentSuccess = ["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || isPaymentCOD;
+
+                        return (
+                          <>
                       <Chip
                         label={order.orderStatus || "UNKNOWN"}
                         size="small"
@@ -543,23 +573,26 @@ const OrdersManagement = ({
                         }}
                       />
                       <Chip
-                        label={order.paymentStatus || "UNKNOWN"}
+                        label={paymentLabel}
                         size="small"
                         style={{
-                          backgroundColor: ["PAID", "SUCCESS"].includes((order.paymentStatus || "").toUpperCase())
+                          backgroundColor: isPaymentSuccess
                             ? "#e8f5e9"
                             : "#fff3e0",
-                          color: ["PAID", "SUCCESS"].includes((order.paymentStatus || "").toUpperCase())
+                          color: isPaymentSuccess
                             ? "#2e7d32"
                             : "#e65100",
                           border: `1px solid ${
-                            ["PAID", "SUCCESS"].includes((order.paymentStatus || "").toUpperCase())
+                            isPaymentSuccess
                               ? "#a5d6a7"
                               : "#ffcc80"
                           }`,
                           fontWeight: 600,
                         }}
                       />
+                          </>
+                        );
+                      })()}
                       {isShipmentPending && (
                         <Chip
                           label="Shipment Pending"

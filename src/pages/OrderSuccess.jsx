@@ -34,7 +34,7 @@ const IMAGE_BASE_URL = "https://th-app-product.s3.ap-south-2.amazonaws.com/";
 const TIMELINE_STEPS = ["PLACED", "PAID", "ACCEPTED", "SHIPPED", "DELIVERED"];
 const TIMELINE_STEP_LABELS = {
   PLACED: "Order Placed",
-  PAID: "Payment received",
+  PAID: "Payment status",
   ACCEPTED: "Order accepted",
   SHIPPED: "Order shipped",
   DELIVERED: "Delivered",
@@ -112,7 +112,8 @@ const getHistoryTimestamp = (history, expectedStatus) => {
 const getTimelineIndex = (details) => {
   const normalizedOrderStatus = (details?.orderStatus || "").toUpperCase();
   const normalizedPaymentStatus = (details?.paymentStatus || "").toUpperCase();
-  const normalizedAdminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
+  const isPaymentCOD = normalizedPaymentStatus === "COD" || details?.isPaymentCOD === true;
+  const normalizedAdminApprovalStatus = (details?.adminApprovalStatus || "").toUpperCase();
   const normalizedShipmentStatus = (
     details?.shipmentStatus ||
     details?.shipmentApprovalStatus ||
@@ -140,7 +141,7 @@ const getTimelineIndex = (details) => {
   if (normalizedOrderStatus === "SHIPPED" || isShipmentApproved || isShipmentRejected) return 3;
   if (isOrderApprovedStatus) return 2;
   if (isApprovedStatus) return 2;
-  if (normalizedPaymentStatus === "PAID") return 1;
+  if (normalizedPaymentStatus === "PAID" || isPaymentCOD) return 1;
   return 0;
 };
 
@@ -148,7 +149,7 @@ const getTimelineStepTimes = (details) => {
   const orderHistory = details?.orderHistory || [];
   const paymentHistory = details?.paymentHistory || [];
   const normalizedOrderStatus = (details?.orderStatus || "").toUpperCase();
-  const normalizedAdminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
+  const normalizedAdminApprovalStatus = (details?.adminApprovalStatus || "").toUpperCase();
   const normalizedDeliveryApprovalStatus = (
     details?.deliveryApprovalStatus ||
     details?.deliveryStatus ||
@@ -208,6 +209,8 @@ const OrderSuccess = () => {
   const [deliveryStatusChoice, setDeliveryStatusChoice] = useState("");
   const [deliveryComment, setDeliveryComment] = useState("");
   const [deliveredDate, setDeliveredDate] = useState("");
+  const [deliveryPinInput, setDeliveryPinInput] = useState("");
+  const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState("");
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [deliveryError, setDeliveryError] = useState("");
   const [deliveryMessage, setDeliveryMessage] = useState("");
@@ -219,8 +222,7 @@ const OrderSuccess = () => {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState("");
   const details = orderData?.orderDetails;
-  const hasAssignedStakeholder = Boolean(details?.shippedAdminId || details?.ssStockistId);
-  const shouldShowStakeholderNotMatched = details?.isStakeholderMatched === false && !hasAssignedStakeholder;
+  const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
 
   // Razorpay locks document.body scroll when its modal opens.
   // If React navigates away before Razorpay restores it, the page is unscrollable.
@@ -284,11 +286,11 @@ const OrderSuccess = () => {
   }, [details]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  /* eslint-disable react-hooks/set-state-in-effect -- reset/fetch stakeholder options based on eligibility */
+  /* eslint-disable react-hooks/set-state-in-effect -- reset/fetch super stockist options for admin assignment */
   useEffect(() => {
     const currentUserRole = getUserRoleFromList(users, authUser?.email);
     const isCurrentUserAdmin = currentUserRole === ADMIN_ROLE;
-    const shouldFetchStakeholders = isCurrentUserAdmin && shouldShowStakeholderNotMatched;
+    const shouldFetchStakeholders = isCurrentUserAdmin;
 
     if (!shouldFetchStakeholders) {
       setStakeholderOptions([]);
@@ -308,7 +310,7 @@ const OrderSuccess = () => {
         const filteredUsers = Array.isArray(response)
           ? response.filter((user) => {
               const role = (user?.role || "").trim();
-              return role === ADMIN_ROLE || role === SUPER_STOCKIST_ROLE;
+              return role === SUPER_STOCKIST_ROLE;
             })
           : [];
 
@@ -332,7 +334,7 @@ const OrderSuccess = () => {
     return () => {
       ignore = true;
     };
-  }, [users, authUser?.email, shouldShowStakeholderNotMatched]);
+  }, [users, authUser?.email]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate delivery form fields from order details */
@@ -366,6 +368,24 @@ const OrderSuccess = () => {
       details?.deliveryDetails?.deliveredDate ||
       details?.deliveredDate ||
       "";
+    const rawDeliveryPin =
+      details?.deliveryApprovalDetails?.customerDeliveryPin ||
+      details?.deliveryDetails?.customerDeliveryPin ||
+      details?.customerDeliveryPin ||
+      "";
+    const rawDeliveryPaymentMethod =
+      details?.deliveryApprovalDetails?.paymentMethod ||
+      details?.deliveryDetails?.paymentMethod ||
+      details?.paymentMethod ||
+      details?.paymentMode ||
+      details?.paymentType ||
+      "";
+    const normalizedDeliveryPin = String(rawDeliveryPin).replace(/\D/g, "").slice(0, 4);
+    const normalizedDeliveryPaymentMethod = String(rawDeliveryPaymentMethod || "").toUpperCase().trim();
+    // Don't pre-populate delivery pin value for Super Stockist
+    const shouldPrePopulatePin = !isSuperStockist;
+    setDeliveryPinInput(shouldPrePopulatePin ? normalizedDeliveryPin : "");
+    setDeliveryPaymentMethod(["UPI", "CASH"].includes(normalizedDeliveryPaymentMethod) ? normalizedDeliveryPaymentMethod : "");
 
     if (!rawDeliveredDate) {
       setDeliveredDate("");
@@ -385,13 +405,26 @@ const OrderSuccess = () => {
   }, [details]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const adminApprovalStatus = (details?.isAdminApprovalStatus || "").toUpperCase();
-  const isAdminApprovalApproved = ["ORDER_APPROVED", "APPROVED"].includes(adminApprovalStatus);
+  const adminApprovalStatus = (details?.adminApprovalStatus || "").toUpperCase();
+  const normalizedOrderStatus = (details?.orderStatus || "").toUpperCase();
   const userRole = getUserRoleFromList(users, authUser?.email);
   const isAdmin = userRole === ADMIN_ROLE;
+  const isCustomer = userRole === "Customer";
   const isSuperStockist = userRole === SUPER_STOCKIST_ROLE;
+  const isStockist = userRole === "Stockist";
+  const isDealer = userRole === "Dealer";
+  const isRoleUndefined = !String(userRole || "").trim();
   const canManageShipment = isAdmin || isSuperStockist;
-  const hasFinalAdminApproval = ["ORDER_APPROVED", "APPROVED", "REJECTED"].includes(adminApprovalStatus);
+  const isAdminApproved =
+    details?.isAdminApproved === true ||
+    String(details?.isAdminApproved || "")
+      .toLowerCase()
+      .trim() === "true";
+  const isAdminApprovalApproved =
+    isAdminApproved ||
+    ["ORDER_APPROVED", "APPROVED"].includes(adminApprovalStatus) ||
+    ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
+  const hasFinalAdminApproval = isAdminApprovalApproved || adminApprovalStatus === "REJECTED";
   const adminApprovalDetails = details?.adminApprovalDetails || {};
   const shipmentStatus = (
     details?.shipmentStatus ||
@@ -405,14 +438,51 @@ const OrderSuccess = () => {
   const isShipmentRejected = ["SHIPMENT_REJECTED", "REJECTED"].includes(shipmentStatus);
   const hasFinalShipmentDecision = isShipmentApproved || isShipmentRejected;
   const shipmentDetails = details?.shipmentApprovalDetails || details?.shipmentDetails || {};
-  const isOrderApprovedForOps = (details?.orderStatus || "").toUpperCase() === "ORDER_APPROVED";
+  const deliveryPin =
+    details?.customerDeliveryPin ||
+    details?.shippingAddress?.pincode ||
+    details?.deliveryAddress?.pincode ||
+    details?.pincode ||
+    "";
+  const normalizedAuthEmail = String(authUser?.email || "").trim().toLowerCase();
+  const normalizedOrderCustomerEmail = String(details?.user?.email || details?.email || "")
+    .trim()
+    .toLowerCase();
+  const currentUserIds = [authUser?.id, authUser?.userId, authUser?.sub]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const orderCustomerIds = [details?.userId, details?.customerId, details?.user?.userId, details?.user?.id]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+  const isOrderPlacedByCurrentUser =
+    (Boolean(normalizedAuthEmail) && normalizedAuthEmail === normalizedOrderCustomerEmail) ||
+    currentUserIds.some((value) => orderCustomerIds.includes(value));
+  const shouldShowDeliveryPinInput = !(isStockist || isDealer);
+  const isRoleUnknownOrNotMatched =
+    isRoleUndefined || ![ADMIN_ROLE, SUPER_STOCKIST_ROLE, "Stockist", "Dealer", "Customer"].includes(userRole);
+  const canShowDeliveryPinChip =
+    isShipmentApproved &&
+    Boolean(String(deliveryPin || "").trim()) &&
+    !(isStockist || isDealer) &&
+    (isAdmin || (isCustomer && isOrderPlacedByCurrentUser) || isRoleUnknownOrNotMatched);
+  const isOrderApprovedForOps = normalizedOrderStatus === "ORDER_APPROVED";
   const hasShipmentApprovalPayload =
     Boolean((details?.shipmentApprovalStatus || "").trim()) ||
     Boolean(details?.shipmentApprovalDetails);
   const canShowShipmentCard = isOrderApprovedForOps || hasShipmentApprovalPayload;
   const canShowDeliveryCard = isShipmentApproved;
+  const isPaymentCOD =
+    (details?.paymentStatus || "").toUpperCase() === "COD" || details?.isPaymentCOD === true;
+  const isPaymentPaidOnline = (details?.paymentStatus || "").toUpperCase() === "PAID";
+  const isCodPaymentSelectionRequired = isPaymentCOD && deliveryStatusChoice === "DELIVERED";
   const isDeliveryUpdateDisabled =
-    deliveryLoading || !deliveryStatusChoice || (deliveryStatusChoice === "DELIVERED" && !deliveredDate);
+    deliveryLoading ||
+    !deliveryStatusChoice ||
+    (deliveryStatusChoice === "DELIVERED" && (
+      !deliveredDate ||
+      (shouldShowDeliveryPinInput && deliveryPinInput.length !== 4) ||
+      (isCodPaymentSelectionRequired && !deliveryPaymentMethod)
+    ));
   const normalizedDeliveryApprovalStatus = (
     details?.deliveryApprovalStatus ||
     details?.deliveryStatus ||
@@ -425,29 +495,19 @@ const OrderSuccess = () => {
   const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
   const hasFinalDeliveryDecision = isDeliveryCompleted || isDeliveryFailed;
   const deliveryDetails = details?.deliveryApprovalDetails || details?.deliveryDetails || {};
-  const isAdminApproved =
-    details?.isAdminApproved === true ||
-    String(details?.isAdminApproved || "")
-      .toLowerCase()
-      .trim() === "true";
   const products = details?.products || [];
   const selectedStakeholderUser = stakeholderOptions.find((user) => {
     const candidateId = user?.userId || user?.id || user?.email || "";
     return candidateId === stakeholderOverride;
   });
   const selectedStakeholderRoleForApproval =
-    selectedStakeholderUser?.role === ADMIN_ROLE
-      ? "admin"
-      : selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE
-        ? "sStockist"
-        : "";
+    selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE ? "sStockist" : "";
   const selectedSStockistId =
     selectedStakeholderRoleForApproval === "sStockist" ? String(stakeholderOverride || "").trim() : "";
-  const resolvedSStockistId = String(selectedSStockistId || details?.ssStockistId || "").trim();
-  const isSStockistIdMissing = !String(details?.ssStockistId || "").trim();
+  const resolvedSStockistId = String(selectedSStockistId || details?.sStockistId || "").trim();
+  const currentSStockistId = String(details?.sStockistId || "").trim();
   const shouldIncludeStakeholderUpdate =
-    Boolean(stakeholderOverride && selectedStakeholderRoleForApproval) &&
-    (shouldShowStakeholderNotMatched || details?.isGuestOrder === true || isSStockistIdMissing);
+    Boolean(stakeholderOverride && selectedStakeholderRoleForApproval);
   const currentTimelineIndex = getTimelineIndex(details);
   const timelineStepTimes = getTimelineStepTimes(details);
   const totalAmount = products.reduce((sum, item) => sum + (item.subTotal || (item.price || 0) * (item.quantity || 0)), 0);
@@ -472,7 +532,7 @@ const OrderSuccess = () => {
 
     const fetchStock = async () => {
       try {
-        const stockData = await getProductStock(productIds, resolvedSStockistId);
+        const stockData = await getProductStock(orderId);
         setProductStock(mapStockResponseByProductId(stockData));
       } catch {
         setProductStock({});
@@ -577,12 +637,30 @@ const OrderSuccess = () => {
       return;
     }
 
+    if (deliveryStatusChoice === "DELIVERED" && shouldShowDeliveryPinInput && deliveryPinInput.length !== 4) {
+      setDeliveryError("Please enter a valid 4-digit delivery pin.");
+      setDeliveryMessage("");
+      return;
+    }
+
+    if (isCodPaymentSelectionRequired && !deliveryPaymentMethod) {
+      setDeliveryError("Please select how COD payment was collected.");
+      setDeliveryMessage("");
+      return;
+    }
+
     const trimmedComment = deliveryComment.trim();
     const deliveryApprovalStatus = deliveryStatusChoice === "DELIVERED" ? "DELIVERED" : "FAILED";
     const normalizedDeliveredDate =
       deliveryStatusChoice === "DELIVERED" && deliveredDate
         ? new Date(`${deliveredDate}T00:00:00.000Z`).toISOString()
         : "";
+    const normalizedDeliveryPin =
+      deliveryStatusChoice === "DELIVERED" && shouldShowDeliveryPinInput && (isAdmin || isSuperStockist || isCustomer)
+        ? String(deliveryPinInput || "").replace(/\D/g, "").slice(0, 4)
+        : "";
+    const normalizedDeliveryPaymentMethod =
+      isCodPaymentSelectionRequired && deliveryPaymentMethod ? deliveryPaymentMethod.toUpperCase().trim() : "";
 
     setDeliveryLoading(true);
     setDeliveryError("");
@@ -594,6 +672,8 @@ const OrderSuccess = () => {
         approvalStatus: deliveryApprovalStatus,
         ...(trimmedComment ? { comments: trimmedComment } : {}),
         ...(normalizedDeliveredDate ? { deliveredDate: normalizedDeliveredDate } : {}),
+        ...(normalizedDeliveryPin ? { inputCustomerDeliveryPin: normalizedDeliveryPin } : {}),
+        ...(normalizedDeliveryPaymentMethod ? { paymentMethod: normalizedDeliveryPaymentMethod } : {}),
       };
 
       await updateOrderDelivery(orderId, deliveryPayload);
@@ -832,6 +912,19 @@ const OrderSuccess = () => {
                                   }}
                                 />
                               )}
+                              {!isRejectedStep && step === "PAID" && isActive && isPaymentCOD && !formattedStepTime && (
+                                <Chip
+                                  label="Cash on Delivery"
+                                  size="small"
+                                  style={{
+                                    height: "20px",
+                                    backgroundColor: "#e3f2fd",
+                                    color: "#1565c0",
+                                    border: "1px solid #90caf9",
+                                    fontSize: "0.7rem",
+                                  }}
+                                />
+                              )}
                             </div>
                           </div>
                           {idx < TIMELINE_STEPS.length - 1 && (
@@ -1064,18 +1157,6 @@ const OrderSuccess = () => {
                         }}
                       />
                     )}
-                    {shouldShowStakeholderNotMatched && (
-                      <Chip
-                        label="Stakeholder Not Matched"
-                        size="small"
-                        style={{
-                          backgroundColor: "#ffebee",
-                          color: "#c62828",
-                          border: "1px solid #ef9a9a",
-                          fontWeight: 600,
-                        }}
-                      />
-                    )}
                     {!hasFinalAdminApproval && details?.adminApprovalComment && (
                       <Typography variant="body2" color="text.secondary">
                         Last comment: {details.adminApprovalComment}
@@ -1085,19 +1166,29 @@ const OrderSuccess = () => {
 
                   <div style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
                     {details?.shippedAdminId && (
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                      >
                         Shipped Admin ID = {details.shippedAdminId}
                       </Typography>
                     )}
-                    {shouldShowStakeholderNotMatched && (
-                      <>
-                        <FormControl fullWidth size="small" style={{ marginBottom: "8px" }}>
-                          <InputLabel>Assign Stakeholder</InputLabel>
+                    <Typography
+                      variant="body2"
+                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px" }}
+                    >
+                      Superstockist = {details?.sStockistId || "NA"}
+                    </Typography>
+                    {isAdmin && (
+                      <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}>
+                        <FormControl fullWidth size="small" style={{ marginTop: "8px", marginBottom: "8px" }}>
+                          <InputLabel>Assign Superstockist</InputLabel>
                           <Select
                             value={stakeholderOverride}
-                            label="Assign Stakeholder"
+                            label="Assign Superstockist"
                             onChange={(event) => setStakeholderOverride(event.target.value)}
-                            disabled={stakeholderLoading}
+                            disabled={stakeholderLoading || isAdminApprovalApproved}
                             MenuProps={{
                               PaperProps: {
                                 style: {
@@ -1108,22 +1199,23 @@ const OrderSuccess = () => {
                             }}
                           >
                             <MenuItem value="" disabled>
-                              {stakeholderLoading ? "Loading stakeholders..." : "— Select stakeholder —"}
+                              {stakeholderLoading ? "Loading superstockists..." : "— Select superstockist —"}
                             </MenuItem>
                             {stakeholderOptions.map((user) => {
                               const firstName = user?.firstName || user?.firstname || "";
                               const lastName = user?.lastName || user?.lastname || "";
                               const fullName = `${firstName} ${lastName}`.trim() || "-";
                               const optionUserId = user?.userId || user?.id || user?.email || "-";
-                              const optionRole = user?.role || "-";
                               const optionPincode = user?.pincode || "-";
+                              const isMatched = Boolean(currentSStockistId) && currentSStockistId === optionUserId;
                               return (
                                 <MenuItem
-                                  key={`${optionUserId}-${optionRole}`}
+                                  key={`${optionUserId}-${user?.role || "-"}`}
                                   value={optionUserId}
-                                  style={{ whiteSpace: "normal", wordBreak: "break-word" }}
+                                  style={{ whiteSpace: "normal", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px" }}
                                 >
-                                  {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
+                                  {isMatched && <MdCheckCircle size={16} color="#2e7d32" />}
+                                  {`${fullName} - (${optionUserId}) - (pin - ${optionPincode})`}
                                 </MenuItem>
                               );
                             })}
@@ -1134,19 +1226,26 @@ const OrderSuccess = () => {
                             {stakeholderError}
                           </Typography>
                         )}
-                      </>
+                      </div>
                     )}
-                    <Typography variant="body2" color="text.secondary">
-                      Superstockist = {details?.ssStockistId || "-"}
+                    {!isAdmin && <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }} />}
+                    <Typography
+                      variant="body2"
+                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                    >
+                      Stockist = {details?.stockistId || "NA"}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Stockist = {details?.stockistId || "-"}
+                    <Typography
+                      variant="body2"
+                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                    >
+                      Dealer = {details?.dealerId || "NA"}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Dealer = {details?.dealerId || "-"}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      CustomerId = {details?.userId || details?.user?.userId || "-"}
+                    <Typography
+                      variant="body2"
+                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                    >
+                      CustomerId = {details?.userId || details?.user?.userId || "NA"}
                     </Typography>
                   </div>
 
@@ -1157,9 +1256,6 @@ const OrderSuccess = () => {
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Comments = {adminApprovalDetails?.comments || "-"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Email = {adminApprovalDetails?.email || "-"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         User ID = {adminApprovalDetails?.userId || "-"}
@@ -1323,6 +1419,18 @@ const OrderSuccess = () => {
                         fontWeight: 600,
                       }}
                     />
+                    {canShowDeliveryPinChip && (
+                      <Chip
+                        label={`Delivery Pin - ${deliveryPin}`}
+                        size="small"
+                        style={{
+                          backgroundColor: "#e3f2fd",
+                          color: "#1565c0",
+                          border: "1px solid #90caf9",
+                          fontWeight: 600,
+                        }}
+                      />
+                    )}
                   </div>
 
                   {hasFinalShipmentDecision || !canManageShipment ? (
@@ -1494,6 +1602,7 @@ const OrderSuccess = () => {
                             setDeliveryStatusChoice(nextValue);
                             if (nextValue !== "DELIVERED") {
                               setDeliveredDate("");
+                              setDeliveryPinInput("");
                             }
                           }}
                         >
@@ -1501,6 +1610,54 @@ const OrderSuccess = () => {
                           <FormControlLabel value="NOT_DELIVERED" control={<Radio />} label="Not Delivered" />
                         </RadioGroup>
                       </FormControl>
+
+                      {deliveryStatusChoice === "DELIVERED" && (
+                        <>
+                          {shouldShowDeliveryPinInput && (
+                            <TextField
+                              fullWidth
+                              label="Delivery Pin"
+                              value={deliveryPinInput}
+                              onChange={(event) => setDeliveryPinInput(event.target.value.replace(/\D/g, "").slice(0, 4))}
+                              inputProps={{ maxLength: 4, inputMode: "numeric", pattern: "[0-9]*" }}
+                              placeholder="Enter 4-digit delivery pin"
+                              style={{ marginTop: "12px" }}
+                              readOnly={isCustomer || isDealer || isStockist}
+                              disabled={isCustomer || isDealer || isStockist}
+                            />
+                          )}
+                          <TextField
+                            fullWidth
+                            type="date"
+                            label="Delivered Date"
+                            value={deliveredDate}
+                            onChange={(event) => setDeliveredDate(event.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            style={{ marginTop: shouldShowDeliveryPinInput ? "12px" : "0px" }}
+                          />
+
+                          {isPaymentCOD && (
+                            <FormControl component="fieldset" style={{ width: "100%", marginTop: "12px" }}>
+                              <Typography variant="body2" style={{ fontWeight: 600, color: "#1f1f1f", marginBottom: "8px" }}>
+                                Payment *
+                              </Typography>
+                              <RadioGroup
+                                value={deliveryPaymentMethod}
+                                onChange={(event) => setDeliveryPaymentMethod(event.target.value)}
+                              >
+                                <FormControlLabel value="UPI" control={<Radio />} label="Paid via UPI (ex: Gpay, PhonePe etc...)" />
+                                <FormControlLabel value="CASH" control={<Radio />} label="Paid via Cash" />
+                              </RadioGroup>
+                            </FormControl>
+                          )}
+
+                          {isPaymentPaidOnline && (
+                            <Typography variant="body2" color="text.secondary" style={{ marginTop: "12px", fontWeight: 600 }}>
+                              Payment paid online
+                            </Typography>
+                          )}
+                        </>
+                      )}
 
                       <TextField
                         fullWidth
@@ -1512,18 +1669,6 @@ const OrderSuccess = () => {
                         placeholder="Add delivery comments"
                         style={{ marginTop: "8px" }}
                       />
-
-                      {deliveryStatusChoice === "DELIVERED" && (
-                        <TextField
-                          fullWidth
-                          type="date"
-                          label="Delivered Date"
-                          value={deliveredDate}
-                          onChange={(event) => setDeliveredDate(event.target.value)}
-                          InputLabelProps={{ shrink: true }}
-                          style={{ marginTop: "12px" }}
-                        />
-                      )}
 
                       <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
                         <Button

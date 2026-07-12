@@ -83,10 +83,14 @@ const MyStocks = () => {
         id: String(item?.inventoryId || item?.id || index + 1),
         inventoryId: item?.inventoryId || item?.id || "-",
         userId: item?.userId || "-",
-        productId: item?.productId || "-",
         productTitle: item?.productTitle || "-",
         category: item?.category || "-",
-        quantity: Number(item?.quantity ?? 0),
+        stockQuantity: Number(item?.stockQuantity ?? item?.stockquantity ?? item?.quantity ?? 0),
+        orderedQuantity: Number(item?.orderedQuantity ?? 0),
+        availableQuantity: Number(
+          item?.availableQuantity ??
+            Number(item?.stockQuantity ?? item?.stockquantity ?? 0) - Number(item?.orderedQuantity ?? 0),
+        ),
         mrpPrice: formatInr(item?.mrpPrice ?? 0),
         price: formatInr(item?.price ?? 0),
         imageSrc: getImageSrc(item?.imageKeys),
@@ -133,10 +137,11 @@ const MyStocks = () => {
                     <TableCell style={{ fontWeight: 700 }}>Image</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>Product</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>Category</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Quantity</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Stock Quantity</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Ordered Quantity</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Available Quantity</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>MRP</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>Price</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Product ID</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>Inventory ID</TableCell>
                     <TableCell style={{ fontWeight: 700 }}>User ID</TableCell>
                   </TableRow>
@@ -144,7 +149,7 @@ const MyStocks = () => {
                 <TableBody>
                   {rows.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} style={{ textAlign: "center", color: "#6f7378" }}>
+                      <TableCell colSpan={10} style={{ textAlign: "center", color: "#6f7378" }}>
                         No stocks found.
                       </TableCell>
                     </TableRow>
@@ -160,10 +165,11 @@ const MyStocks = () => {
                         </TableCell>
                         <TableCell>{row.productTitle}</TableCell>
                         <TableCell>{row.category}</TableCell>
-                        <TableCell>{row.quantity}</TableCell>
+                        <TableCell>{row.stockQuantity}</TableCell>
+                        <TableCell>{row.orderedQuantity}</TableCell>
+                        <TableCell>{row.availableQuantity}</TableCell>
                         <TableCell>{row.mrpPrice}</TableCell>
                         <TableCell style={{ fontWeight: 600, color: "#165d46" }}>{row.price}</TableCell>
-                        <TableCell>{row.productId}</TableCell>
                         <TableCell>{row.inventoryId}</TableCell>
                         <TableCell>{row.userId}</TableCell>
                       </TableRow>

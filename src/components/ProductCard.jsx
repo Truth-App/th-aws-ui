@@ -12,9 +12,32 @@ import { MdClose, MdAdd, MdRemove } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import { addToCart, removeFromCart } from "../store/slices/cartSlice";
 import { useState } from "react";
+import { getUserRoleFromList } from "../constants/dashboardFeatures";
+
+const getEffectiveProductPrice = (product, userRole) => {
+  const fallbackPrice = Number(product?.customerPrice || 0);
+
+  if (!userRole) {
+    return fallbackPrice;
+  }
+
+  let rolePriceKey = "";
+  if (userRole === "Dealer") rolePriceKey = "dealerPrice";
+  if (userRole === "Stockist") rolePriceKey = "stockistPrice";
+  if (userRole === "Super Stockist") rolePriceKey = "superStockistPrice";
+
+  if (!rolePriceKey) {
+    return fallbackPrice;
+  }
+
+  const rolePrice = Number(product?.[rolePriceKey]);
+  return Number.isFinite(rolePrice) && rolePrice > 0 ? rolePrice : fallbackPrice;
+};
 
 const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Product", onAction }) => {
   const dispatch = useDispatch();
+  const authUser = useSelector((state) => state.user.user);
+  const users = useSelector((state) => state.users.items);
   const selector = useSelector((state) => state.cart);
   const cartProduct = selector.find((item) => item.id === product.id);
   const [zoomModalOpen, setZoomModalOpen] = useState(false);
@@ -27,9 +50,12 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
   const isInactive = product.isActive === false;
   const defaultImagePath = "/thriftyhomelogo.png";
   const imageKeys = product.imageKeys || product.fileKeys || [];
-  const hasDiscount = Number(product.mrpPrice) > Number(product.customerPrice);
+  const userRole = getUserRoleFromList(users, authUser?.email);
+  console.log("[ProductCard] authUser.email:", authUser?.email, "| resolved role:", userRole || "(none — using customerPrice)");
+  const effectivePrice = getEffectiveProductPrice(product, userRole);
+  const hasDiscount = Number(product.mrpPrice) > Number(effectivePrice);
   const savedPercent = hasDiscount
-    ? Math.round(((Number(product.mrpPrice) - Number(product.customerPrice)) / Number(product.mrpPrice)) * 100)
+    ? Math.round(((Number(product.mrpPrice) - Number(effectivePrice)) / Number(product.mrpPrice)) * 100)
     : 0;
 
   let imagePath = defaultImagePath;
@@ -233,7 +259,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                   lineHeight: 1.05,
                 }}
               >
-                ₹{product.customerPrice}
+                ₹{effectivePrice}
               </Typography>
               <Typography
                 variant="caption"
@@ -309,7 +335,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                     variant="contained"
                     disabled={product.isActive === false}
                     onClick={() => {
-                      dispatch(addToCart(product));
+                      dispatch(addToCart({ ...product, customerPrice: effectivePrice }));
                     }}
                     style={{
                       minWidth: isMobile ? "24px" : "28px",
@@ -362,7 +388,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 >
                   <Button
                     onClick={() => {
-                      dispatch(addToCart(product));
+                      dispatch(addToCart({ ...product, customerPrice: effectivePrice }));
                     }}
                     disabled={product.isActive === false}
                     size="small"

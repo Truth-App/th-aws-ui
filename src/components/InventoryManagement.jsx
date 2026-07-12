@@ -74,6 +74,7 @@ const getTodayDateString = () => {
 const getItemProductId = (item) => item.productid || item.productId || "";
 const getItemUserId = (item) => item.userid || item.userId || "";
 const getItemStockQuantity = (item) => Number(item?.stockquantity ?? item?.quantity ?? 0);
+const getItemOrderedQuantity = (item) => item?.orderedQuantity;
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -317,6 +318,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
         <TableCell>{getProductLabel(products, productId)}</TableCell>
         <TableCell>{getUserLabel(users, userId)}</TableCell>
         <TableCell>{getItemStockQuantity(item) ?? "—"}</TableCell>
+        <TableCell>{getItemOrderedQuantity(item) ?? "—"}</TableCell>
         <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
           <IconButton
             onClick={() => onToggleView(item)}
@@ -347,7 +349,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell colSpan={5} style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}>
+        <TableCell colSpan={6} style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <div style={{ padding: "0.75em 0 1em" }}>
               <StockHistoryTable history={stockHistory} />
@@ -636,6 +638,9 @@ const InventoryManagement = () => {
                     </TableCell>
                     <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
                       Stock Quantity
+                    </TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                      Ordered Quantity
                     </TableCell>
                     <TableCell
                       align="right"

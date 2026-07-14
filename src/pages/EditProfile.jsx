@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import EditUserProfile from "../components/UserManagement";
 import { fetchUsers } from "../store/slices/usersSlice";
 
@@ -47,6 +48,7 @@ const EditProfile = () => {
       >
         <EditUserProfile profileMode />
       </div>
+      <Footer />
     </>
   );
 };

@@ -1,5 +1,4 @@
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
@@ -15,7 +14,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
-import { useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useEffect, useState } from "react";
 import { MdArrowBack, MdCheckCircle } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
@@ -192,6 +191,7 @@ const getTimelineStepTimes = (details) => {
 
 const OrderSuccess = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const navigate = useNavigate();
   const authUser = useSelector((state) => state.user.user);
   const { items: users, status: usersStatus } = useSelector((state) => state.users);
@@ -227,6 +227,15 @@ const OrderSuccess = () => {
   const details = orderData?.orderDetails;
   const shortOrderId = String(details?.orderId || orderId || "").slice(0, 8);
   const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
+  const showBackButton = location.state?.showBackButton === true;
+  const sourcePath = location.state?.sourcePath || "/orders";
+  const restoreOrdersState = location.state?.restoreOrdersState;
+
+  const handleBackClick = () => {
+    navigate(sourcePath, {
+      state: restoreOrdersState ? { restoreOrdersState } : undefined,
+    });
+  };
 
   // Razorpay locks document.body scroll when its modal opens.
   // If React navigates away before Razorpay restores it, the page is unscrollable.
@@ -556,14 +565,6 @@ const OrderSuccess = () => {
   }, [isShipmentCardEditable, details?.products, resolvedSStockistId]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const handleBackClick = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-    navigate("/orders");
-  };
-
   const handleApproval = async (nextApprovalStatus) => {
     if (!orderId) return;
 
@@ -739,22 +740,24 @@ const OrderSuccess = () => {
           gap: "16px",
         }}
       >
-        <div style={{ width: "100%", maxWidth: "900px" }}>
-          <Button
-            variant="outlined"
-            onClick={handleBackClick}
-            startIcon={<MdArrowBack size={18} />}
-            style={{
-              textTransform: "none",
-              fontWeight: 600,
-              borderRadius: "8px",
-              borderColor: "#165d46",
-              color: "#165d46",
-            }}
-          >
-            Back
-          </Button>
-        </div>
+        {showBackButton && (
+          <div style={{ width: "100%", maxWidth: "900px" }}>
+            <Button
+              variant="outlined"
+              onClick={handleBackClick}
+              startIcon={<MdArrowBack size={18} />}
+              style={{
+                textTransform: "none",
+                fontWeight: 600,
+                borderRadius: "8px",
+                borderColor: "#165d46",
+                color: "#165d46",
+              }}
+            >
+              Back
+            </Button>
+          </div>
+        )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", width: "100%", maxWidth: "900px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: "1 1 260px", minWidth: 0 }}>
             <MdCheckCircle size={42} color="#2e7d32" />
@@ -1765,7 +1768,6 @@ const OrderSuccess = () => {
           </>
         )}
       </div>
-      <Footer />
     </>
   );
 };

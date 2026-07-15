@@ -10,7 +10,7 @@ import { fetchCategories } from "../store/slices/categorySlice";
 import { MdSearch, MdArrowBack } from "react-icons/md";
 import "./Storefront.css";
 
-const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false }) => {
+const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false, resetKey = 0 }) => {
   const dispatch = useDispatch();
   const { items: products, status, error } = useSelector((state) => state.products);
   const { items: categoryItems, status: categoryStatus } = useSelector((state) => state.categories);
@@ -53,6 +53,10 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false 
       dispatch(fetchCategories());
     }
   }, [dispatch, categoryStatus]);
+
+  useEffect(() => {
+    setSelectedCategory(null);
+  }, [resetKey]);
 
   return (
     <main className="storefront-shell">

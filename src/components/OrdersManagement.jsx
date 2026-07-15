@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { fetchAuthSession } from "aws-amplify/auth";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
@@ -7,6 +7,8 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   MdAllInbox,
@@ -15,6 +17,7 @@ import {
   MdFactCheck,
   MdLocalShipping,
   MdInventory,
+  MdSearch,
 } from "react-icons/md";
 import { getOrders } from "../api/orders";
 
@@ -25,6 +28,35 @@ const TIMELINE_STEP_LABELS = {
   ACCEPTED: "Accepted",
   SHIPPED: "Shipment",
   DELIVERED: "Delivered",
+};
+
+const DEFAULT_APPROVAL_CHECKS = {
+  pendingApproval: false,
+  approved: false,
+  rejected: false,
+  guestOrder: false,
+};
+
+const DEFAULT_SHIPMENT_CHECKS = {
+  pendingShipment: false,
+  approvedShipment: false,
+  rejectedShipment: false,
+};
+
+const DEFAULT_DELIVERY_CHECKS = {
+  deliveryCompleted: false,
+  deliveryFailed: false,
+};
+
+const FILTER_OPTION_LABEL_STYLE = {
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  cursor: "pointer",
+  fontSize: "0.9rem",
+  color: "#1f3d31",
+  fontWeight: 500,
+  fontFamily: "inherit",
 };
 
 const formatDate = (value) => {
@@ -61,6 +93,30 @@ const isCODOrder = (order) => {
 
   return normalizedPaymentStatus === "COD" || normalizedPaymentMode === "COD" || codFlagValue === "true";
 };
+
+const isApprovalApprovedStatus = (status) => ["ORDER_APPROVED", "APPROVED", "ACCEPTED"].includes(status);
+
+const isApprovalRejectedStatus = (status) => ["REJECTED", "ORDER_REJECTED"].includes(status);
+
+const isShipmentPendingStatus = (shipmentStatus, orderStatus) =>
+  ["PENDING", "SHIPMENT_PENDING", "PENDING_SHIPMENT"].includes(shipmentStatus) ||
+  (!shipmentStatus && isApprovalApprovedStatus(orderStatus));
+
+const isShipmentApprovedStatus = (shipmentStatus, orderStatus) =>
+  ["APPROVED", "SHIPMENT_APPROVED", "APPROVED_SHIPMENT"].includes(shipmentStatus) ||
+  ["SHIPMENT_APPROVED", "SHIPPED"].includes(orderStatus);
+
+const isShipmentRejectedStatus = (shipmentStatus, orderStatus) =>
+  ["REJECTED", "SHIPMENT_REJECTED", "REJECTED_SHIPMENT"].includes(shipmentStatus) ||
+  orderStatus === "SHIPMENT_REJECTED";
+
+const isDeliveryCompletedStatus = (deliveryApprovalStatus, orderStatus) =>
+  ["DELIVERY_COMPLETED", "DELIVERED"].includes(deliveryApprovalStatus) ||
+  ["DELIVERY_COMPLETED", "DELIVERED"].includes(orderStatus);
+
+const isDeliveryFailedStatus = (deliveryApprovalStatus, orderStatus) =>
+  ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(deliveryApprovalStatus) ||
+  ["DELIVERY_FAILED", "NOT_DELIVERED"].includes(orderStatus);
 
 const getOrderTimelineStatus = (order) => {
   const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase();
@@ -103,23 +159,32 @@ const OrdersManagement = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
-  const [approvalChecks, setApprovalChecks] = useState({
-    pendingApproval: true,
-    approved: true,
-    rejected: true,
-    guestOrder: false,
-  });
-  const [shipmentChecks, setShipmentChecks] = useState({
-    pendingShipment: true,
-    approvedShipment: true,
-    rejectedShipment: true,
-  });
-  const [deliveryChecks, setDeliveryChecks] = useState({
-    deliveryCompleted: true,
-    deliveryFailed: true,
-  });
+  const [approvalChecks, setApprovalChecks] = useState(DEFAULT_APPROVAL_CHECKS);
+  const [shipmentChecks, setShipmentChecks] = useState(DEFAULT_SHIPMENT_CHECKS);
+  const [deliveryChecks, setDeliveryChecks] = useState(DEFAULT_DELIVERY_CHECKS);
+  const [orderIdSearchTerm, setOrderIdSearchTerm] = useState("");
+  const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery("(max-width:600px)");
+
+  const handleTimelineStatusSelect = (step) => {
+    setSelectedStatus(step);
+    setApprovalChecks(DEFAULT_APPROVAL_CHECKS);
+    setShipmentChecks(DEFAULT_SHIPMENT_CHECKS);
+    setDeliveryChecks(DEFAULT_DELIVERY_CHECKS);
+  };
+
+  useEffect(() => {
+    const restoredState = location.state?.restoreOrdersState;
+
+    if (!restoredState) return;
+
+    setSelectedStatus(restoredState.selectedStatus || "ALL");
+    setApprovalChecks(restoredState.approvalChecks || DEFAULT_APPROVAL_CHECKS);
+    setShipmentChecks(restoredState.shipmentChecks || DEFAULT_SHIPMENT_CHECKS);
+    setDeliveryChecks(restoredState.deliveryChecks || DEFAULT_DELIVERY_CHECKS);
+    setOrderIdSearchTerm(restoredState.orderIdSearchTerm || "");
+  }, [location.state]);
 
   useEffect(() => {
     const fetchUserOrders = async () => {
@@ -153,6 +218,35 @@ const OrdersManagement = ({
   }, []);
 
   const visibleOrders = orders.filter((order) => {
+    const normalizedSearchTerm = orderIdSearchTerm.trim().toLowerCase();
+    const fullOrderId = String(order?.orderId || "").toLowerCase();
+    const shortOrderId = String(order?.orderId || "").slice(0, 8).toLowerCase();
+    const orderPincodeCandidates = [
+      order?.pincode,
+      order?.pinCode,
+      order?.shippingAddress?.pincode,
+      order?.shippingAddress?.pinCode,
+      order?.shippingAddress?.postalCode,
+      order?.deliveryAddress?.pincode,
+      order?.deliveryAddress?.pinCode,
+      order?.deliveryAddress?.postalCode,
+      order?.address?.pincode,
+      order?.address?.pinCode,
+      order?.address?.postalCode,
+      order?.customerAddress?.pincode,
+      order?.customerAddress?.pinCode,
+      order?.customerAddress?.postalCode,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== "")
+      .map((value) => String(value).toLowerCase());
+
+    const matchesOrderId = fullOrderId.includes(normalizedSearchTerm) || shortOrderId.includes(normalizedSearchTerm);
+    const matchesPincode = orderPincodeCandidates.some((pincode) => pincode.includes(normalizedSearchTerm));
+
+    if (normalizedSearchTerm && !matchesOrderId && !matchesPincode) {
+      return false;
+    }
+
     if (selectedStatus === "ALL") return true;
 
     const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase();
@@ -174,44 +268,70 @@ const OrdersManagement = ({
       const isPaymentCOD = isCODOrder(order);
       if (normalizedPaymentStatus !== "PAID" && !isPaymentCOD) return false;
 
+      const hasApprovalSelection =
+        approvalChecks.pendingApproval ||
+        approvalChecks.approved ||
+        approvalChecks.rejected ||
+        approvalChecks.guestOrder;
+
       if (approvalChecks.guestOrder) {
         return order?.isGuestOrder === true;
       }
 
       const matchesPendingApproval = approvalChecks.pendingApproval && normalizedOrderStatus === "PLACED";
-      const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
-      const matchesRejected = approvalChecks.rejected && ["REJECTED", "ORDER_REJECTED"].includes(normalizedOrderStatus);
+      const matchesApproved = approvalChecks.approved && isApprovalApprovedStatus(normalizedOrderStatus);
+      const matchesRejected = approvalChecks.rejected && isApprovalRejectedStatus(normalizedOrderStatus);
+
+      if (!hasApprovalSelection) {
+        return (
+          normalizedOrderStatus === "PLACED" ||
+          isApprovalApprovedStatus(normalizedOrderStatus) ||
+          isApprovalRejectedStatus(normalizedOrderStatus)
+        );
+      }
 
       return matchesPendingApproval || matchesApproved || matchesRejected;
     }
 
     if (selectedStatus === "SHIPPED") {
+      const hasShipmentSelection =
+        shipmentChecks.pendingShipment ||
+        shipmentChecks.approvedShipment ||
+        shipmentChecks.rejectedShipment;
+
+      if (!hasShipmentSelection) {
+        return (
+          isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus) ||
+          isShipmentApprovedStatus(normalizedShipmentStatus, normalizedOrderStatus) ||
+          isShipmentRejectedStatus(normalizedShipmentStatus, normalizedOrderStatus)
+        );
+      }
+
       const matchesPendingShipment =
         shipmentChecks.pendingShipment &&
-        (["PENDING", "SHIPMENT_PENDING", "PENDING_SHIPMENT"].includes(normalizedShipmentStatus) ||
-          (!normalizedShipmentStatus && normalizedOrderStatus === "ORDER_APPROVED"));
+        isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus);
 
       const matchesApprovedShipment =
         shipmentChecks.approvedShipment &&
-        (["APPROVED", "SHIPMENT_APPROVED", "APPROVED_SHIPMENT"].includes(normalizedShipmentStatus) ||
-          normalizedOrderStatus === "SHIPMENT_APPROVED");
+        isShipmentApprovedStatus(normalizedShipmentStatus, normalizedOrderStatus);
 
       const matchesRejectedShipment =
         shipmentChecks.rejectedShipment &&
-        (["REJECTED", "SHIPMENT_REJECTED", "REJECTED_SHIPMENT"].includes(normalizedShipmentStatus) ||
-          normalizedOrderStatus === "SHIPMENT_REJECTED");
+        isShipmentRejectedStatus(normalizedShipmentStatus, normalizedOrderStatus);
 
       return matchesPendingShipment || matchesApprovedShipment || matchesRejectedShipment;
     }
 
     if (selectedStatus === "DELIVERED") {
-      const isDeliveryCompleted =
-        normalizedDeliveryApprovalStatus === "DELIVERY_COMPLETED" ||
-        ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedOrderStatus);
+      const isDeliveryCompleted = isDeliveryCompletedStatus(normalizedDeliveryApprovalStatus, normalizedOrderStatus);
 
-      const isDeliveryFailed =
-        normalizedDeliveryApprovalStatus === "DELIVERY_FAILED" ||
-        normalizedOrderStatus === "DELIVERY_FAILED";
+      const isDeliveryFailed = isDeliveryFailedStatus(normalizedDeliveryApprovalStatus, normalizedOrderStatus);
+
+      const hasDeliverySelection = deliveryChecks.deliveryCompleted || deliveryChecks.deliveryFailed;
+
+      if (!hasDeliverySelection) {
+        return isDeliveryCompleted || isDeliveryFailed;
+      }
 
       const matchesCompleted = deliveryChecks.deliveryCompleted && isDeliveryCompleted;
       const matchesFailed = deliveryChecks.deliveryFailed && isDeliveryFailed;
@@ -254,6 +374,36 @@ const OrdersManagement = ({
           </div>
         </div>
 
+        <div
+          style={{
+            marginBottom: "12px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Search by order id or pincode"
+            value={orderIdSearchTerm}
+            onChange={(event) => setOrderIdSearchTerm(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MdSearch size={18} color="#2b8c5a" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: isMobile ? "100%" : "420px",
+              maxWidth: "100%",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "10px",
+                backgroundColor: "#ffffff",
+              },
+            }}
+          />
+        </div>
+
         {showStatusTimelineFilter && !loading && !error && (
           <div
             style={{
@@ -279,7 +429,7 @@ const OrdersManagement = ({
                       <Button
                         variant={isSelected ? "contained" : "outlined"}
                         size="small"
-                        onClick={() => setSelectedStatus(step)}
+                        onClick={() => handleTimelineStatusSelect(step)}
                         style={{
                           textTransform: "none",
                           borderRadius: "999px",
@@ -321,7 +471,7 @@ const OrdersManagement = ({
               Approval Status Filter
             </Typography>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.pendingApproval}
@@ -334,7 +484,7 @@ const OrdersManagement = ({
                 />
                 <span>Pending Approval</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.approved}
@@ -347,7 +497,7 @@ const OrdersManagement = ({
                 />
                 <span>Approved</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.rejected}
@@ -360,7 +510,7 @@ const OrdersManagement = ({
                 />
                 <span>Rejected</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.guestOrder}
@@ -391,7 +541,7 @@ const OrdersManagement = ({
               Delivery Status Filter
             </Typography>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={deliveryChecks.deliveryCompleted}
@@ -402,9 +552,9 @@ const OrdersManagement = ({
                     }))
                   }
                 />
-                <span>Delivery Completed</span>
+                <span>Completed Delivery</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={deliveryChecks.deliveryFailed}
@@ -435,7 +585,7 @@ const OrdersManagement = ({
               Shipment Status Filter
             </Typography>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={shipmentChecks.pendingShipment}
@@ -448,7 +598,7 @@ const OrdersManagement = ({
                 />
                 <span>Pending Shipment</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={shipmentChecks.approvedShipment}
@@ -461,7 +611,7 @@ const OrdersManagement = ({
                 />
                 <span>Approved Shipment</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+              <label style={FILTER_OPTION_LABEL_STYLE}>
                 <input
                   type="checkbox"
                   checked={shipmentChecks.rejectedShipment}
@@ -518,8 +668,7 @@ const OrdersManagement = ({
                 .trim();
               const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase().trim();
               const isShipmentPending =
-                ["PENDING", "SHIPMENT_PENDING", "PENDING_SHIPMENT"].includes(normalizedShipmentStatus) ||
-                (!normalizedShipmentStatus && normalizedOrderStatus === "APPROVED");
+                isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus);
               return (
                 <Card key={order.orderId} variant="outlined" style={{ borderRadius: "12px" }}>
                   <CardContent
@@ -606,7 +755,24 @@ const OrdersManagement = ({
                       )}
                       <Button
                         variant="outlined"
-                        onClick={() => navigate(`/order?orderId=${encodeURIComponent(order.orderId)}`)}
+                        onClick={() => {
+                          const ordersState = {
+                            selectedStatus,
+                            approvalChecks,
+                            shipmentChecks,
+                            deliveryChecks,
+                            orderIdSearchTerm,
+                          };
+
+                          navigate(`/order?orderId=${encodeURIComponent(order.orderId)}`, {
+                            state: {
+                              showBackButton: true,
+                              source: "orders",
+                              sourcePath: location.pathname,
+                              restoreOrdersState: ordersState,
+                            },
+                          });
+                        }}
                         style={{
                           textTransform: "none",
                           fontWeight: 600,

@@ -8,6 +8,12 @@ import Footer from "../components/Footer";
 const Home = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryResetKey, setCategoryResetKey] = useState(0);
+
+  const handleLogoClick = () => {
+    setSearchTerm("");
+    setCategoryResetKey((previous) => previous + 1);
+  };
 
   return (
     <div
@@ -16,11 +22,17 @@ const Home = () => {
         backgroundColor: "#fff1f6",
       }}
     >
-      <Navbar searchTerm={searchTerm} onSearchChange={setSearchTerm} showSearchInNavbar={!isMobile} />
+      <Navbar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        showSearchInNavbar={!isMobile}
+        onLogoClick={handleLogoClick}
+      />
       <CustomCard
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         showInlineSearch={isMobile}
+        resetKey={categoryResetKey}
       />
       <Footer />
       <CartFloater />

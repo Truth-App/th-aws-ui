@@ -1,5 +1,6 @@
 import Navbar from "./Navbar";
 import DashboardFeatureCard from "./DashboardFeatureCard";
+import Footer from "./Footer";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
 const AdminPageLayout = ({ activeFeature, children }) => {
@@ -27,6 +28,7 @@ const AdminPageLayout = ({ activeFeature, children }) => {
           {children}
         </div>
       </div>
+      <Footer />
     </>
   );
 };

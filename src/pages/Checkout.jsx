@@ -1,4 +1,5 @@
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
@@ -601,6 +602,7 @@ const Checkout = () => {
           {paymentVerifying ? "Confirming payment. Do not close this window..." : "Placing your order..."}
         </Typography>
       </Dialog>
+      <Footer />
     </>
   );
 };

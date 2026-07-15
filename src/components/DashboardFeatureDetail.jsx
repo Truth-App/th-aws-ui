@@ -338,7 +338,7 @@ const DashboardFeatureDetail = () => {
                 fontWeight: "bolder",
               }}
             >
-              + Add new Product
+              + Add
             </Button>
           </div>
 
@@ -444,7 +444,7 @@ const DashboardFeatureDetail = () => {
                   <ProductCard
                     product={item}
                     actionType="update"
-                    actionLabel="Update Product"
+                    actionLabel="Update"
                     onAction={handleOpenEdit}
                   />
                 </div>

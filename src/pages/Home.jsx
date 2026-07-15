@@ -3,6 +3,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import Navbar from "../components/Navbar";
 import CustomCard from "../components/CustomCard";
 import CartFloater from "../components/CartFloater";
+import Footer from "../components/Footer";
 
 const Home = () => {
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -21,6 +22,7 @@ const Home = () => {
         onSearchChange={setSearchTerm}
         showInlineSearch={isMobile}
       />
+      <Footer />
       <CartFloater />
     </div>
   );

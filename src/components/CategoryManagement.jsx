@@ -9,6 +9,9 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Chip from "@mui/material/Chip";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../store/slices/categorySlice";
@@ -20,6 +23,7 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 const INITIAL_CATEGORY_FORM = {
   title: "",
   imageKey: "",
+  isActive: true,
 };
 
 const CategoryManagement = () => {
@@ -160,6 +164,7 @@ const CategoryManagement = () => {
     setCategory({
       title: selectedCategory.title || "",
       imageKey: existingImageKey,
+      isActive: selectedCategory.isActive ?? true,
     });
     setOpen(true);
   };
@@ -188,10 +193,11 @@ const CategoryManagement = () => {
       const method = isEditMode ? "PUT" : "POST";
 
       const payload = JSON.stringify({
-                    title: category.title.trim(),
-                    imageKey,
-                    imagekey: imageKey,
-                  });
+        title: category.title.trim(),
+        imageKey,
+        imagekey: imageKey,
+        isActive: category.isActive !== false,
+      });
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -260,7 +266,7 @@ const CategoryManagement = () => {
                 fontWeight: "bolder",
               }}
             >
-              + Add Category
+              + Add
             </Button>
           </div>
           
@@ -303,39 +309,69 @@ const CategoryManagement = () => {
                 marginTop: "0.75em",
               }}
             >
-              {filteredCategories.map((item) => (
-                <Card
-                  key={item.id}
-                  variant="outlined"
-                  style={{ display: "flex", flexDirection: "column" }}
-                >
-                  <CardMedia
-                    component="img"
-                    height="140"
-                    image={getImageUrl(item.imageKey)}
-                    alt={item.title}
-                    style={{ objectFit: "contain", backgroundColor: "#f5f5f5" }}
-                  />
-                  <CardContent style={{ padding: "8px 12px", flexGrow: 1 }}>
-                    <Typography
-                      variant="body2"
-                      style={{ fontWeight: 600, color: "#165d46", textAlign: "center" }}
-                    >
-                      {item.title}
-                    </Typography>
-                  </CardContent>
-                  <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
-                    <Button
-                      onClick={() => handleOpenEdit(item)}
-                      size="small"
-                      variant="contained"
-                      style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
-                    >
-                      Update Category
-                    </Button>
-                  </CardActions>
-                </Card>
-              ))}
+              {filteredCategories.map((item) => {
+                const isInactive = item.isActive === false;
+                return (
+                  <Card
+                    key={item.id}
+                    variant="outlined"
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      opacity: isInactive ? 0.7 : 1,
+                      position: "relative",
+                    }}
+                  >
+                    {isInactive && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: isMobile ? "4px" : "6px",
+                          right: isMobile ? "4px" : "6px",
+                          zIndex: 1,
+                        }}
+                      >
+                        <Chip
+                          label="In active"
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          sx={{
+                            fontSize: isMobile ? "0.6rem" : "0.7rem",
+                            height: isMobile ? "22px" : "24px",
+                            backgroundColor: "#fff",
+                          }}
+                        />
+                      </div>
+                    )}
+                    <CardMedia
+                      component="img"
+                      height="140"
+                      image={getImageUrl(item.imageKey)}
+                      alt={item.title}
+                      style={{ objectFit: "contain", backgroundColor: "#f5f5f5" }}
+                    />
+                    <CardContent style={{ padding: "8px 12px", flexGrow: 1 }}>
+                      <Typography
+                        variant="body2"
+                        style={{ fontWeight: 600, color: "#165d46", textAlign: "center" }}
+                      >
+                        {item.title}
+                      </Typography>
+                    </CardContent>
+                    <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
+                      <Button
+                        onClick={() => handleOpenEdit(item)}
+                        size="small"
+                        variant="contained"
+                        style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
+                      >
+                        Update
+                      </Button>
+                    </CardActions>
+                  </Card>
+                );
+              })}
             </div>
           )}
 
@@ -373,6 +409,20 @@ const CategoryManagement = () => {
               value={category.title}
               onChange={handleOnChange}
               required
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={category.isActive !== false}
+                  onChange={(e) =>
+                    setCategory((prev) => ({
+                      ...prev,
+                      isActive: e.target.checked,
+                    }))
+                  }
+                />
+              }
+              label={category.isActive !== false ? "Active" : "Inactive"}
             />
             <div>
               <input

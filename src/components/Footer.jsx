@@ -1,6 +1,8 @@
 import { useSelector } from "react-redux";
 import { MdEmail, MdPhone, MdLocationOn, MdAccessTime, MdReply } from "react-icons/md";
 
+const blinkitLikeFont = '"Nunito Sans", "Montserrat", "Segoe UI", sans-serif';
+
 const contactItemStyle = {
   display: "inline-flex",
   alignItems: "center",
@@ -34,7 +36,7 @@ const Footer = () => {
             margin: "0 0 0.65em",
             fontSize: "0.95rem",
             fontWeight: 400,
-            fontFamily: "Montserrat, sans-serif",
+            fontFamily: blinkitLikeFont,
             color: "#1a1a1a",
             letterSpacing: "0.04em",
           }}
@@ -52,7 +54,7 @@ const Footer = () => {
             color: "#4a4a4a",
             fontSize: "0.875rem",
             lineHeight: 1.5,
-            fontFamily: "Montserrat, sans-serif",
+            fontFamily: blinkitLikeFont,
             fontWeight: 400,
           }}
         >

@@ -107,6 +107,7 @@ const OrdersManagement = ({
     pendingApproval: true,
     approved: true,
     rejected: true,
+    guestOrder: false,
   });
   const [shipmentChecks, setShipmentChecks] = useState({
     pendingShipment: true,
@@ -114,7 +115,6 @@ const OrdersManagement = ({
     rejectedShipment: true,
   });
   const [deliveryChecks, setDeliveryChecks] = useState({
-    all: true,
     deliveryCompleted: true,
     deliveryFailed: true,
   });
@@ -174,9 +174,13 @@ const OrdersManagement = ({
       const isPaymentCOD = isCODOrder(order);
       if (normalizedPaymentStatus !== "PAID" && !isPaymentCOD) return false;
 
+      if (approvalChecks.guestOrder) {
+        return order?.isGuestOrder === true;
+      }
+
       const matchesPendingApproval = approvalChecks.pendingApproval && normalizedOrderStatus === "PLACED";
       const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
-      const matchesRejected = approvalChecks.rejected && normalizedOrderStatus === "REJECTED";
+      const matchesRejected = approvalChecks.rejected && ["REJECTED", "ORDER_REJECTED"].includes(normalizedOrderStatus);
 
       return matchesPendingApproval || matchesApproved || matchesRejected;
     }
@@ -201,18 +205,18 @@ const OrdersManagement = ({
     }
 
     if (selectedStatus === "DELIVERED") {
-      const matchesDeliveryCompleted =
-        deliveryChecks.deliveryCompleted &&
-        (
-          normalizedDeliveryApprovalStatus === "DELIVERY_COMPLETED" ||
-          ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedOrderStatus)
-        );
+      const isDeliveryCompleted =
+        normalizedDeliveryApprovalStatus === "DELIVERY_COMPLETED" ||
+        ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedOrderStatus);
 
-      const matchesDeliveryFailed =
-        deliveryChecks.deliveryFailed &&
-        (normalizedDeliveryApprovalStatus === "DELIVERY_FAILED" || normalizedOrderStatus === "DELIVERY_FAILED");
+      const isDeliveryFailed =
+        normalizedDeliveryApprovalStatus === "DELIVERY_FAILED" ||
+        normalizedOrderStatus === "DELIVERY_FAILED";
 
-      return matchesDeliveryCompleted || matchesDeliveryFailed;
+      const matchesCompleted = deliveryChecks.deliveryCompleted && isDeliveryCompleted;
+      const matchesFailed = deliveryChecks.deliveryFailed && isDeliveryFailed;
+
+      return matchesCompleted || matchesFailed;
     }
 
     return getOrderTimelineStatus(order) === selectedStatus;
@@ -317,7 +321,7 @@ const OrdersManagement = ({
               Approval Status Filter
             </Typography>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.pendingApproval}
@@ -330,7 +334,7 @@ const OrdersManagement = ({
                 />
                 <span>Pending Approval</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.approved}
@@ -343,7 +347,7 @@ const OrdersManagement = ({
                 />
                 <span>Approved</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
                   checked={approvalChecks.rejected}
@@ -356,62 +360,18 @@ const OrdersManagement = ({
                 />
                 <span>Rejected</span>
               </label>
-            </div>
-          </div>
-        )}
-
-        {showStatusTimelineFilter && selectedStatus === "SHIPPED" && !loading && !error && (
-          <div
-            style={{
-              border: "1px solid #dce9e2",
-              borderRadius: "12px",
-              backgroundColor: "#f8fcfa",
-              padding: isMobile ? "10px" : "12px",
-              marginBottom: "12px",
-            }}
-          >
-            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
-              Shipment Status Filter
-            </Typography>
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
-                  checked={shipmentChecks.pendingShipment}
+                  checked={approvalChecks.guestOrder}
                   onChange={(event) =>
-                    setShipmentChecks((previous) => ({
+                    setApprovalChecks((previous) => ({
                       ...previous,
-                      pendingShipment: event.target.checked,
+                      guestOrder: event.target.checked,
                     }))
                   }
                 />
-                <span>Pending Shipment</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={shipmentChecks.approvedShipment}
-                  onChange={(event) =>
-                    setShipmentChecks((previous) => ({
-                      ...previous,
-                      approvedShipment: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Approved Shipment</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={shipmentChecks.rejectedShipment}
-                  onChange={(event) =>
-                    setShipmentChecks((previous) => ({
-                      ...previous,
-                      rejectedShipment: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Rejected Shipment</span>
+                <span>Guest Orders</span>
               </label>
             </div>
           </div>
@@ -431,54 +391,93 @@ const OrdersManagement = ({
               Delivery Status Filter
             </Typography>
             <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={deliveryChecks.all}
-                  onChange={(event) => {
-                    const isChecked = event.target.checked;
-                    setDeliveryChecks({
-                      all: isChecked,
-                      deliveryCompleted: isChecked,
-                      deliveryFailed: isChecked,
-                    });
-                  }}
-                />
-                <span>All</span>
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
                   checked={deliveryChecks.deliveryCompleted}
-                  onChange={(event) => {
-                    const nextDeliveryCompleted = event.target.checked;
+                  onChange={(event) =>
                     setDeliveryChecks((previous) => ({
                       ...previous,
-                      deliveryCompleted: nextDeliveryCompleted,
-                      all: nextDeliveryCompleted && previous.deliveryFailed,
-                    }));
-                  }}
+                      deliveryCompleted: event.target.checked,
+                    }))
+                  }
                 />
                 <span>Delivery Completed</span>
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
                 <input
                   type="checkbox"
                   checked={deliveryChecks.deliveryFailed}
-                  onChange={(event) => {
-                    const nextDeliveryFailed = event.target.checked;
+                  onChange={(event) =>
                     setDeliveryChecks((previous) => ({
                       ...previous,
-                      deliveryFailed: nextDeliveryFailed,
-                      all: previous.deliveryCompleted && nextDeliveryFailed,
-                    }));
-                  }}
+                      deliveryFailed: event.target.checked,
+                    }))
+                  }
                 />
-                <span>Delivery Failed</span>
+                <span>Failed Delivery</span>
               </label>
             </div>
           </div>
         )}
+
+        {showStatusTimelineFilter && selectedStatus === "SHIPPED" && !loading && !error && (
+          <div
+            style={{
+              border: "1px solid #dce9e2",
+              borderRadius: "12px",
+              backgroundColor: "#f8fcfa",
+              padding: isMobile ? "10px" : "12px",
+              marginBottom: "12px",
+            }}
+          >
+            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
+              Shipment Status Filter
+            </Typography>
+            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+                <input
+                  type="checkbox"
+                  checked={shipmentChecks.pendingShipment}
+                  onChange={(event) =>
+                    setShipmentChecks((previous) => ({
+                      ...previous,
+                      pendingShipment: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Pending Shipment</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+                <input
+                  type="checkbox"
+                  checked={shipmentChecks.approvedShipment}
+                  onChange={(event) =>
+                    setShipmentChecks((previous) => ({
+                      ...previous,
+                      approvedShipment: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Approved Shipment</span>
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "0.9rem" }}>
+                <input
+                  type="checkbox"
+                  checked={shipmentChecks.rejectedShipment}
+                  onChange={(event) =>
+                    setShipmentChecks((previous) => ({
+                      ...previous,
+                      rejectedShipment: event.target.checked,
+                    }))
+                  }
+                />
+                <span>Rejected Shipment</span>
+              </label>
+            </div>
+          </div>
+        )}
+
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "1em" }}>

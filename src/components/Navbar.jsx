@@ -6,7 +6,9 @@ import Popover from "@mui/material/Popover";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import CircularProgress from "@mui/material/CircularProgress";
-import { MdPerson, MdDashboard, MdLogout, MdLogin, MdEdit } from "react-icons/md";
+import TextField from "@mui/material/TextField";
+import InputAdornment from "@mui/material/InputAdornment";
+import { MdPerson, MdDashboard, MdLogout, MdLogin, MdEdit, MdSearch } from "react-icons/md";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { logoutUser, fetchCurrentUser } from "../store/slices/userSlice";
@@ -17,7 +19,7 @@ import {
   hasDashboardAccess,
 } from "../constants/dashboardFeatures";
 
-const Navbar = () => {
+const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const [anchorEl, setAnchorEl] = useState(null);
@@ -84,36 +86,86 @@ const Navbar = () => {
       style={{
         display: "flex",
         flexDirection: "row",
-        justifyContent: "space-between",
         alignItems: "center",
+        justifyContent: "space-between",
         height: "auto",
         borderBottom: "1.5px solid #dee6de",
-        padding: 0,
-        backgroundColor: "#f5f7f0",
-        gap: 0,
+        padding: "0 8px",
+        backgroundColor: "#ffffff",
+        gap: "12px",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
       }}
     >
-      <div style={{ fontFamily: "Montserrat, sans-serif", fontWeight: "600", fontSize: "1.5em", fontStyle: "bold" }}>
-        <NavLink to="/" end
-        style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 0 }}
-        >
-        <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isMobile ? "150px" : isTablet ? "170px" : "190px", height: isMobile ? "48px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />
-        <span style={{ fontSize: isMobile ? "0.75em" : "0.85em", fontWeight: 650, color: "inherit", whiteSpace: "nowrap", marginLeft: "-0.3em" }}>Thrifty Home</span>
-        </NavLink>
-      </div>
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          width: "auto",
-          gap: "1.5em",
           fontFamily: "Montserrat, sans-serif",
-          fontWeight: "500",
-          flexWrap: "wrap",
+          fontWeight: "600",
+          fontSize: "1.5em",
+          fontStyle: "bold",
+          flexShrink: 0,
         }}
       >
+          <NavLink to="/" end
+          style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 0 }}
+          >
+          <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isMobile ? "150px" : isTablet ? "170px" : "190px", height: isMobile ? "48px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />
+          </NavLink>
+      </div>
+      {showSearchInNavbar && (
+        <div
+          style={{
+            flex: "1 1 auto",
+            display: "flex",
+            justifyContent: "center",
+            minWidth: 0,
+          }}
+        >
+          <TextField
+            value={searchTerm}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            size="small"
+            placeholder="Search by name"
+            variant="outlined"
+            sx={{
+              width: "100%",
+              maxWidth: "760px",
+              "& .MuiOutlinedInput-root": {
+                borderRadius: "12px",
+                backgroundColor: "#f1f3f4",
+                "& fieldset": {
+                  border: "none",
+                },
+                "&:hover fieldset": {
+                  border: "none",
+                },
+                "&.Mui-focused fieldset": {
+                  border: "none",
+                },
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <MdSearch size={18} color="#2b8c5a" />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </div>
+      )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            width: "auto",
+            gap: "1.5em",
+            fontFamily: "Montserrat, sans-serif",
+            fontWeight: "500",
+            flexWrap: "wrap",
+            flexShrink: 0,
+          }}
+        >
         <button
           onClick={handleProfileClick}
           style={{

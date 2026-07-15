@@ -10,6 +10,7 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
+import Checkbox from "@mui/material/Checkbox";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import InputLabel from "@mui/material/InputLabel";
@@ -134,7 +135,8 @@ const getTimelineIndex = (details) => {
   const isShipmentApproved = ["SHIPMENT_APPROVED", "APPROVED"].includes(normalizedShipmentStatus);
   const isShipmentRejected = ["SHIPMENT_REJECTED", "REJECTED"].includes(normalizedShipmentStatus);
   const isDeliveryCompleted = ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedDeliveryApprovalStatus);
-  const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
+  const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus) ||
+    ["DELIVERY_FAILED", "NOT_DELIVERED"].includes(normalizedOrderStatus);
   const isOrderApprovedStatus = ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
 
   if (normalizedOrderStatus === "DELIVERED" || isDeliveryCompleted || isDeliveryFailed) return 4;
@@ -210,7 +212,7 @@ const OrderSuccess = () => {
   const [deliveryComment, setDeliveryComment] = useState("");
   const [deliveredDate, setDeliveredDate] = useState("");
   const [deliveryPinInput, setDeliveryPinInput] = useState("");
-  const [deliveryPaymentMethod, setDeliveryPaymentMethod] = useState("");
+  const [deliveryPaymentCOD, setDeliveryPaymentCOD] = useState({ paidUPI: false, cash: false });
   const [deliveryLoading, setDeliveryLoading] = useState(false);
   const [deliveryError, setDeliveryError] = useState("");
   const [deliveryMessage, setDeliveryMessage] = useState("");
@@ -222,6 +224,7 @@ const OrderSuccess = () => {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState("");
   const details = orderData?.orderDetails;
+  const shortOrderId = String(details?.orderId || orderId || "").slice(0, 8);
   const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
 
   // Razorpay locks document.body scroll when its modal opens.
@@ -310,7 +313,7 @@ const OrderSuccess = () => {
         const filteredUsers = Array.isArray(response)
           ? response.filter((user) => {
               const role = (user?.role || "").trim();
-              return role === SUPER_STOCKIST_ROLE;
+              return role === SUPER_STOCKIST_ROLE || role === ADMIN_ROLE;
             })
           : [];
 
@@ -373,19 +376,15 @@ const OrderSuccess = () => {
       details?.deliveryDetails?.customerDeliveryPin ||
       details?.customerDeliveryPin ||
       "";
-    const rawDeliveryPaymentMethod =
-      details?.deliveryApprovalDetails?.paymentMethod ||
-      details?.deliveryDetails?.paymentMethod ||
-      details?.paymentMethod ||
-      details?.paymentMode ||
-      details?.paymentType ||
-      "";
+    const rawCodDetails = details?.deliveryApprovalDetails?.codDetails || details?.deliveryDetails?.codDetails || {};
     const normalizedDeliveryPin = String(rawDeliveryPin).replace(/\D/g, "").slice(0, 4);
-    const normalizedDeliveryPaymentMethod = String(rawDeliveryPaymentMethod || "").toUpperCase().trim();
     // Don't pre-populate delivery pin value for Super Stockist
     const shouldPrePopulatePin = !isSuperStockist;
     setDeliveryPinInput(shouldPrePopulatePin ? normalizedDeliveryPin : "");
-    setDeliveryPaymentMethod(["UPI", "CASH"].includes(normalizedDeliveryPaymentMethod) ? normalizedDeliveryPaymentMethod : "");
+    setDeliveryPaymentCOD({
+      paidUPI: rawCodDetails?.paidUPI === true,
+      cash: rawCodDetails?.cash === true,
+    });
 
     if (!rawDeliveredDate) {
       setDeliveredDate("");
@@ -424,7 +423,10 @@ const OrderSuccess = () => {
     isAdminApproved ||
     ["ORDER_APPROVED", "APPROVED"].includes(adminApprovalStatus) ||
     ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
-  const hasFinalAdminApproval = isAdminApprovalApproved || adminApprovalStatus === "REJECTED";
+  const isAdminApprovalRejected =
+    ["REJECTED", "ORDER_REJECTED"].includes(adminApprovalStatus) ||
+    ["REJECTED", "ORDER_REJECTED"].includes(normalizedOrderStatus);
+  const hasFinalAdminApproval = isAdminApprovalApproved || isAdminApprovalRejected;
   const adminApprovalDetails = details?.adminApprovalDetails || {};
   const shipmentStatus = (
     details?.shipmentStatus ||
@@ -439,49 +441,41 @@ const OrderSuccess = () => {
   const hasFinalShipmentDecision = isShipmentApproved || isShipmentRejected;
   const shipmentDetails = details?.shipmentApprovalDetails || details?.shipmentDetails || {};
   const deliveryPin =
+    details?.shipmentApprovalDetails?.customerDeliveryPin ||
+    details?.shipmentDetails?.customerDeliveryPin ||
+    details?.deliveryApprovalDetails?.customerDeliveryPin ||
+    details?.deliveryDetails?.customerDeliveryPin ||
     details?.customerDeliveryPin ||
-    details?.shippingAddress?.pincode ||
-    details?.deliveryAddress?.pincode ||
-    details?.pincode ||
     "";
-  const normalizedAuthEmail = String(authUser?.email || "").trim().toLowerCase();
-  const normalizedOrderCustomerEmail = String(details?.user?.email || details?.email || "")
-    .trim()
-    .toLowerCase();
-  const currentUserIds = [authUser?.id, authUser?.userId, authUser?.sub]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  const orderCustomerIds = [details?.userId, details?.customerId, details?.user?.userId, details?.user?.id]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  const isOrderPlacedByCurrentUser =
-    (Boolean(normalizedAuthEmail) && normalizedAuthEmail === normalizedOrderCustomerEmail) ||
-    currentUserIds.some((value) => orderCustomerIds.includes(value));
   const shouldShowDeliveryPinInput = !(isStockist || isDealer);
   const isRoleUnknownOrNotMatched =
     isRoleUndefined || ![ADMIN_ROLE, SUPER_STOCKIST_ROLE, "Stockist", "Dealer", "Customer"].includes(userRole);
   const canShowDeliveryPinChip =
-    isShipmentApproved &&
     Boolean(String(deliveryPin || "").trim()) &&
     !(isStockist || isDealer) &&
-    (isAdmin || (isCustomer && isOrderPlacedByCurrentUser) || isRoleUnknownOrNotMatched);
+    !isSuperStockist &&
+    (isAdmin || isCustomer || isRoleUnknownOrNotMatched);
   const isOrderApprovedForOps = normalizedOrderStatus === "ORDER_APPROVED";
   const hasShipmentApprovalPayload =
     Boolean((details?.shipmentApprovalStatus || "").trim()) ||
     Boolean(details?.shipmentApprovalDetails);
   const canShowShipmentCard = isOrderApprovedForOps || hasShipmentApprovalPayload;
   const canShowDeliveryCard = isShipmentApproved;
+  const isAdminApprovalLocked = hasFinalAdminApproval || canShowShipmentCard || canShowDeliveryCard;
+  const isAdminApprovalEffectiveApproved =
+    !isAdminApprovalRejected && (isAdminApprovalApproved || canShowShipmentCard || canShowDeliveryCard);
   const isPaymentCOD =
     (details?.paymentStatus || "").toUpperCase() === "COD" || details?.isPaymentCOD === true;
   const isPaymentPaidOnline = (details?.paymentStatus || "").toUpperCase() === "PAID";
   const isCodPaymentSelectionRequired = isPaymentCOD && deliveryStatusChoice === "DELIVERED";
+  const isAnyCodMethodSelected = deliveryPaymentCOD.paidUPI || deliveryPaymentCOD.cash;
   const isDeliveryUpdateDisabled =
     deliveryLoading ||
     !deliveryStatusChoice ||
     (deliveryStatusChoice === "DELIVERED" && (
       !deliveredDate ||
       (shouldShowDeliveryPinInput && deliveryPinInput.length !== 4) ||
-      (isCodPaymentSelectionRequired && !deliveryPaymentMethod)
+      (isCodPaymentSelectionRequired && !isAnyCodMethodSelected)
     ));
   const normalizedDeliveryApprovalStatus = (
     details?.deliveryApprovalStatus ||
@@ -495,13 +489,31 @@ const OrderSuccess = () => {
   const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
   const hasFinalDeliveryDecision = isDeliveryCompleted || isDeliveryFailed;
   const deliveryDetails = details?.deliveryApprovalDetails || details?.deliveryDetails || {};
+  const deliveryCodDetails =
+    details?.deliveryApprovalDetails?.codDetails ||
+    details?.deliveryDetails?.codDetails ||
+    deliveryDetails?.codDetails ||
+    details?.codDetails ||
+    {};
+  const deliveryCodTrueKeys = Object.entries(deliveryCodDetails)
+    .filter(([, value]) => value === true || String(value).toLowerCase() === "true")
+    .map(([key]) => key);
+  const deliveryCodTrueLabels = deliveryCodTrueKeys.map((key) => {
+    if (key === "paidUPI") return "paid via UPI";
+    if (key === "cash") return "Cash";
+    return key;
+  });
   const products = details?.products || [];
   const selectedStakeholderUser = stakeholderOptions.find((user) => {
     const candidateId = user?.userId || user?.id || user?.email || "";
     return candidateId === stakeholderOverride;
   });
   const selectedStakeholderRoleForApproval =
-    selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE ? "sStockist" : "";
+    selectedStakeholderUser?.role === SUPER_STOCKIST_ROLE
+      ? "sStockist"
+      : selectedStakeholderUser?.role === ADMIN_ROLE
+        ? "admin"
+        : "";
   const selectedSStockistId =
     selectedStakeholderRoleForApproval === "sStockist" ? String(stakeholderOverride || "").trim() : "";
   const resolvedSStockistId = String(selectedSStockistId || details?.sStockistId || "").trim();
@@ -643,8 +655,8 @@ const OrderSuccess = () => {
       return;
     }
 
-    if (isCodPaymentSelectionRequired && !deliveryPaymentMethod) {
-      setDeliveryError("Please select how COD payment was collected.");
+    if (isCodPaymentSelectionRequired && !isAnyCodMethodSelected) {
+      setDeliveryError("Please select at least one payment method for COD.");
       setDeliveryMessage("");
       return;
     }
@@ -659,8 +671,10 @@ const OrderSuccess = () => {
       deliveryStatusChoice === "DELIVERED" && shouldShowDeliveryPinInput && (isAdmin || isSuperStockist || isCustomer)
         ? String(deliveryPinInput || "").replace(/\D/g, "").slice(0, 4)
         : "";
-    const normalizedDeliveryPaymentMethod =
-      isCodPaymentSelectionRequired && deliveryPaymentMethod ? deliveryPaymentMethod.toUpperCase().trim() : "";
+    const codDetails =
+      isCodPaymentSelectionRequired && isAnyCodMethodSelected
+        ? deliveryPaymentCOD
+        : null;
 
     setDeliveryLoading(true);
     setDeliveryError("");
@@ -673,7 +687,7 @@ const OrderSuccess = () => {
         ...(trimmedComment ? { comments: trimmedComment } : {}),
         ...(normalizedDeliveredDate ? { deliveredDate: normalizedDeliveredDate } : {}),
         ...(normalizedDeliveryPin ? { inputCustomerDeliveryPin: normalizedDeliveryPin } : {}),
-        ...(normalizedDeliveryPaymentMethod ? { paymentMethod: normalizedDeliveryPaymentMethod } : {}),
+        ...(codDetails ? { codDetails } : {}),
       };
 
       await updateOrderDelivery(orderId, deliveryPayload);
@@ -740,12 +754,12 @@ const OrderSuccess = () => {
             Back
           </Button>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", width: "100%", maxWidth: "900px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", width: "100%", maxWidth: "900px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: "1 1 260px", minWidth: 0 }}>
             <MdCheckCircle size={42} color="#2e7d32" />
             <div>
               <Typography variant="h5" style={{ fontWeight: 700 }}>
-                Order Details
+                Order Detail (order id - {shortOrderId || "-"})
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Track order status and review purchased products.
@@ -762,6 +776,7 @@ const OrderSuccess = () => {
               borderRadius: "8px",
               padding: "10px 24px",
               whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             Continue Shopping
@@ -818,12 +833,29 @@ const OrderSuccess = () => {
                       const isApprovalStep = step === "ACCEPTED";
                       const isShipmentStep = step === "SHIPPED";
                       const isDeliveryStep = step === "DELIVERED";
-                      const isRejectedAtApprovalStep = isApprovalStep && adminApprovalStatus === "REJECTED";
+                      const isRejectedAtApprovalStep = isApprovalStep && (["REJECTED", "ORDER_REJECTED"].includes(adminApprovalStatus) || isAdminApprovalRejected);
                       const isRejectedAtShipmentStep = isShipmentStep && isShipmentRejected;
                       const isRejectedAtDeliveryStep = isDeliveryStep && isDeliveryFailed;
                       const isRejectedStep =
                         isRejectedAtApprovalStep || isRejectedAtShipmentStep || isRejectedAtDeliveryStep;
                       const isApprovedAtApprovalStep = isApprovalStep && isAdminApprovalApproved;
+
+                      const dotBorder = isRejectedStep
+                        ? "2px solid #c62828"
+                        : isActive
+                          ? "2px solid #2e7d32"
+                          : "2px solid #c2c2c2";
+                      const dotBg = isRejectedStep
+                        ? "#ffebee"
+                        : isActive
+                          ? "#e9f5ec"
+                          : "#f5f5f5";
+                      const dotColor = isRejectedStep
+                        ? "#c62828"
+                        : isActive
+                          ? "#2e7d32"
+                          : "#9e9e9e";
+                      const labelColor = isRejectedStep ? "#c62828" : isActive ? "#2e7d32" : "#777";
 
                       return (
                         <div key={step} style={{ display: "flex", alignItems: "center", flex: 1 }}>
@@ -833,9 +865,9 @@ const OrderSuccess = () => {
                                 width: "30px",
                                 height: "30px",
                                 borderRadius: "50%",
-                                border: isActive ? "2px solid #2e7d32" : "2px solid #c2c2c2",
-                                backgroundColor: isActive ? "#e9f5ec" : "#f5f5f5",
-                                color: isActive ? "#2e7d32" : "#9e9e9e",
+                                border: dotBorder,
+                                backgroundColor: dotBg,
+                                color: dotColor,
                                 fontWeight: 700,
                                 display: "flex",
                                 alignItems: "center",
@@ -849,7 +881,7 @@ const OrderSuccess = () => {
                               variant="caption"
                               style={{
                                 fontWeight: isCurrent ? 700 : 500,
-                                color: isActive ? "#2e7d32" : "#777",
+                                color: labelColor,
                                 textAlign: "center",
                               }}
                             >
@@ -886,7 +918,7 @@ const OrderSuccess = () => {
                                   }}
                                 />
                               )}
-                              {!isRejectedStep && !isActive && isNextStep && (
+                              {!isRejectedStep && !isActive && isNextStep && !isAdminApprovalRejected && !(isShipmentRejected && step === "DELIVERED") && !(isDeliveryFailed && step === "SHIPPED") && (
                                 <Chip
                                   label="In Progress"
                                   size="small"
@@ -975,6 +1007,20 @@ const OrderSuccess = () => {
                 <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
                   {details.shippingAddress?.pincode || "-"}
                 </Typography>
+                {canShowDeliveryPinChip && (
+                  <div style={{ marginTop: "12px" }}>
+                    <Chip
+                      label={`Delivery Pin - ${deliveryPin}`}
+                      size="small"
+                      style={{
+                        backgroundColor: "#e3f2fd",
+                        color: "#1565c0",
+                        border: "1px solid #90caf9",
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1097,38 +1143,30 @@ const OrderSuccess = () => {
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
                     <Chip
                       label={
-                        hasFinalAdminApproval
-                          ? isAdminApprovalApproved
+                        isAdminApprovalLocked
+                          ? isAdminApprovalEffectiveApproved
                             ? "Approved"
-                            : "Rejected"
-                          : isAdminApproved
-                            ? "Approved"
-                            : "Approval Pending"
+                            : "Order Rejected"
+                          : "Approval Pending"
                       }
                       size="small"
                       style={{
-                        backgroundColor: hasFinalAdminApproval
-                          ? isAdminApprovalApproved
+                        backgroundColor: isAdminApprovalLocked
+                          ? isAdminApprovalEffectiveApproved
                             ? "#e8f5e9"
                             : "#ffebee"
-                          : isAdminApproved
-                            ? "#e8f5e9"
-                            : "#fff8e1",
-                        color: hasFinalAdminApproval
-                          ? isAdminApprovalApproved
+                          : "#fff8e1",
+                        color: isAdminApprovalLocked
+                          ? isAdminApprovalEffectiveApproved
                             ? "#2e7d32"
                             : "#c62828"
-                          : isAdminApproved
-                            ? "#2e7d32"
-                            : "#8d6e63",
+                          : "#8d6e63",
                         border: `1px solid ${
-                          hasFinalAdminApproval
-                            ? isAdminApprovalApproved
+                          isAdminApprovalLocked
+                            ? isAdminApprovalEffectiveApproved
                               ? "#a5d6a7"
                               : "#ef9a9a"
-                            : isAdminApproved
-                              ? "#a5d6a7"
-                              : "#ffe082"
+                            : "#ffe082"
                         }`,
                         fontWeight: 600,
                       }}
@@ -1157,7 +1195,7 @@ const OrderSuccess = () => {
                         }}
                       />
                     )}
-                    {!hasFinalAdminApproval && details?.adminApprovalComment && (
+                    {!isAdminApprovalLocked && details?.adminApprovalComment && (
                       <Typography variant="body2" color="text.secondary">
                         Last comment: {details.adminApprovalComment}
                       </Typography>
@@ -1188,7 +1226,7 @@ const OrderSuccess = () => {
                             value={stakeholderOverride}
                             label="Assign Superstockist"
                             onChange={(event) => setStakeholderOverride(event.target.value)}
-                            disabled={stakeholderLoading || isAdminApprovalApproved}
+                            disabled={stakeholderLoading || isAdminApprovalLocked}
                             MenuProps={{
                               PaperProps: {
                                 style: {
@@ -1207,6 +1245,12 @@ const OrderSuccess = () => {
                               const fullName = `${firstName} ${lastName}`.trim() || "-";
                               const optionUserId = user?.userId || user?.id || user?.email || "-";
                               const optionPincode = user?.pincode || "-";
+                              const optionRole =
+                                user?.role === ADMIN_ROLE
+                                  ? "Admin"
+                                  : user?.role === SUPER_STOCKIST_ROLE
+                                    ? "Superstockist"
+                                    : (user?.role || "-");
                               const isMatched = Boolean(currentSStockistId) && currentSStockistId === optionUserId;
                               return (
                                 <MenuItem
@@ -1215,7 +1259,7 @@ const OrderSuccess = () => {
                                   style={{ whiteSpace: "normal", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px" }}
                                 >
                                   {isMatched && <MdCheckCircle size={16} color="#2e7d32" />}
-                                  {`${fullName} - (${optionUserId}) - (pin - ${optionPincode})`}
+                                  {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
                                 </MenuItem>
                               );
                             })}
@@ -1249,7 +1293,7 @@ const OrderSuccess = () => {
                     </Typography>
                   </div>
 
-                  {hasFinalAdminApproval || !isAdmin ? (
+                  {isAdminApprovalLocked || !isAdmin ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       <Typography variant="body2" color="text.secondary">
                         Approved Date = {formatDate(adminApprovalDetails?.approvedDate)}
@@ -1419,18 +1463,6 @@ const OrderSuccess = () => {
                         fontWeight: 600,
                       }}
                     />
-                    {canShowDeliveryPinChip && (
-                      <Chip
-                        label={`Delivery Pin - ${deliveryPin}`}
-                        size="small"
-                        style={{
-                          backgroundColor: "#e3f2fd",
-                          color: "#1565c0",
-                          border: "1px solid #90caf9",
-                          fontWeight: 600,
-                        }}
-                      />
-                    )}
                   </div>
 
                   {hasFinalShipmentDecision || !canManageShipment ? (
@@ -1443,9 +1475,6 @@ const OrderSuccess = () => {
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Comments = {shipmentDetails?.comments || "-"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Email = {shipmentDetails?.email || "-"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         User ID = {shipmentDetails?.userId || "-"}
@@ -1585,11 +1614,13 @@ const OrderSuccess = () => {
                         Comments = {deliveryDetails?.comments || "-"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Email = {deliveryDetails?.email || "-"}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
                         User ID = {deliveryDetails?.userId || "-"}
                       </Typography>
+                      {!!deliveryCodTrueKeys.length && (
+                        <Typography variant="body2" color="text.secondary">
+                          Payment = Cash on delivery ({deliveryCodTrueLabels.join(", ")})
+                        </Typography>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -1641,13 +1672,34 @@ const OrderSuccess = () => {
                               <Typography variant="body2" style={{ fontWeight: 600, color: "#1f1f1f", marginBottom: "8px" }}>
                                 Payment *
                               </Typography>
-                              <RadioGroup
-                                value={deliveryPaymentMethod}
-                                onChange={(event) => setDeliveryPaymentMethod(event.target.value)}
-                              >
-                                <FormControlLabel value="UPI" control={<Radio />} label="Paid via UPI (ex: Gpay, PhonePe etc...)" />
-                                <FormControlLabel value="CASH" control={<Radio />} label="Paid via Cash" />
-                              </RadioGroup>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={deliveryPaymentCOD.paidUPI}
+                                    onChange={(event) =>
+                                      setDeliveryPaymentCOD((prev) => ({
+                                        ...prev,
+                                        paidUPI: event.target.checked,
+                                      }))
+                                    }
+                                  />
+                                }
+                                label="Paid via UPI (ex: Gpay, PhonePe etc...)"
+                              />
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={deliveryPaymentCOD.cash}
+                                    onChange={(event) =>
+                                      setDeliveryPaymentCOD((prev) => ({
+                                        ...prev,
+                                        cash: event.target.checked,
+                                      }))
+                                    }
+                                  />
+                                }
+                                label="Paid via Cash"
+                              />
                             </FormControl>
                           )}
 
@@ -1678,7 +1730,8 @@ const OrderSuccess = () => {
                           style={{
                             textTransform: "none",
                             fontWeight: 600,
-                            backgroundColor: "#165d46",
+                            backgroundColor: isDeliveryUpdateDisabled ? "#d1d5db" : "#165d46",
+                            color: isDeliveryUpdateDisabled ? "#4b5563" : "#ffffff",
                           }}
                         >
                           Update Delivery Status

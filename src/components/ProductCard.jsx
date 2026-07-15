@@ -35,6 +35,7 @@ const getEffectiveProductPrice = (product, userRole) => {
 };
 
 const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Product", onAction }) => {
+  const blinkitLikeFont = '"Nunito Sans", "Montserrat", "Segoe UI", sans-serif';
   const dispatch = useDispatch();
   const authUser = useSelector((state) => state.user.user);
   const users = useSelector((state) => state.users.items);
@@ -107,6 +108,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
           boxShadow: "none",
           borderRadius: "10px",
           backgroundColor: "#ffffff",
+          fontFamily: blinkitLikeFont,
         }}
       >
         <div
@@ -127,6 +129,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 color: "#fff",
                 fontSize: isMobile ? "0.62rem" : "0.68rem",
                 fontWeight: 700,
+                fontFamily: blinkitLikeFont,
                 borderRadius: "0",
                 padding: isMobile ? "3px 4px 5px 4px" : "4px 6px 6px 6px",
                 lineHeight: 1.05,
@@ -183,6 +186,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 sx={{
                   color: "#ffffff",
                   fontWeight: "bold",
+                  fontFamily: blinkitLikeFont,
                   fontSize: isMobile ? "0.9rem" : "1rem",
                   textAlign: "center",
                   backgroundColor: "transparent",
@@ -224,6 +228,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             component="div"
             sx={{
               fontSize: isMobile ? "0.82rem" : "0.88rem",
+              fontFamily: blinkitLikeFont,
+              fontWeight: 700,
               margin: "0 0 0.2em 0",
               lineHeight: 1.15,
             }}
@@ -255,6 +261,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 sx={{
                   color: "#165d46",
                   fontSize: isMobile ? "0.75rem" : "1.04rem",
+                  fontFamily: blinkitLikeFont,
                   fontWeight: 700,
                   lineHeight: 1.05,
                 }}
@@ -266,6 +273,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                 sx={{
                   color: "#8a8a8a",
                   fontSize: isMobile ? "0.55rem" : "0.76rem",
+                  fontFamily: blinkitLikeFont,
+                  fontWeight: 600,
                   textDecoration: "line-through",
                   lineHeight: 1.05,
                 }}
@@ -324,6 +333,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                       minWidth: "1.8ch",
                       textAlign: "center",
                       fontWeight: 700,
+                      fontFamily: blinkitLikeFont,
                       color: "#1f3d31",
                       fontSize: isMobile ? "0.7rem" : "0.88rem",
                     }}
@@ -397,6 +407,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                       color: "#165d46",
                       borderColor: "#165d46",
                       textTransform: "uppercase",
+                      fontFamily: blinkitLikeFont,
+                      letterSpacing: "0.02em",
                       fontWeight: 700,
                       borderRadius: "4px",
                       padding: isMobile ? "0 6px" : "0 14px",
@@ -435,7 +447,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               onClick={() => onAction?.(product)}
               size="small"
               variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
+              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold", fontFamily: blinkitLikeFont }}
             >
               {actionLabel}
             </Button>

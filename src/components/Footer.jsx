@@ -1,4 +1,3 @@
-import { useSelector } from "react-redux";
 import { MdEmail, MdPhone, MdLocationOn, MdAccessTime, MdReply } from "react-icons/md";
 
 const blinkitLikeFont = '"Nunito Sans", "Montserrat", "Segoe UI", sans-serif';
@@ -11,13 +10,11 @@ const contactItemStyle = {
 };
 
 const Footer = () => {
-  const { isAuthenticated } = useSelector((state) => state.user);
-
-  if (!isAuthenticated) return null;
-
   return (
     <footer
       style={{
+        position: "sticky",
+        top: "100vh",
         marginTop: "2em",
         padding: "1.25em 1.25em 1.5em",
         borderTop: "1px solid #e8e8e8",

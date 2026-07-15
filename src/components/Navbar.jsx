@@ -19,7 +19,7 @@ import {
   hasDashboardAccess,
 } from "../constants/dashboardFeatures";
 
-const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false }) => {
+const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, onLogoClick }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
   const [anchorEl, setAnchorEl] = useState(null);
@@ -106,6 +106,7 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false })
         }}
       >
           <NavLink to="/" end
+          onClick={onLogoClick}
           style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 0 }}
           >
           <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isMobile ? "150px" : isTablet ? "170px" : "190px", height: isMobile ? "48px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />

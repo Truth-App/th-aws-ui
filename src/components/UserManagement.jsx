@@ -782,10 +782,11 @@ const ReferenceNumberFields = ({
   disabled = false,
   roleDisabled = true,
   canEditReferenceNumber = false,
+  savedReferenceNumber = "",
 }) => {
-  const hasReferenceNumber = Boolean(String(user.referencenumber || "").trim());
+  const hasSavedReferenceNumber = Boolean(String(savedReferenceNumber || "").trim());
   const referenceNumberDisabled =
-    disabled || (!canEditReferenceNumber && hasReferenceNumber);
+    disabled || (!canEditReferenceNumber && hasSavedReferenceNumber);
 
   return (
   <>
@@ -870,6 +871,7 @@ const UserManagement = ({ profileMode = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [profileUserFilter, setProfileUserFilter] = useState("");
   const [selectedReferenceUserId, setSelectedReferenceUserId] = useState(null);
+  const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef(null);
@@ -940,11 +942,11 @@ const UserManagement = ({ profileMode = false }) => {
       if (matchedUser) {
         setDialogMode("edit");
         setEditingUserId(matchedUser.id);
-        const refUser = findUserByReferenceNumber(
-          users,
-          matchedUser.referencenumber || matchedUser.referenceNumber || "",
-        );
+        const savedRef =
+          matchedUser.referencenumber || matchedUser.referenceNumber || "";
+        const refUser = findUserByReferenceNumber(users, savedRef);
         setSelectedReferenceUserId(refUser?.id || null);
+        setSavedReferenceNumber(savedRef);
         setUser(mapProfileUserToForm(matchedUser));
         return;
       }
@@ -953,6 +955,7 @@ const UserManagement = ({ profileMode = false }) => {
     const nameParts = (authUser?.name || "").trim().split(/\s+/).filter(Boolean);
     setDialogMode("create");
     setEditingUserId(null);
+    setSavedReferenceNumber("");
     setUser({
       ...INITIAL_USER_FORM,
       email: authUser?.email || "",
@@ -1148,6 +1151,7 @@ const UserManagement = ({ profileMode = false }) => {
     setDialogMode("create");
     setEditingUserId(null);
     setSelectedReferenceUserId(null);
+    setSavedReferenceNumber("");
     setUser(INITIAL_USER_FORM);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -1158,11 +1162,11 @@ const UserManagement = ({ profileMode = false }) => {
   const handleOpenEdit = (selectedUser) => {
     setDialogMode("edit");
     setEditingUserId(selectedUser.id);
-    const refUser = findUserByReferenceNumber(
-      users,
-      selectedUser.referencenumber || selectedUser.referenceNumber || "",
-    );
+    const savedRef =
+      selectedUser.referencenumber || selectedUser.referenceNumber || "";
+    const refUser = findUserByReferenceNumber(users, savedRef);
     setSelectedReferenceUserId(refUser?.id || null);
+    setSavedReferenceNumber(savedRef);
     setProfileUserFilter("");
     setUser(mapProfileUserToForm(selectedUser));
     setOpen(true);
@@ -1288,6 +1292,7 @@ const UserManagement = ({ profileMode = false }) => {
       }
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
       const refreshedUsers = await loadUsers();
+      setSavedReferenceNumber(user.referencenumber?.trim() || "");
       if (!profileMode) {
         setEditingUserId(null);
         setUser(INITIAL_USER_FORM);
@@ -1385,6 +1390,7 @@ const UserManagement = ({ profileMode = false }) => {
                   profileMode
                   roleDisabled
                   canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
+                  savedReferenceNumber={savedReferenceNumber}
                 />
                 <ImageUploadSection
                   imageKeys={user.imageKeys || []}
@@ -1621,6 +1627,7 @@ const UserManagement = ({ profileMode = false }) => {
                 showDiscountRate
                 roleDisabled={currentDbUserRole !== ADMIN_ROLE}
                 canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
+                savedReferenceNumber={savedReferenceNumber}
               />
             )}
             <ImageUploadSection

@@ -21,10 +21,9 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Radio from "@mui/material/Radio";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
-import { fetchUsers } from "../store/slices/usersSlice";
-import { createUser, updateUser } from "../api/users";
+import { createUser, getUsers, updateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
 import { PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
 import { ADMIN_ROLE, USER_ROLES } from "../constants/roles";
@@ -71,6 +70,8 @@ const mapReferenceNumberFromUserId = (selectedUser) =>
   selectedUser?.userId || selectedUser?.referencenumber || selectedUser?.referenceNumber || "";
 
 const getAssignedRoleFromReferenceUser = (selectedUser) => {
+  if (!selectedUser) return "Customer";
+
   switch (selectedUser?.role) {
     case ADMIN_ROLE:
       return "Super Stockist";
@@ -79,9 +80,10 @@ const getAssignedRoleFromReferenceUser = (selectedUser) => {
     case "Stockist":
       return "Dealer";
     case "Dealer":
+    case "Customer":
       return "Customer";
     default:
-      return selectedUser?.role || "";
+      return "Customer";
   }
 };
 
@@ -113,6 +115,12 @@ const SUPPORTED_PINCODE_ROLE = "Super Stockist";
 const shouldShowBankDetails = (role) => BANK_DETAILS_ROLES.has(role);
 const shouldShowSupportedPincodes = (currentUserRole, targetUserRole) =>
   currentUserRole === ADMIN_ROLE && targetUserRole === SUPPORTED_PINCODE_ROLE;
+
+const CLEARED_BANK_DETAILS = {
+  bankname: null,
+  accountno: null,
+  ifsccode: null,
+};
 
 const findUserByReferenceNumber = (users, referenceNumber) => {
   const normalized = (referenceNumber || "").trim();
@@ -772,19 +780,34 @@ const ReferenceNumberFields = ({
   showDiscountRate = false,
   profileMode = false,
   disabled = false,
-}) => (
+  roleDisabled = true,
+  canEditReferenceNumber = false,
+}) => {
+  const hasReferenceNumber = Boolean(String(user.referencenumber || "").trim());
+  const referenceNumberDisabled =
+    disabled || (!canEditReferenceNumber && hasReferenceNumber);
+
+  return (
   <>
     {profileMode ? (
-      <TextField
-        size="small"
-        label="Reference Number"
-        variant="outlined"
-        name="referencenumber"
-        value={user.referencenumber}
-        onChange={onChange}
-        disabled={disabled || user.role === ADMIN_ROLE}
-        fullWidth
-      />
+      <>
+        <TextField
+          size="small"
+          label="Reference Number"
+          variant="outlined"
+          name="referencenumber"
+          value={user.referencenumber}
+          onChange={onChange}
+          disabled={referenceNumberDisabled}
+          fullWidth
+        />
+        <RoleSelectField
+          user={user}
+          onChange={onChange}
+          disabled={disabled || roleDisabled}
+          fullWidth
+        />
+      </>
     ) : (
       <>
         {user.role !== ADMIN_ROLE && (
@@ -825,17 +848,19 @@ const ReferenceNumberFields = ({
       />
     )}
   </>
-);
+  );
+};
 
 const UserManagement = ({ profileMode = false }) => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSetupFlow = searchParams.get("setup") === "1";
   const isMobile = useMediaQuery("(max-width:600px)");
-  const { items: users, status, error } = useSelector((state) => state.users);
   const authUser = useSelector((state) => state.user.user);
 
+  const [users, setUsers] = useState([]);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState(null);
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
@@ -880,11 +905,25 @@ const UserManagement = ({ profileMode = false }) => {
     });
   }, [users, searchTerm, roleFilter]);
 
-  useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchUsers());
+  const loadUsers = async () => {
+    setStatus("loading");
+    setError(null);
+    try {
+      const data = await getUsers();
+      setUsers(Array.isArray(data) ? data : []);
+      setStatus("succeeded");
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      setUsers([]);
+      setStatus("failed");
+      setError(err?.message || "Unable to load users");
+      return [];
     }
-  }, [dispatch, status]);
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
   /* eslint-disable react-hooks/set-state-in-effect -- hydrate profile form when users list loads */
   useEffect(() => {
@@ -942,12 +981,30 @@ const UserManagement = ({ profileMode = false }) => {
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
+    if (name === "referencenumber") {
+      const referencedUser = findUserByReferenceNumber(users, value);
+      const assignedRole = getAssignedRoleFromReferenceUser(referencedUser);
+      setSelectedReferenceUserId(referencedUser?.id || null);
+      setUser((prev) => ({
+        ...prev,
+        referencenumber: value,
+        role: assignedRole,
+        privileges: getDefaultPrivilegeIdsByRole(assignedRole),
+        discountrate: getDefaultDiscountRateByRole(assignedRole),
+        ...CLEARED_BANK_DETAILS,
+        ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
+          ? {}
+          : { supportedpincodes: [] }),
+      }));
+      return;
+    }
     if (name === "role") {
       setUser((prev) => ({
         ...prev,
         role: value,
         privileges: getDefaultPrivilegeIdsByRole(value),
-        ...(shouldShowBankDetails(value) ? {} : { bankname: "", accountno: "", ifsccode: "" }),
+        discountrate: getDefaultDiscountRateByRole(value),
+        ...CLEARED_BANK_DETAILS,
         ...(shouldShowSupportedPincodes(currentDbUserRole, value)
           ? {}
           : { supportedpincodes: [] }),
@@ -1005,7 +1062,7 @@ const UserManagement = ({ profileMode = false }) => {
       role: assignedRole,
       privileges: getDefaultPrivilegeIdsByRole(assignedRole),
       discountrate: getDefaultDiscountRateByRole(assignedRole),
-      ...(shouldShowBankDetails(assignedRole) ? {} : { bankname: "", accountno: "", ifsccode: "" }),
+      ...CLEARED_BANK_DETAILS,
       ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
         ? {}
         : { supportedpincodes: [] }),
@@ -1203,9 +1260,9 @@ const UserManagement = ({ profileMode = false }) => {
         landmark: user.landmark.trim(),
         pincode: user.pincode.trim(),
         supportedpincodes,
-        bankname: shouldShowBankDetails(user.role) ? user.bankname?.trim() || "" : "",
-        accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || "" : "",
-        ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || "" : "",
+        bankname: shouldShowBankDetails(user.role) ? user.bankname?.trim() || null : null,
+        accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || null : null,
+        ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || null : null,
         imageKeys: user.imageKeys || [],
         images: user.imageKeys || [],
       };
@@ -1230,7 +1287,7 @@ const UserManagement = ({ profileMode = false }) => {
         await createUser(payload);
       }
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
-      dispatch(fetchUsers());
+      const refreshedUsers = await loadUsers();
       if (!profileMode) {
         setEditingUserId(null);
         setUser(INITIAL_USER_FORM);
@@ -1240,7 +1297,7 @@ const UserManagement = ({ profileMode = false }) => {
       }
 
       if (profileMode && isSetupFlow) {
-        const role = getUserRoleFromList(users, authUser?.email);
+        const role = getUserRoleFromList(refreshedUsers, authUser?.email);
         navigate(getDashboardHomePath(role, user.privileges || []));
       }
     } catch (err) {
@@ -1326,6 +1383,8 @@ const UserManagement = ({ profileMode = false }) => {
                   onSelectUser={handleReferenceUserSelect}
                   onChange={handleOnChange}
                   profileMode
+                  roleDisabled
+                  canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
                 />
                 <ImageUploadSection
                   imageKeys={user.imageKeys || []}
@@ -1560,6 +1619,8 @@ const UserManagement = ({ profileMode = false }) => {
                 onChange={handleOnChange}
                 profileMode
                 showDiscountRate
+                roleDisabled={currentDbUserRole !== ADMIN_ROLE}
+                canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
               />
             )}
             <ImageUploadSection
@@ -1610,6 +1671,7 @@ const UserManagement = ({ profileMode = false }) => {
                 profileMode
                 showDiscountRate
                 disabled
+                roleDisabled
               />
               <ImageUploadSection
                 imageKeys={viewingUser.imageKeys || []}

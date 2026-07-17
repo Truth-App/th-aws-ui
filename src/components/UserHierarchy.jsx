@@ -6,8 +6,8 @@ import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useEffect, useMemo, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { fetchUsers } from "../store/slices/usersSlice";
+import { useSelector } from "react-redux";
+import { getUsers } from "../api/users";
 import {
   buildUserHierarchy,
   countDirectChildren,
@@ -205,18 +205,38 @@ const RoleLevelSummary = ({ roleCounts, visibleRoles, isMobile = false }) => (
 );
 
 const UserHierarchy = () => {
-  const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
   const authUser = useSelector((state) => state.user.user);
-  const { items: users, status, error } = useSelector((state) => state.users);
+  const [users, setUsers] = useState([]);
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandAll, setExpandAll] = useState(true);
 
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchUsers());
-    }
-  }, [dispatch, status]);
+    let cancelled = false;
+
+    const loadUsers = async () => {
+      setStatus("loading");
+      setError(null);
+      try {
+        const data = await getUsers();
+        if (cancelled) return;
+        setUsers(Array.isArray(data) ? data : []);
+        setStatus("succeeded");
+      } catch (err) {
+        if (cancelled) return;
+        setUsers([]);
+        setStatus("failed");
+        setError(err?.message || "Unable to load users");
+      }
+    };
+
+    loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const viewerUser = useMemo(
     () => findViewerUser(users, authUser?.email),

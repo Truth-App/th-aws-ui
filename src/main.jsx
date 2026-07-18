@@ -26,6 +26,8 @@ import OrderApproval from "./pages/OrderApproval.jsx";
 import MyStocks from "./pages/MyStocks.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
 import OnboardingReport from "./pages/OnboardingReport.jsx";
+import OrdersPincodeReport from "./pages/OrdersPincodeReport.jsx";
+import Reports from "./pages/Reports.jsx";
 
 import "./helpers/amplify-config";
 
@@ -111,6 +113,22 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <OnboardingReport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orders-pincode-report"
+                element={
+                  <ProtectedRoute>
+                    <OrdersPincodeReport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute>
+                    <Reports />
                   </ProtectedRoute>
                 }
               />

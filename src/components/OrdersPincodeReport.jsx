@@ -26,18 +26,23 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
-import { getUsers } from "../api/users";
-import { USER_ROLES } from "../constants/roles";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { getOrders } from "../api/orders";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
-const ROLE_COLORS = {
-  Administrator: "#2e7d32",
-  "Super Stockist": "#1976d2",
-  Stockist: "#ef6c00",
-  Dealer: "#7b1fa2",
-  Customer: "#546e7a",
-};
+const PINCODE_COLORS = [
+  "#165d46",
+  "#0c831f",
+  "#1976d2",
+  "#ef6c00",
+  "#7b1fa2",
+  "#c62828",
+  "#00838f",
+  "#546e7a",
+  "#6a1b9a",
+  "#2e7d32",
+];
 
 const toInputDate = (date) => {
   const year = date.getFullYear();
@@ -54,14 +59,6 @@ const getDefaultDateRange = () => {
     fromDate: toInputDate(start),
     toDate: toInputDate(end),
   };
-};
-
-const getUserCreatedDate = (user) => {
-  const raw =  user?.createdOn || "";
-
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const startOfDay = (value) => {
@@ -81,24 +78,65 @@ const formatDisplayDate = (date) =>
     year: "numeric",
   });
 
-const getUserDisplayName = (user) =>
-  `${user?.firstname || user?.firstName || ""} ${user?.lastname || user?.lastName || ""}`.trim() ||
-  user?.email ||
+const getOrderCreatedDate = (order) => {
+  const raw = order?.createdAt || "";
+  if (!raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getOrderPincode = (order) => {
+  const candidates = [
+    order?.shippingAddress?.pincode,
+    order?.shippingAddress?.pinCode,
+    order?.shippingAddress?.postalCode,
+    order?.deliveryAddress?.pincode,
+    order?.deliveryAddress?.pinCode,
+    order?.deliveryAddress?.postalCode,
+    order?.address?.pincode,
+    order?.address?.pinCode,
+    order?.address?.postalCode,
+    order?.customerAddress?.pincode,
+    order?.customerAddress?.pinCode,
+    order?.customerAddress?.postalCode,
+    order?.pincode,
+    order?.pinCode,
+  ];
+
+  const match = candidates.find((value) => String(value || "").trim());
+  return match ? String(match).trim() : "Unknown";
+};
+
+const getOrderCity = (order) =>
+  order?.shippingAddress?.city ||
+  order?.deliveryAddress?.city ||
+  order?.address?.city ||
+  order?.customerAddress?.city ||
   "—";
 
-const OnboardingUsersReport = ({ embedded = false }) => {
+const getCustomerName = (order) => order?.user?.fullName || order?.user?.name || "—";
+
+const getOrderAmount = (order) => Number(order?.amount?.total || 0);
+
+const formatCurrency = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`;
+
+const OrdersPincodeReport = ({ embedded = false }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
-  const [roleFilter, setRoleFilter] = useState("All");
+  const [pincodeFilter, setPincodeFilter] = useState("All");
   const [appliedFromDate, setAppliedFromDate] = useState(defaults.fromDate);
   const [appliedToDate, setAppliedToDate] = useState(defaults.toDate);
-  const [appliedRoleFilter, setAppliedRoleFilter] = useState("All");
+  const [appliedPincodeFilter, setAppliedPincodeFilter] = useState("All");
   const [selectedDayKey, setSelectedDayKey] = useState("");
-  const [selectedChartRole, setSelectedChartRole] = useState("");
+  const [selectedChartPincode, setSelectedChartPincode] = useState("");
   const [page, setPage] = useState(1);
-  const [users, setUsers] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const PAGE_SIZE = 10;
@@ -106,46 +144,62 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadUsers = async () => {
+    const loadOrders = async () => {
       setLoading(true);
       setError("");
       try {
-        const data = await getUsers();
+        const session = await fetchAuthSession();
+        const accessToken = session.tokens?.accessToken?.toString();
+        if (!accessToken) {
+          throw new Error("You are not signed in. Please sign in to view orders.");
+        }
+
+        const data = await getOrders(accessToken);
         if (cancelled) return;
-        setUsers(Array.isArray(data) ? data : []);
+        setOrders(Array.isArray(data) ? data : []);
       } catch (err) {
         if (cancelled) return;
-        setUsers([]);
-        setError(err?.message || "Failed to load users for onboarding report.");
+        setOrders([]);
+        setError(err?.message || "Failed to load orders for pincode report.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    loadUsers();
+    loadOrders();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const filteredUsers = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     const from = startOfDay(appliedFromDate);
     const to = endOfDay(appliedToDate);
     if (!from || !to) return [];
 
-    return users
-      .map((user) => {
-        const createdDate = getUserCreatedDate(user);
-        return createdDate ? { user, createdDate } : null;
+    return orders
+      .map((order) => {
+        const createdDate = getOrderCreatedDate(order);
+        if (!createdDate) return null;
+        return {
+          order,
+          createdDate,
+          pincode: getOrderPincode(order),
+        };
       })
       .filter(Boolean)
       .filter(({ createdDate }) => createdDate >= from && createdDate <= to)
-      .filter(({ user }) => {
-        if (appliedRoleFilter === "All") return true;
-        return (user?.role || "Customer") === appliedRoleFilter;
+      .filter(({ pincode }) => {
+        if (appliedPincodeFilter === "All") return true;
+        return pincode === appliedPincodeFilter;
       })
       .sort((a, b) => b.createdDate - a.createdDate);
-  }, [users, appliedFromDate, appliedToDate, appliedRoleFilter]);
+  }, [orders, appliedFromDate, appliedToDate, appliedPincodeFilter]);
+
+  const availablePincodes = useMemo(() => {
+    const pins = new Set(orders.map((order) => getOrderPincode(order)));
+    return [...pins].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [orders]);
 
   const dailyTrend = useMemo(() => {
     const from = startOfDay(appliedFromDate);
@@ -163,7 +217,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    filteredUsers.forEach(({ createdDate }) => {
+    filteredOrders.forEach(({ createdDate }) => {
       const key = toInputDate(createdDate);
       if (key in countsByDay) countsByDay[key] += 1;
     });
@@ -178,47 +232,56 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       ),
       counts: dateKeys.map((key) => countsByDay[key]),
     };
-  }, [filteredUsers, appliedFromDate, appliedToDate]);
+  }, [filteredOrders, appliedFromDate, appliedToDate]);
 
-  const tableUsers = useMemo(() => {
-    return filteredUsers.filter(({ user, createdDate }) => {
+  const tableOrders = useMemo(() => {
+    return filteredOrders.filter(({ pincode, createdDate }) => {
       const matchesDay = !selectedDayKey || toInputDate(createdDate) === selectedDayKey;
-      const matchesRole =
-        !selectedChartRole || (user?.role || "Customer") === selectedChartRole;
-      return matchesDay && matchesRole;
+      const matchesPincode = !selectedChartPincode || pincode === selectedChartPincode;
+      return matchesDay && matchesPincode;
     });
-  }, [filteredUsers, selectedDayKey, selectedChartRole]);
+  }, [filteredOrders, selectedDayKey, selectedChartPincode]);
 
-  const totalPages = Math.max(1, Math.ceil(tableUsers.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(tableOrders.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const paginatedTableUsers = useMemo(() => {
+  const paginatedTableOrders = useMemo(() => {
     const start = (currentPage - 1) * PAGE_SIZE;
-    return tableUsers.slice(start, start + PAGE_SIZE);
-  }, [tableUsers, currentPage]);
+    return tableOrders.slice(start, start + PAGE_SIZE);
+  }, [tableOrders, currentPage]);
 
-  const roleBreakdown = useMemo(() => {
-    const sourceUsers = selectedDayKey
-      ? filteredUsers.filter(({ createdDate }) => toInputDate(createdDate) === selectedDayKey)
-      : filteredUsers;
-    const counts = Object.fromEntries(USER_ROLES.map((role) => [role, 0]));
-    sourceUsers.forEach(({ user }) => {
-      const role = user?.role || "Customer";
-      counts[role] = (counts[role] || 0) + 1;
+  const pincodeBreakdown = useMemo(() => {
+    const sourceOrders = selectedDayKey
+      ? filteredOrders.filter(({ createdDate }) => toInputDate(createdDate) === selectedDayKey)
+      : filteredOrders;
+
+    const counts = {};
+    sourceOrders.forEach(({ pincode }) => {
+      counts[pincode] = (counts[pincode] || 0) + 1;
     });
 
-    const roles = Object.keys(counts).filter((role) => counts[role] > 0);
+    const pincodes = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     return {
-      labels: roles,
-      counts: roles.map((role) => counts[role]),
-      colors: roles.map((role) => ROLE_COLORS[role] || "#90a4ae"),
+      labels: pincodes,
+      counts: pincodes.map((pin) => counts[pin]),
+      colors: pincodes.map((_, index) => PINCODE_COLORS[index % PINCODE_COLORS.length]),
     };
-  }, [filteredUsers, selectedDayKey]);
+  }, [filteredOrders, selectedDayKey]);
+
+  const totalRevenue = useMemo(
+    () => filteredOrders.reduce((sum, { order }) => sum + getOrderAmount(order), 0),
+    [filteredOrders],
+  );
+
+  const uniquePincodeCount = useMemo(
+    () => new Set(filteredOrders.map(({ pincode }) => pincode)).size,
+    [filteredOrders],
+  );
 
   const barData = {
     labels: dailyTrend.labels,
     datasets: [
       {
-        label: "Users onboarded",
+        label: "Orders",
         data: dailyTrend.counts,
         backgroundColor: dailyTrend.dateKeys.map((key) =>
           key === selectedDayKey ? "#0c831f" : "#165d46",
@@ -230,38 +293,24 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   };
 
   const doughnutData = {
-    labels: roleBreakdown.labels,
+    labels: pincodeBreakdown.labels,
     datasets: [
       {
-        data: roleBreakdown.counts,
-        backgroundColor: roleBreakdown.labels.map((role) => {
-          const base = ROLE_COLORS[role] || "#90a4ae";
-          if (!selectedChartRole) return base;
-          return role === selectedChartRole ? base : `${base}66`;
-        }),
-        borderWidth: roleBreakdown.labels.map((role) =>
-          selectedChartRole && role === selectedChartRole ? 3 : 1,
-        ),
+        data: pincodeBreakdown.counts,
+        backgroundColor: pincodeBreakdown.colors,
+        borderWidth: 1,
         borderColor: "#ffffff",
       },
     ],
   };
 
   const handleApply = () => {
-    if (!fromDate || !toDate) {
-      setError("Please select both from and to dates.");
-      return;
-    }
-    if (startOfDay(fromDate) > endOfDay(toDate)) {
-      setError("From date cannot be after to date.");
-      return;
-    }
     setError("");
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
-    setAppliedRoleFilter(roleFilter);
+    setAppliedPincodeFilter(pincodeFilter);
     setSelectedDayKey("");
-    setSelectedChartRole("");
+    setSelectedChartPincode("");
     setPage(1);
   };
 
@@ -279,13 +328,13 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       <CardContent style={{ padding: embedded ? "8px 0 0" : isMobile ? "12px" : "16px" }}>
         {!embedded && (
           <Typography variant="h6" style={{ fontWeight: 700, color: "#1a1a1a", marginBottom: "0.25em" }}>
-            Onboarding Users Report
+            Orders Report by Pincode
           </Typography>
         )}
         <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
-          Users onboarded between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
+          Orders between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
           {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
-          {appliedRoleFilter !== "All" ? ` · Role: ${appliedRoleFilter}` : ""}.
+          {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}.
         </Typography>
 
         <div
@@ -319,15 +368,15 @@ const OnboardingUsersReport = ({ embedded = false }) => {
           <TextField
             select
             size="small"
-            label="Role"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            label="Pincode"
+            value={pincodeFilter}
+            onChange={(e) => setPincodeFilter(e.target.value)}
             style={{ minWidth: isMobile ? "100%" : "200px" }}
           >
-            <MenuItem value="All">All Roles</MenuItem>
-            {USER_ROLES.map((role) => (
-              <MenuItem key={role} value={role}>
-                {role}
+            <MenuItem value="All">All Pincodes</MenuItem>
+            {availablePincodes.map((pin) => (
+              <MenuItem key={pin} value={pin}>
+                {pin}
               </MenuItem>
             ))}
           </TextField>
@@ -350,7 +399,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px" }}>
             <CircularProgress size={20} style={{ color: "#165d46" }} />
             <Typography variant="body2" color="text.secondary">
-              Loading onboarding data...
+              Loading orders data...
             </Typography>
           </div>
         )}
@@ -373,26 +422,26 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             >
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Total onboarded
+                  Total orders
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {filteredUsers.length}
+                  {filteredOrders.length}
                 </Typography>
               </Paper>
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Peak day count
+                  Total revenue
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {dailyTrend.counts.length ? Math.max(...dailyTrend.counts) : 0}
+                  {formatCurrency(totalRevenue)}
                 </Typography>
               </Paper>
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Roles covered
+                  Pincodes covered
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {roleBreakdown.labels.length}
+                  {uniquePincodeCount}
                 </Typography>
               </Paper>
             </div>
@@ -407,14 +456,14 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             >
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
-                  Daily onboarding trend
+                  Daily orders trend
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
                     (click a bar to filter table)
                   </Typography>
                 </Typography>
-                {filteredUsers.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    No users found for the selected date range.
+                    No orders found for the selected filters.
                   </Typography>
                 ) : (
                   <div style={{ position: "relative", height: isMobile ? "220px" : "260px", width: "100%" }}>
@@ -469,17 +518,24 @@ const OnboardingUsersReport = ({ embedded = false }) => {
 
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
-                  Role-wise onboarding
+                  Orders by pincode
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
                     (click a slice to filter table)
                   </Typography>
                 </Typography>
-                {filteredUsers.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    No role data for this range.
+                    No pincode data for this range.
                   </Typography>
                 ) : (
-                  <div style={{ position: "relative", height: isMobile ? "220px" : "260px", maxWidth: "280px", margin: "0 auto" }}>
+                  <div
+                    style={{
+                      position: "relative",
+                      height: isMobile ? "220px" : "260px",
+                      maxWidth: "280px",
+                      margin: "0 auto",
+                    }}
+                  >
                     <Doughnut
                       data={doughnutData}
                       options={{
@@ -487,13 +543,13 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                         maintainAspectRatio: false,
                         onClick: (_event, elements) => {
                           if (!elements?.length) {
-                            setSelectedChartRole("");
+                            setSelectedChartPincode("");
                             setPage(1);
                             return;
                           }
                           const index = elements[0].index;
-                          const role = roleBreakdown.labels[index];
-                          setSelectedChartRole((prev) => (prev === role ? "" : role));
+                          const pin = pincodeBreakdown.labels[index];
+                          setSelectedChartPincode((prev) => (prev === pin ? "" : pin));
                           setPage(1);
                         },
                         onHover: (event, elements) => {
@@ -530,18 +586,18 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                   selectedDayKey
                     ? `On ${formatDisplayDate(startOfDay(selectedDayKey) || new Date())}`
                     : null,
-                  selectedChartRole ? `Role: ${selectedChartRole}` : null,
+                  selectedChartPincode ? `Pincode: ${selectedChartPincode}` : null,
                 ]
                   .filter(Boolean)
-                  .join(" · ") || "Onboarded users"}
+                  .join(" · ") || "Orders"}
               </Typography>
-              {(selectedDayKey || selectedChartRole) && (
+              {(selectedDayKey || selectedChartPincode) && (
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={() => {
                     setSelectedDayKey("");
-                    setSelectedChartRole("");
+                    setSelectedChartPincode("");
                     setPage(1);
                   }}
                   style={{ textTransform: "none", borderColor: "#165d46", color: "#165d46" }}
@@ -555,27 +611,31 @@ const OnboardingUsersReport = ({ embedded = false }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>User ID</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Email</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Role</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Onboarded On</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Order ID</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Pincode</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>City</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Customer</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Status</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Amount</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Ordered On</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {tableUsers.length === 0 ? (
+                  {tableOrders.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} style={{ textAlign: "center", color: "#6f7378" }}>
-                        No onboarded users in this date range.
+                      <TableCell colSpan={7} style={{ textAlign: "center", color: "#6f7378" }}>
+                        No orders in this date range.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedTableUsers.map(({ user, createdDate }) => (
-                      <TableRow key={user.id || user.userId || user.email}>
-                        <TableCell>{getUserDisplayName(user)}</TableCell>
-                        <TableCell>{user.userId || user.userid || "—"}</TableCell>
-                        <TableCell>{user.email || "—"}</TableCell>
-                        <TableCell>{user.role || "—"}</TableCell>
+                    paginatedTableOrders.map(({ order, createdDate, pincode }) => (
+                      <TableRow key={order.orderId || order.id}>
+                        <TableCell>{String(order.orderId || "—").slice(0, 8)}</TableCell>
+                        <TableCell>{pincode}</TableCell>
+                        <TableCell>{getOrderCity(order)}</TableCell>
+                        <TableCell>{getCustomerName(order)}</TableCell>
+                        <TableCell>{order.orderStatus || "—"}</TableCell>
+                        <TableCell>{formatCurrency(getOrderAmount(order))}</TableCell>
                         <TableCell>{formatDisplayDate(createdDate)}</TableCell>
                       </TableRow>
                     ))
@@ -584,7 +644,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
               </Table>
             </TableContainer>
 
-            {tableUsers.length > 0 && totalPages > 1 && (
+            {tableOrders.length > 0 && totalPages > 1 && (
               <div
                 style={{
                   display: "flex",
@@ -622,4 +682,4 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   );
 };
 
-export default OnboardingUsersReport;
+export default OrdersPincodeReport;

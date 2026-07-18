@@ -320,17 +320,20 @@ const PrivilegesSection = ({
   role = "",
 }) => {
   const privilegeOptions = useMemo(() => {
-    const baseLabels = FEATURE_LABELS.filter((feature) => feature.id !== "onboarding-report");
+    const baseLabels = FEATURE_LABELS.filter(
+      (feature) =>
+        !["onboarding-report", "orders-pincode-report", "reports"].includes(feature.id),
+    );
     if (role !== ADMIN_ROLE) return baseLabels;
 
-    const onboardingFeature =
-      FEATURE_LABELS.find((feature) => feature.id === "onboarding-report") || {
-        id: "onboarding-report",
-        label: "Onboarding Users Report",
-        path: "/onboarding-report",
+    const reportsFeature =
+      FEATURE_LABELS.find((feature) => feature.id === "reports") || {
+        id: "reports",
+        label: "Reports",
+        path: "/reports",
       };
 
-    return [...baseLabels, onboardingFeature];
+    return [...baseLabels, reportsFeature];
   }, [role]);
 
   return (

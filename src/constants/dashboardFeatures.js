@@ -11,6 +11,8 @@ export const DASHBOARD_FEATURES = [
   { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning", adminOnly: false },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning", adminOnly: true },
   { id: "onboarding-report", label: "Onboarding Users Report", path: "/onboarding-report", adminOnly: true },
+  { id: "orders-pincode-report", label: "Orders Report by Pincode", path: "/orders-pincode-report", adminOnly: true },
+  { id: "reports", label: "Reports", path: "/reports", adminOnly: true },
 ];
 
 export const FEATURE_LABELS = [
@@ -24,7 +26,9 @@ export const FEATURE_LABELS = [
   { id: "my-earnings", label: "My Earnings Summary", path: "/my-earning" },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
   { id: "my-stocks", label: "My Stocks", path: "/my-stocks" },
-  { id: "onboarding-report", label: "Onboarding Users Report", path: "/onboarding-report" }
+  { id: "onboarding-report", label: "Onboarding Users Report", path: "/onboarding-report" },
+  { id: "orders-pincode-report", label: "Orders Report by Pincode", path: "/orders-pincode-report" },
+  { id: "reports", label: "Reports", path: "/reports" },
 ];
 
 // get Custom Dashboard Features
@@ -67,7 +71,7 @@ export const getAdminDashboardFeatures = () => [
   { id: "inventory", label: "Inventory Management", path: "/inventory" }, 
   { id: "view-orders", label: "View Orders", path: "/view-orders" },  
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
-  { id: "onboarding-report", label: "Onboarding Users Report", path: "/onboarding-report" },
+  { id: "reports", label: "Reports", path: "/reports" },
 ];
 
 export const getDashboardFeaturesByRole = (role) => {

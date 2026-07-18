@@ -26,79 +26,40 @@ import {
   Legend,
 } from "chart.js";
 import { Bar, Doughnut } from "react-chartjs-2";
-import { getUsers } from "../api/users";
-import { USER_ROLES } from "../constants/roles";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { getOrders } from "../api/orders";
+import { PRODUCT_API_URL } from "../constants/api";
+import {
+  CHART_COLORS,
+  buildDailyKeys,
+  endOfDay,
+  formatCurrency,
+  formatDayLabel,
+  formatDisplayDate,
+  getDefaultDateRange,
+  getOrderCreatedDate,
+  getProductId,
+  getProductLineAmount,
+  startOfDay,
+  toInputDate,
+} from "../helpers/reportHelpers";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
-const ROLE_COLORS = {
-  Administrator: "#2e7d32",
-  "Super Stockist": "#1976d2",
-  Stockist: "#ef6c00",
-  Dealer: "#7b1fa2",
-  Customer: "#546e7a",
-};
-
-const toInputDate = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const getDefaultDateRange = () => {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 6);
-  return {
-    fromDate: toInputDate(start),
-    toDate: toInputDate(end),
-  };
-};
-
-const getUserCreatedDate = (user) => {
-  const raw =  user?.createdOn || "";
-
-  if (!raw) return null;
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const startOfDay = (value) => {
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const endOfDay = (value) => {
-  const date = new Date(`${value}T23:59:59.999`);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
-const formatDisplayDate = (date) =>
-  date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-const getUserDisplayName = (user) =>
-  `${user?.firstname || user?.firstName || ""} ${user?.lastname || user?.lastName || ""}`.trim() ||
-  user?.email ||
-  "—";
-
-const OnboardingUsersReport = ({ embedded = false }) => {
+const ProductsSoldReport = ({ embedded = false }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
-  const [roleFilter, setRoleFilter] = useState("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
   const [appliedFromDate, setAppliedFromDate] = useState(defaults.fromDate);
   const [appliedToDate, setAppliedToDate] = useState(defaults.toDate);
-  const [appliedRoleFilter, setAppliedRoleFilter] = useState("All");
+  const [appliedCategoryFilter, setAppliedCategoryFilter] = useState("All");
   const [selectedDayKey, setSelectedDayKey] = useState("");
-  const [selectedChartRole, setSelectedChartRole] = useState("");
+  const [selectedChartCategory, setSelectedChartCategory] = useState("");
   const [page, setPage] = useState(1);
-  const [users, setUsers] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const PAGE_SIZE = 10;
@@ -106,119 +67,203 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   useEffect(() => {
     let cancelled = false;
 
-    const loadUsers = async () => {
+    const loadData = async () => {
       setLoading(true);
       setError("");
       try {
-        const data = await getUsers();
+        const session = await fetchAuthSession();
+        const accessToken = session.tokens?.accessToken?.toString();
+        if (!accessToken) {
+          throw new Error("You are not signed in. Please sign in to view products sold.");
+        }
+
+        const [ordersData, productsResponse] = await Promise.all([
+          getOrders(accessToken),
+          fetch(PRODUCT_API_URL).then(async (response) => {
+            if (!response.ok) {
+              throw new Error(`Failed to fetch products. Status: ${response.status}`);
+            }
+            return response.json();
+          }),
+        ]);
+
         if (cancelled) return;
-        setUsers(Array.isArray(data) ? data : []);
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+        setProducts(Array.isArray(productsResponse) ? productsResponse : []);
       } catch (err) {
         if (cancelled) return;
-        setUsers([]);
-        setError(err?.message || "Failed to load users for onboarding report.");
+        setOrders([]);
+        setProducts([]);
+        setError(err?.message || "Failed to load products sold report.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    loadUsers();
+    loadData();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const filteredUsers = useMemo(() => {
+  const productById = useMemo(() => {
+    const map = new Map();
+    products.forEach((product) => {
+      if (product?.id) map.set(String(product.id), product);
+    });
+    return map;
+  }, [products]);
+
+  const soldLineItems = useMemo(() => {
     const from = startOfDay(appliedFromDate);
     const to = endOfDay(appliedToDate);
     if (!from || !to) return [];
 
-    return users
-      .map((user) => {
-        const createdDate = getUserCreatedDate(user);
-        return createdDate ? { user, createdDate } : null;
-      })
-      .filter(Boolean)
-      .filter(({ createdDate }) => createdDate >= from && createdDate <= to)
-      .filter(({ user }) => {
-        if (appliedRoleFilter === "All") return true;
-        return (user?.role || "Customer") === appliedRoleFilter;
-      })
+    const rows = [];
+
+    orders.forEach((order) => {
+      const createdDate = getOrderCreatedDate(order);
+      if (!createdDate || createdDate < from || createdDate > to) return;
+
+      (order.products || []).forEach((item) => {
+        const productId = String(getProductId(item) || "");
+        const catalogProduct = productById.get(productId);
+        const category =
+          catalogProduct?.category ||
+          item?.category ||
+          item?.categoryName ||
+          "Uncategorized";
+        const title =
+          item?.title ||
+          catalogProduct?.title ||
+          productId ||
+          "Unknown product";
+        const quantity = Number(item?.quantity) || 0;
+        const amount = getProductLineAmount(item);
+
+        rows.push({
+          orderId: order.orderId || order.id,
+          createdDate,
+          productId,
+          title,
+          category,
+          quantity,
+          amount,
+        });
+      });
+    });
+
+    return rows
+      .filter((row) => appliedCategoryFilter === "All" || row.category === appliedCategoryFilter)
       .sort((a, b) => b.createdDate - a.createdDate);
-  }, [users, appliedFromDate, appliedToDate, appliedRoleFilter]);
+  }, [orders, productById, appliedFromDate, appliedToDate, appliedCategoryFilter]);
+
+  const availableCategories = useMemo(() => {
+    const categories = new Set();
+    products.forEach((product) => {
+      if (product?.category) categories.add(product.category);
+    });
+    orders.forEach((order) => {
+      (order.products || []).forEach((item) => {
+        const productId = String(getProductId(item) || "");
+        const catalogProduct = productById.get(productId);
+        const category =
+          catalogProduct?.category || item?.category || item?.categoryName || "Uncategorized";
+        categories.add(category);
+      });
+    });
+    return [...categories].sort((a, b) => a.localeCompare(b));
+  }, [products, orders, productById]);
+
+  const aggregatedProducts = useMemo(() => {
+    const map = new Map();
+
+    soldLineItems.forEach((row) => {
+      if (selectedDayKey && toInputDate(row.createdDate) !== selectedDayKey) return;
+      if (selectedChartCategory && row.category !== selectedChartCategory) return;
+
+      const key = `${row.productId || row.title}::${row.category}`;
+      const existing = map.get(key) || {
+        productId: row.productId,
+        title: row.title,
+        category: row.category,
+        quantity: 0,
+        amount: 0,
+        orderIds: new Set(),
+      };
+      existing.quantity += row.quantity;
+      existing.amount += row.amount;
+      if (row.orderId) existing.orderIds.add(row.orderId);
+      map.set(key, existing);
+    });
+
+    return [...map.values()]
+      .map((item) => ({
+        ...item,
+        orderCount: item.orderIds.size,
+      }))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [soldLineItems, selectedDayKey, selectedChartCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(aggregatedProducts.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return aggregatedProducts.slice(start, start + PAGE_SIZE);
+  }, [aggregatedProducts, currentPage]);
 
   const dailyTrend = useMemo(() => {
-    const from = startOfDay(appliedFromDate);
-    const to = endOfDay(appliedToDate);
-    if (!from || !to) return { labels: [], counts: [], dateKeys: [] };
+    const dateKeys = buildDailyKeys(appliedFromDate, appliedToDate);
+    const countsByDay = Object.fromEntries(dateKeys.map((key) => [key, 0]));
 
-    const dateKeys = [];
-    const countsByDay = {};
-    const cursor = new Date(from);
-
-    while (cursor <= to) {
-      const key = toInputDate(cursor);
-      dateKeys.push(key);
-      countsByDay[key] = 0;
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    filteredUsers.forEach(({ createdDate }) => {
-      const key = toInputDate(createdDate);
-      if (key in countsByDay) countsByDay[key] += 1;
+    soldLineItems.forEach((row) => {
+      const key = toInputDate(row.createdDate);
+      if (key in countsByDay) countsByDay[key] += row.quantity;
     });
 
     return {
       dateKeys,
-      labels: dateKeys.map((key) =>
-        new Date(`${key}T00:00:00`).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-        }),
-      ),
+      labels: dateKeys.map(formatDayLabel),
       counts: dateKeys.map((key) => countsByDay[key]),
     };
-  }, [filteredUsers, appliedFromDate, appliedToDate]);
+  }, [soldLineItems, appliedFromDate, appliedToDate]);
 
-  const tableUsers = useMemo(() => {
-    return filteredUsers.filter(({ user, createdDate }) => {
-      const matchesDay = !selectedDayKey || toInputDate(createdDate) === selectedDayKey;
-      const matchesRole =
-        !selectedChartRole || (user?.role || "Customer") === selectedChartRole;
-      return matchesDay && matchesRole;
-    });
-  }, [filteredUsers, selectedDayKey, selectedChartRole]);
+  const categoryBreakdown = useMemo(() => {
+    const sourceRows = selectedDayKey
+      ? soldLineItems.filter((row) => toInputDate(row.createdDate) === selectedDayKey)
+      : soldLineItems;
 
-  const totalPages = Math.max(1, Math.ceil(tableUsers.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedTableUsers = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return tableUsers.slice(start, start + PAGE_SIZE);
-  }, [tableUsers, currentPage]);
-
-  const roleBreakdown = useMemo(() => {
-    const sourceUsers = selectedDayKey
-      ? filteredUsers.filter(({ createdDate }) => toInputDate(createdDate) === selectedDayKey)
-      : filteredUsers;
-    const counts = Object.fromEntries(USER_ROLES.map((role) => [role, 0]));
-    sourceUsers.forEach(({ user }) => {
-      const role = user?.role || "Customer";
-      counts[role] = (counts[role] || 0) + 1;
+    const counts = {};
+    sourceRows.forEach((row) => {
+      counts[row.category] = (counts[row.category] || 0) + row.quantity;
     });
 
-    const roles = Object.keys(counts).filter((role) => counts[role] > 0);
+    const categories = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
     return {
-      labels: roles,
-      counts: roles.map((role) => counts[role]),
-      colors: roles.map((role) => ROLE_COLORS[role] || "#90a4ae"),
+      labels: categories,
+      counts: categories.map((category) => counts[category]),
+      colors: categories.map((_, index) => CHART_COLORS[index % CHART_COLORS.length]),
     };
-  }, [filteredUsers, selectedDayKey]);
+  }, [soldLineItems, selectedDayKey]);
+
+  const totalUnits = useMemo(
+    () => soldLineItems.reduce((sum, row) => sum + row.quantity, 0),
+    [soldLineItems],
+  );
+  const totalRevenue = useMemo(
+    () => soldLineItems.reduce((sum, row) => sum + row.amount, 0),
+    [soldLineItems],
+  );
+  const uniqueProducts = useMemo(
+    () => new Set(soldLineItems.map((row) => row.productId || row.title)).size,
+    [soldLineItems],
+  );
 
   const barData = {
     labels: dailyTrend.labels,
     datasets: [
       {
-        label: "Users onboarded",
+        label: "Units sold",
         data: dailyTrend.counts,
         backgroundColor: dailyTrend.dateKeys.map((key) =>
           key === selectedDayKey ? "#0c831f" : "#165d46",
@@ -230,38 +275,24 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   };
 
   const doughnutData = {
-    labels: roleBreakdown.labels,
+    labels: categoryBreakdown.labels,
     datasets: [
       {
-        data: roleBreakdown.counts,
-        backgroundColor: roleBreakdown.labels.map((role) => {
-          const base = ROLE_COLORS[role] || "#90a4ae";
-          if (!selectedChartRole) return base;
-          return role === selectedChartRole ? base : `${base}66`;
-        }),
-        borderWidth: roleBreakdown.labels.map((role) =>
-          selectedChartRole && role === selectedChartRole ? 3 : 1,
-        ),
+        data: categoryBreakdown.counts,
+        backgroundColor: categoryBreakdown.colors,
+        borderWidth: 1,
         borderColor: "#ffffff",
       },
     ],
   };
 
   const handleApply = () => {
-    if (!fromDate || !toDate) {
-      setError("Please select both from and to dates.");
-      return;
-    }
-    if (startOfDay(fromDate) > endOfDay(toDate)) {
-      setError("From date cannot be after to date.");
-      return;
-    }
     setError("");
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
-    setAppliedRoleFilter(roleFilter);
+    setAppliedCategoryFilter(categoryFilter);
     setSelectedDayKey("");
-    setSelectedChartRole("");
+    setSelectedChartCategory("");
     setPage(1);
   };
 
@@ -279,13 +310,13 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       <CardContent style={{ padding: embedded ? "8px 0 0" : isMobile ? "12px" : "16px" }}>
         {!embedded && (
           <Typography variant="h6" style={{ fontWeight: 700, color: "#1a1a1a", marginBottom: "0.25em" }}>
-            Onboarding Users Report
+            Products Sold Report
           </Typography>
         )}
         <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
-          Users onboarded between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
+          Products sold between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
           {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
-          {appliedRoleFilter !== "All" ? ` · Role: ${appliedRoleFilter}` : ""}.
+          {appliedCategoryFilter !== "All" ? ` · Category: ${appliedCategoryFilter}` : ""}.
         </Typography>
 
         <div
@@ -319,15 +350,15 @@ const OnboardingUsersReport = ({ embedded = false }) => {
           <TextField
             select
             size="small"
-            label="Role"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
+            label="Category"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
             style={{ minWidth: isMobile ? "100%" : "200px" }}
           >
-            <MenuItem value="All">All Roles</MenuItem>
-            {USER_ROLES.map((role) => (
-              <MenuItem key={role} value={role}>
-                {role}
+            <MenuItem value="All">All Categories</MenuItem>
+            {availableCategories.map((category) => (
+              <MenuItem key={category} value={category}>
+                {category}
               </MenuItem>
             ))}
           </TextField>
@@ -350,7 +381,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px" }}>
             <CircularProgress size={20} style={{ color: "#165d46" }} />
             <Typography variant="body2" color="text.secondary">
-              Loading onboarding data...
+              Loading products sold data...
             </Typography>
           </div>
         )}
@@ -373,26 +404,26 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             >
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Total onboarded
+                  Units sold
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {filteredUsers.length}
+                  {totalUnits}
                 </Typography>
               </Paper>
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Peak day count
+                  Sales value
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {dailyTrend.counts.length ? Math.max(...dailyTrend.counts) : 0}
+                  {formatCurrency(totalRevenue)}
                 </Typography>
               </Paper>
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="caption" color="text.secondary">
-                  Roles covered
+                  Products sold
                 </Typography>
                 <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
-                  {roleBreakdown.labels.length}
+                  {uniqueProducts}
                 </Typography>
               </Paper>
             </div>
@@ -407,14 +438,14 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             >
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
-                  Daily onboarding trend
+                  Daily units sold
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
                     (click a bar to filter table)
                   </Typography>
                 </Typography>
-                {filteredUsers.length === 0 ? (
+                {soldLineItems.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    No users found for the selected date range.
+                    No products sold for the selected filters.
                   </Typography>
                 ) : (
                   <div style={{ position: "relative", height: isMobile ? "220px" : "260px", width: "100%" }}>
@@ -436,29 +467,20 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                         },
                         onHover: (event, elements) => {
                           const target = event?.native?.target;
-                          if (target) {
-                            target.style.cursor = elements?.length ? "pointer" : "default";
-                          }
+                          if (target) target.style.cursor = elements?.length ? "pointer" : "default";
                         },
-                        plugins: {
-                          legend: { display: false },
-                        },
+                        plugins: { legend: { display: false } },
                         scales: {
                           x: {
                             ticks: {
                               maxRotation: 45,
-                              minRotation: 0,
                               autoSkip: true,
                               maxTicksLimit: isMobile ? 8 : 12,
                             },
                           },
                           y: {
                             beginAtZero: true,
-                            suggestedMax: Math.max(3, ...(dailyTrend.counts.length ? dailyTrend.counts : [0])),
-                            ticks: {
-                              precision: 0,
-                              stepSize: 1,
-                            },
+                            ticks: { precision: 0, stepSize: 1 },
                           },
                         },
                       }}
@@ -469,17 +491,24 @@ const OnboardingUsersReport = ({ embedded = false }) => {
 
               <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
-                  Role-wise onboarding
+                  Units by category
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
                     (click a slice to filter table)
                   </Typography>
                 </Typography>
-                {filteredUsers.length === 0 ? (
+                {soldLineItems.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">
-                    No role data for this range.
+                    No category data for this range.
                   </Typography>
                 ) : (
-                  <div style={{ position: "relative", height: isMobile ? "220px" : "260px", maxWidth: "280px", margin: "0 auto" }}>
+                  <div
+                    style={{
+                      position: "relative",
+                      height: isMobile ? "220px" : "260px",
+                      maxWidth: "280px",
+                      margin: "0 auto",
+                    }}
+                  >
                     <Doughnut
                       data={doughnutData}
                       options={{
@@ -487,20 +516,18 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                         maintainAspectRatio: false,
                         onClick: (_event, elements) => {
                           if (!elements?.length) {
-                            setSelectedChartRole("");
+                            setSelectedChartCategory("");
                             setPage(1);
                             return;
                           }
                           const index = elements[0].index;
-                          const role = roleBreakdown.labels[index];
-                          setSelectedChartRole((prev) => (prev === role ? "" : role));
+                          const category = categoryBreakdown.labels[index];
+                          setSelectedChartCategory((prev) => (prev === category ? "" : category));
                           setPage(1);
                         },
                         onHover: (event, elements) => {
                           const target = event?.native?.target;
-                          if (target) {
-                            target.style.cursor = elements?.length ? "pointer" : "default";
-                          }
+                          if (target) target.style.cursor = elements?.length ? "pointer" : "default";
                         },
                         plugins: {
                           legend: {
@@ -530,18 +557,18 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                   selectedDayKey
                     ? `On ${formatDisplayDate(startOfDay(selectedDayKey) || new Date())}`
                     : null,
-                  selectedChartRole ? `Role: ${selectedChartRole}` : null,
+                  selectedChartCategory ? `Category: ${selectedChartCategory}` : null,
                 ]
                   .filter(Boolean)
-                  .join(" · ") || "Onboarded users"}
+                  .join(" · ") || "Products sold"}
               </Typography>
-              {(selectedDayKey || selectedChartRole) && (
+              {(selectedDayKey || selectedChartCategory) && (
                 <Button
                   size="small"
                   variant="outlined"
                   onClick={() => {
                     setSelectedDayKey("");
-                    setSelectedChartRole("");
+                    setSelectedChartCategory("");
                     setPage(1);
                   }}
                   style={{ textTransform: "none", borderColor: "#165d46", color: "#165d46" }}
@@ -555,28 +582,28 @@ const OnboardingUsersReport = ({ embedded = false }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>User ID</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Email</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Role</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Onboarded On</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Product</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Category</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Units sold</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Sales value</TableCell>
+                    <TableCell style={{ fontWeight: 700 }}>Orders</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {tableUsers.length === 0 ? (
+                  {aggregatedProducts.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} style={{ textAlign: "center", color: "#6f7378" }}>
-                        No onboarded users in this date range.
+                        No products sold in this date range.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedTableUsers.map(({ user, createdDate }) => (
-                      <TableRow key={user.id || user.userId || user.email}>
-                        <TableCell>{getUserDisplayName(user)}</TableCell>
-                        <TableCell>{user.userId || user.userid || "—"}</TableCell>
-                        <TableCell>{user.email || "—"}</TableCell>
-                        <TableCell>{user.role || "—"}</TableCell>
-                        <TableCell>{formatDisplayDate(createdDate)}</TableCell>
+                    paginatedProducts.map((item) => (
+                      <TableRow key={`${item.productId || item.title}-${item.category}`}>
+                        <TableCell>{item.title}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{formatCurrency(item.amount)}</TableCell>
+                        <TableCell>{item.orderCount}</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -584,7 +611,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
               </Table>
             </TableContainer>
 
-            {tableUsers.length > 0 && totalPages > 1 && (
+            {aggregatedProducts.length > 0 && totalPages > 1 && (
               <div
                 style={{
                   display: "flex",
@@ -622,4 +649,4 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   );
 };
 
-export default OnboardingUsersReport;
+export default ProductsSoldReport;

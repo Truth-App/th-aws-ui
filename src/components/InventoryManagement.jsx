@@ -378,6 +378,8 @@ const InventoryManagement = () => {
   const [productFilter, setProductFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [expandedRowId, setExpandedRowId] = useState(null);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   const superStockistUsers = useMemo(
     () => users.filter((user) => user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator"),
@@ -414,6 +416,13 @@ const InventoryManagement = () => {
       return matchesSearch && matchesProduct && matchesUser;
     });
   }, [inventoryItems, products, users, searchTerm, productFilter, userFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredInventory.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedInventory = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredInventory.slice(start, start + PAGE_SIZE);
+  }, [filteredInventory, currentPage]);
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
@@ -582,7 +591,10 @@ const InventoryManagement = () => {
               size="small"
               label="Filter by product"
               value={productFilter}
-              onChange={(e) => setProductFilter(e.target.value)}
+              onChange={(e) => {
+                setProductFilter(e.target.value);
+                setPage(1);
+              }}
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
             >
               <MenuItem value="">All products</MenuItem>
@@ -597,7 +609,10 @@ const InventoryManagement = () => {
               size="small"
               label="Filter by user (Super Stockist or Administrator)"
               value={userFilter}
-              onChange={(e) => setUserFilter(e.target.value)}
+              onChange={(e) => {
+                setUserFilter(e.target.value);
+                setPage(1);
+              }}
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
             >
               <MenuItem value="">All users</MenuItem>
@@ -655,7 +670,7 @@ const InventoryManagement = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredInventory.map((item) => (
+                  {paginatedInventory.map((item) => (
                     <InventoryRow
                       key={item.id}
                       item={item}
@@ -672,6 +687,38 @@ const InventoryManagement = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+
+          {filteredInventory.length > 0 && totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "12px",
+                marginTop: "1.5em",
+                marginBottom: "0.5em",
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                variant="outlined"
+                disabled={currentPage === 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {currentPage} of {totalPages}
+              </Typography>
+              <Button
+                variant="outlined"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
           )}
 
           {status === "succeeded" && inventoryItems.length === 0 && (

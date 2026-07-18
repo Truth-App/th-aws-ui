@@ -317,39 +317,56 @@ const PrivilegesSection = ({
   privileges = [],
   onToggle,
   disabled = false,
-}) => (
-  <div style={{ gridColumn: "1 / -1" }}>
-    <Typography
-      variant="body2"
-      style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}
-    >
-      Privileges
-    </Typography>
-    <FormGroup
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-        gap: "0.25em 1em",
-      }}
-    >
-      {FEATURE_LABELS.map((feature) => (
-        <FormControlLabel
-          key={feature.id}
-          control={
-            <Checkbox
-              checked={privileges.includes(feature.id)}
-              onChange={() => onToggle(feature.id)}
-              disabled={disabled}
-              size="small"
-              sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
-            />
-          }
-          label={feature.label}
-        />
-      ))}
-    </FormGroup>
-  </div>
-);
+  role = "",
+}) => {
+  const privilegeOptions = useMemo(() => {
+    const baseLabels = FEATURE_LABELS.filter((feature) => feature.id !== "onboarding-report");
+    if (role !== ADMIN_ROLE) return baseLabels;
+
+    const onboardingFeature =
+      FEATURE_LABELS.find((feature) => feature.id === "onboarding-report") || {
+        id: "onboarding-report",
+        label: "Onboarding Users Report",
+        path: "/onboarding-report",
+      };
+
+    return [...baseLabels, onboardingFeature];
+  }, [role]);
+
+  return (
+    <div style={{ gridColumn: "1 / -1" }}>
+      <Typography
+        variant="body2"
+        style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}
+      >
+        Privileges
+      </Typography>
+      <FormGroup
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          gap: "0.25em 1em",
+        }}
+      >
+        {privilegeOptions.map((feature) => (
+          <FormControlLabel
+            key={feature.id}
+            control={
+              <Checkbox
+                checked={privileges.includes(feature.id)}
+                onChange={() => onToggle(feature.id)}
+                disabled={disabled}
+                size="small"
+                sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
+              />
+            }
+            label={feature.label}
+          />
+        ))}
+      </FormGroup>
+    </div>
+  );
+};
 
 const SupportedPincodesSection = ({
   supportedpincodes = [],
@@ -642,6 +659,7 @@ const UserFormFields = ({
         privileges={user.privileges || []}
         onToggle={onPrivilegeToggle}
         disabled={disabled}
+        role={user.role}
       />
     )}
   </div>
@@ -873,8 +891,10 @@ const UserManagement = ({ profileMode = false }) => {
   const [selectedReferenceUserId, setSelectedReferenceUserId] = useState(null);
   const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
+  const [page, setPage] = useState(1);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef(null);
+  const PAGE_SIZE = 10;
 
   const filteredUsers = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -906,6 +926,13 @@ const UserManagement = ({ profileMode = false }) => {
       return matchesSearch && matchesRole;
     });
   }, [users, searchTerm, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredUsers.slice(start, start + PAGE_SIZE);
+  }, [filteredUsers, currentPage]);
 
   const loadUsers = async () => {
     setStatus("loading");
@@ -1470,7 +1497,10 @@ const UserManagement = ({ profileMode = false }) => {
             <CategoryCarousel
               items={USER_ROLES}
               selectedCategory={roleFilter}
-              onCategorySelect={setRoleFilter}
+              onCategorySelect={(role) => {
+                setRoleFilter(role);
+                setPage(1);
+              }}
             />
           </div>
 
@@ -1486,7 +1516,10 @@ const UserManagement = ({ profileMode = false }) => {
           >
             <TextField
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               size="small"
               style={{ flex: isMobile ? "0 0 auto" : "1 1 260px", width: "100%" }}
               label="Search users"
@@ -1547,7 +1580,7 @@ const UserManagement = ({ profileMode = false }) => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredUsers.map((item) => (
+                  {paginatedUsers.map((item) => (
                     <TableRow key={item.id} hover>
                       <TableCell>{item.firstname || item.firstName || "—"}</TableCell>
                       <TableCell>{item.lastname || item.lastName || "—"}</TableCell>
@@ -1580,6 +1613,38 @@ const UserManagement = ({ profileMode = false }) => {
                 </TableBody>
               </Table>
             </TableContainer>
+          )}
+
+          {filteredUsers.length > 0 && totalPages > 1 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                gap: "12px",
+                marginTop: "1.5em",
+                marginBottom: "0.5em",
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                variant="outlined"
+                disabled={currentPage === 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {currentPage} of {totalPages}
+              </Typography>
+              <Button
+                variant="outlined"
+                disabled={currentPage === totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </Button>
+            </div>
           )}
 
           {status === "succeeded" && users.length === 0 && (

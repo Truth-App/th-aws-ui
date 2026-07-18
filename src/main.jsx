@@ -25,6 +25,7 @@ import OrderFulfillment from "./pages/OrderFulfillment.jsx";
 import OrderApproval from "./pages/OrderApproval.jsx";
 import MyStocks from "./pages/MyStocks.jsx";
 import EditProfile from "./pages/EditProfile.jsx";
+import OnboardingReport from "./pages/OnboardingReport.jsx";
 
 import "./helpers/amplify-config";
 
@@ -102,6 +103,14 @@ createRoot(document.getElementById("root")).render(
                 element={
                   <ProtectedRoute>
                     <ViewEarning />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/onboarding-report"
+                element={
+                  <ProtectedRoute>
+                    <OnboardingReport />
                   </ProtectedRoute>
                 }
               />

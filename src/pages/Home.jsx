@@ -19,7 +19,7 @@ const Home = () => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#fff1f6",
+        backgroundColor: "#eff6ff",
       }}
     >
       <Navbar

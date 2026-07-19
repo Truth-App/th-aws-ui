@@ -19,6 +19,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts } from "../store/slices/productSlice";
 import { fetchCategories } from "../store/slices/categorySlice";
 import { PRODUCT_API_URL, PRESIGNED_URL_API } from "../constants/api";
+import { compressImageFile } from "../helpers/imageCompression";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -190,20 +191,25 @@ const DashboardFeatureDetail = () => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    // Validate file size (max 10MB per file)
-    const maxFileSize = 10 * 1024 * 1024;
-    for (const file of files) {
-      if (file.size > maxFileSize) {
-        toast.error(`File ${file.name} is too large. Max 10MB allowed.`);
-        return;
-      }
-    }
-
     setUploadingFiles(true);
-    const uploadedKeys = [...(product.imageKeys || [])];
-
     try {
+      const maxFileSize = 10 * 1024 * 1024;
+      const filesToUpload = [];
+
       for (const file of files) {
+        const compressedFile = await compressImageFile(file, 0.5);
+
+        if (compressedFile.size > maxFileSize) {
+          toast.error(`File ${file.name} is too large after compression. Max 10MB allowed.`);
+          return;
+        }
+
+        filesToUpload.push(compressedFile);
+      }
+
+      const uploadedKeys = [...(product.imageKeys || [])];
+
+      for (const file of filesToUpload) {
         toast.info(`Uploading ${file.name}...`);
         const presignedData = await getPresignedUrl(file.name);
         await uploadFileToS3(file, presignedData.url);
@@ -215,7 +221,7 @@ const DashboardFeatureDetail = () => {
         imageKeys: uploadedKeys,
       }));
 
-      toast.success(`Successfully uploaded ${uploadedKeys.length} file(s)`);
+      toast.success(`Successfully uploaded ${filesToUpload.length} file(s)`);
 
       // Reset file input
       if (fileInputRef.current) {
@@ -315,7 +321,7 @@ const DashboardFeatureDetail = () => {
           overflowY: "auto",
           overflowX: "hidden",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -333,12 +339,12 @@ const DashboardFeatureDetail = () => {
               variant="contained"
               style={{
                 margin: "5px 0",
-                backgroundColor: "#165d46",
+                backgroundColor: "var(--brand-primary)",
                 textTransform: "none",
                 fontWeight: "bolder",
               }}
             >
-              + Add
+              + Add new Product
             </Button>
           </div>
 
@@ -346,7 +352,7 @@ const DashboardFeatureDetail = () => {
             <div
               style={{
                 marginTop: 0,
-                backgroundColor: "#fafbf9",
+                backgroundColor: "var(--brand-surface)",
                 padding: 0,
                 borderRadius: "8px",
               }}
@@ -416,7 +422,7 @@ const DashboardFeatureDetail = () => {
               <Typography variant="body2" style={{ color: "#6f7378" }}>
                 &gt;
               </Typography>
-              <Typography variant="body2" style={{ color: "#165d46", fontWeight: 600 }}>
+              <Typography variant="body2" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
                 {categoryFilter}
               </Typography>
             </div>
@@ -444,7 +450,7 @@ const DashboardFeatureDetail = () => {
                   <ProductCard
                     product={item}
                     actionType="update"
-                    actionLabel="Update"
+                    actionLabel="Update Product"
                     onAction={handleOpenEdit}
                   />
                 </div>
@@ -611,7 +617,7 @@ const DashboardFeatureDetail = () => {
                 disabled={uploadingFiles}
                 accept="image/*"
               />
-              {uploadingFiles && <Typography variant="body2" style={{ marginTop: "0.5em", color: "#1976d2" }}>Uploading files...</Typography>}
+              {uploadingFiles && <Typography variant="body2" style={{ marginTop: "0.5em", color: "#1976d2" }}>Compressing and uploading files...</Typography>}
             </div>
             {product.imageKeys && product.imageKeys.length > 0 && (
               <div style={{ marginTop: "1em" }}>

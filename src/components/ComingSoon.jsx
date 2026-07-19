@@ -13,11 +13,11 @@ const ComingSoon = ({ title, description }) => {
         width: "100%",
         overflowY: "auto",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-        border: "1px solid #e8efeb",
+        border: "1px solid var(--brand-border)",
       }}
     >
       <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
-        <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
+        <Typography variant="h6" style={{ fontWeight: 700, color: "var(--brand-primary)" }}>
           {title}
         </Typography>
         {description && (

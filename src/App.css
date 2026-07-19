@@ -1,4 +1,11 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+:root {
+	color-scheme: light;
+	--brand-primary: #2b5f84;
+	--brand-primary-strong: #2b5f84;
+	--brand-ink: #1f4a67;
+	--brand-border: #c9dceb;
+	--brand-surface: #eef5fb;
+	--brand-divider: #a6c4da;
+	--brand-tint: #dceaf5;
+	--brand-tint-border: #88acc7;
+}

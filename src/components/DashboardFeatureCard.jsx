@@ -45,7 +45,7 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
         height: "100%",
         width: "100%",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-        border: "1px solid #e8efeb",
+        border: "1px solid var(--brand-border)",
       }}
     >
       <CardContent>
@@ -54,7 +54,7 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
             variant="body2"
             style={{
               marginBottom: "12px",
-              color: "#165d46",
+              color: "var(--brand-primary)",
               fontWeight: 600,
               textAlign: "center",
             }}
@@ -81,9 +81,9 @@ const DashboardFeatureCard = ({ activeFeature = "products" }) => {
               style={{
                 width: "100%",
                 margin: "5px 0",
-                backgroundColor: isActive ? "#165d46" : "transparent",
-                color: isActive ? "#fff" : "#165d46",
-                border: "1px solid #165d46",
+                backgroundColor: isActive ? "var(--brand-primary)" : "transparent",
+                color: isActive ? "#fff" : "var(--brand-primary)",
+                border: "1px solid var(--brand-primary)",
                 boxShadow: isActive ? undefined : "none",
                 textTransform: "none",
                 fontWeight: "bolder",

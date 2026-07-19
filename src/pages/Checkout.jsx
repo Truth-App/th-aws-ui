@@ -1,5 +1,4 @@
 import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Typography from "@mui/material/Typography";
@@ -246,7 +245,7 @@ const Checkout = () => {
           contact: formData.phone,
         },
         theme: {
-          color: "#165d46",
+          color: "var(--brand-primary)",
         },
         modal: {
           ondismiss: function () {
@@ -335,7 +334,7 @@ const Checkout = () => {
                 size="small"
                 variant="text"
                 onClick={() => navigate("/")}
-                style={{ textTransform: "none", color: "#165d46", fontWeight: 600 }}
+                style={{ textTransform: "none", color: "var(--brand-primary)", fontWeight: 600 }}
               >
                 Continue Shopping
               </Button>
@@ -380,7 +379,7 @@ const Checkout = () => {
                         ₹{item.mrpPrice}
                       </Typography>
                       {item.mrpPrice > item.customerPrice && (
-                        <Typography variant="caption" style={{ color: "#2e7d32", fontWeight: 600 }}>
+                        <Typography variant="caption" style={{ color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                           {Math.round(((item.mrpPrice - item.customerPrice) / item.mrpPrice) * 100)}% off
                         </Typography>
                       )}
@@ -400,15 +399,15 @@ const Checkout = () => {
                           width: "30px",
                           height: "30px",
                           borderRadius: "999px",
-                          backgroundColor: "#e8efeb",
-                          color: "#165d46",
+                          backgroundColor: "var(--brand-border)",
+                          color: "var(--brand-primary)",
                           boxShadow: "none",
                           fontWeight: 700,
                         }}
                       >
                         <MdRemove size={16} />
                       </Button>
-                      <span style={{ minWidth: "2.2ch", textAlign: "center", fontWeight: 700, color: "#1f3d31", fontSize: "0.95rem" }}>
+                      <span style={{ minWidth: "2.2ch", textAlign: "center", fontWeight: 700, color: "var(--brand-ink)", fontSize: "0.95rem" }}>
                         {item.quantity}
                       </span>
                       <Button
@@ -420,7 +419,7 @@ const Checkout = () => {
                           width: "30px",
                           height: "30px",
                           borderRadius: "999px",
-                          backgroundColor: "#165d46",
+                          backgroundColor: "var(--brand-primary)",
                           color: "#fff",
                           boxShadow: "none",
                           fontWeight: 700,
@@ -455,8 +454,8 @@ const Checkout = () => {
                   </Typography>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <Typography variant="body2" style={{ color: "#2e7d32", fontWeight: 600 }}>You save</Typography>
-                  <Typography variant="body2" style={{ color: "#2e7d32", fontWeight: 600 }}>
+                  <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600 }}>You save</Typography>
+                  <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                     {Math.round((cart.reduce((sum, item) => sum + (item.mrpPrice - item.customerPrice) * item.quantity, 0) / cart.reduce((sum, item) => sum + item.mrpPrice * item.quantity, 0)) * 100)}% • ₹{cart.reduce((sum, item) => sum + (item.mrpPrice - item.customerPrice) * item.quantity, 0)}
                   </Typography>
                 </div>
@@ -581,7 +580,7 @@ const Checkout = () => {
               onClick={handlePlaceOrder}
               disabled={cart.length === 0 || orderLoading || paymentVerifying || isProcessing}
               style={{
-                backgroundColor: cart.length === 0 || orderLoading || paymentVerifying || isProcessing ? undefined : "#165d46",
+                backgroundColor: cart.length === 0 || orderLoading || paymentVerifying || isProcessing ? undefined : "var(--brand-primary)",
                 textTransform: "none",
                 fontWeight: 600,
                 borderRadius: "8px",
@@ -597,12 +596,11 @@ const Checkout = () => {
         open={orderLoading || paymentVerifying}
         PaperProps={{ style: { padding: "24px 32px", textAlign: "center", borderRadius: "12px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" } }}
       >
-        <CircularProgress style={{ color: "#165d46", marginBottom: "12px" }} />
+        <CircularProgress style={{ color: "var(--brand-primary)", marginBottom: "12px" }} />
         <Typography variant="body1" style={{ fontWeight: 600 }}>
           {paymentVerifying ? "Confirming payment. Do not close this window..." : "Placing your order..."}
         </Typography>
       </Dialog>
-      <Footer />
     </>
   );
 };

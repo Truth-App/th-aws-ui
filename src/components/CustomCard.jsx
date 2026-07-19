@@ -72,7 +72,7 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <MdSearch size={18} color="#2b8c5a" />
+                  <MdSearch size={18} color="var(--brand-primary-strong)" />
                 </InputAdornment>
               ),
             }}

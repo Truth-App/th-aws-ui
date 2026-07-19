@@ -259,7 +259,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               <Typography
                 variant="subtitle1"
                 sx={{
-                  color: "#165d46",
+                  color: "var(--brand-primary)",
                   fontSize: isMobile ? "0.75rem" : "1.04rem",
                   fontFamily: blinkitLikeFont,
                   fontWeight: 700,
@@ -310,8 +310,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                       width: isMobile ? "24px" : "28px",
                       height: isMobile ? "24px" : "28px",
                       borderRadius: "999px",
-                      backgroundColor: "#e8efeb",
-                      color: "#165d46",
+                      backgroundColor: "var(--brand-primary)",
+                      color: "#fff",
                       boxShadow: "none",
                       fontWeight: 700,
                       lineHeight: 1,
@@ -334,7 +334,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                       textAlign: "center",
                       fontWeight: 700,
                       fontFamily: blinkitLikeFont,
-                      color: "#1f3d31",
+                      color: "var(--brand-ink)",
                       fontSize: isMobile ? "0.7rem" : "0.88rem",
                     }}
                   >
@@ -352,7 +352,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                       width: isMobile ? "24px" : "28px",
                       height: isMobile ? "24px" : "28px",
                       borderRadius: "999px",
-                      backgroundColor: "#165d46",
+                      backgroundColor: "var(--brand-primary)",
                       color: "#fff",
                       boxShadow: "none",
                       fontWeight: 700,
@@ -404,8 +404,8 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
                     size="small"
                     variant="outlined"
                     style={{
-                      color: "#165d46",
-                      borderColor: "#165d46",
+                      color: "var(--brand-primary)",
+                      borderColor: "var(--brand-primary)",
                       textTransform: "uppercase",
                       fontFamily: blinkitLikeFont,
                       letterSpacing: "0.02em",
@@ -447,7 +447,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               onClick={() => onAction?.(product)}
               size="small"
               variant="contained"
-              style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold", fontFamily: blinkitLikeFont }}
+              style={{ backgroundColor: "var(--brand-primary)", textTransform: "none", fontWeight: "bold", fontFamily: blinkitLikeFont }}
             >
               {actionLabel}
             </Button>

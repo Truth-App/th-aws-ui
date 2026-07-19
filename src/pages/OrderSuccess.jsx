@@ -477,6 +477,7 @@ const OrderSuccess = () => {
   const isPaymentCOD =
     (details?.paymentStatus || "").toUpperCase() === "COD" || details?.isPaymentCOD === true;
   const isPaymentPaidOnline = (details?.paymentStatus || "").toUpperCase() === "PAID";
+  const isPaymentManuallyApproved = (details?.paymentStatus || "").toUpperCase() === "PAYMENT_MANUALLY_APPROVED";
   const isCodPaymentSelectionRequired = isPaymentCOD && deliveryStatusChoice === "DELIVERED";
   const isAnyCodMethodSelected = deliveryPaymentCOD.paidUPI || deliveryPaymentCOD.cash;
   const isDeliveryUpdateDisabled =
@@ -530,6 +531,10 @@ const OrderSuccess = () => {
   const currentSStockistId = String(details?.sStockistId || "").trim();
   const shouldIncludeStakeholderUpdate =
     Boolean(stakeholderOverride && selectedStakeholderRoleForApproval);
+  const isOrderApprovalApproveDisabled =
+    approvalLoading || !String(resolvedSStockistId || "").trim();
+  const isShipmentApproveDisabled =
+    shipmentLoading || !String(expectedDeliveryDate || "").trim();
   const currentTimelineIndex = getTimelineIndex(details);
   const timelineStepTimes = getTimelineStepTimes(details);
   const totalAmount = products.reduce((sum, item) => sum + (item.subTotal || (item.price || 0) * (item.quantity || 0)), 0);
@@ -607,6 +612,12 @@ const OrderSuccess = () => {
 
   const handleShipment = async (nextShipmentStatus) => {
     if (!orderId) return;
+
+    if (nextShipmentStatus === "APPROVED" && !String(expectedDeliveryDate || "").trim()) {
+      setShipmentError("Please select expected delivery date.");
+      setShipmentMessage("");
+      return;
+    }
 
     const trimmedComment = shipmentComment.trim();
     setShipmentLoading(true);
@@ -750,8 +761,8 @@ const OrderSuccess = () => {
                 textTransform: "none",
                 fontWeight: 600,
                 borderRadius: "8px",
-                borderColor: "#165d46",
-                color: "#165d46",
+                borderColor: "var(--brand-primary)",
+                color: "var(--brand-primary)",
               }}
             >
               Back
@@ -760,7 +771,7 @@ const OrderSuccess = () => {
         )}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", width: "100%", maxWidth: "900px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: "1 1 260px", minWidth: 0 }}>
-            <MdCheckCircle size={42} color="#2e7d32" />
+            <MdCheckCircle size={42} color="var(--brand-primary-strong)" />
             <div>
               <Typography variant="h5" style={{ fontWeight: 700 }}>
                 Order Detail (order id - {shortOrderId || "-"})
@@ -774,7 +785,7 @@ const OrderSuccess = () => {
             variant="contained"
             onClick={() => navigate("/")}
             style={{
-              backgroundColor: "#165d46",
+              backgroundColor: "var(--brand-primary)",
               textTransform: "none",
               fontWeight: 600,
               borderRadius: "8px",
@@ -798,7 +809,7 @@ const OrderSuccess = () => {
         {orderLoading && (
           <Card variant="outlined" style={{ width: "100%", maxWidth: "900px", borderRadius: "12px" }}>
             <CardContent style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <CircularProgress size={22} style={{ color: "#165d46" }} />
+              <CircularProgress size={22} style={{ color: "var(--brand-primary)" }} />
               <Typography>Fetching order details...</Typography>
             </CardContent>
           </Card>
@@ -847,7 +858,7 @@ const OrderSuccess = () => {
                       const dotBorder = isRejectedStep
                         ? "2px solid #c62828"
                         : isActive
-                          ? "2px solid #2e7d32"
+                          ? "2px solid var(--brand-primary-strong)"
                           : "2px solid #c2c2c2";
                       const dotBg = isRejectedStep
                         ? "#ffebee"
@@ -857,9 +868,9 @@ const OrderSuccess = () => {
                       const dotColor = isRejectedStep
                         ? "#c62828"
                         : isActive
-                          ? "#2e7d32"
+                          ? "var(--brand-primary-strong)"
                           : "#9e9e9e";
-                      const labelColor = isRejectedStep ? "#c62828" : isActive ? "#2e7d32" : "#777";
+                      const labelColor = isRejectedStep ? "#c62828" : isActive ? "var(--brand-primary-strong)" : "#777";
 
                       return (
                         <div key={step} style={{ display: "flex", alignItems: "center", flex: 1 }}>
@@ -916,7 +927,7 @@ const OrderSuccess = () => {
                                   style={{
                                     height: "20px",
                                     backgroundColor: "#eef7f1",
-                                    color: "#2e7d32",
+                                    color: "var(--brand-primary-strong)",
                                     border: "1px solid #cae7d3",
                                     fontSize: "0.7rem",
                                   }}
@@ -942,7 +953,7 @@ const OrderSuccess = () => {
                                   style={{
                                     height: "20px",
                                     backgroundColor: "#eef7f1",
-                                    color: "#2e7d32",
+                                    color: "var(--brand-primary-strong)",
                                     border: "1px solid #cae7d3",
                                     fontSize: "0.7rem",
                                   }}
@@ -969,7 +980,7 @@ const OrderSuccess = () => {
                                 flex: 1,
                                 height: "2px",
                                 margin: "0 8px",
-                                backgroundColor: idx < currentTimelineIndex ? "#2e7d32" : "#d6d6d6",
+                                backgroundColor: idx < currentTimelineIndex ? "var(--brand-primary-strong)" : "#d6d6d6",
                               }}
                             />
                           )}
@@ -1072,7 +1083,7 @@ const OrderSuccess = () => {
                               <Typography variant="body2" color="text.secondary">
                                 Subtotal: INR {subTotal.toFixed(2)}
                               </Typography>
-                              <Typography variant="body2" style={{ color: "#2e7d32", fontWeight: 600 }}>
+                              <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                                 Saved: INR {saved.toFixed(2)}
                               </Typography>
                             </div>
@@ -1092,10 +1103,10 @@ const OrderSuccess = () => {
                         <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
                           Amount: INR {totalAmount.toFixed(2)}
                         </Typography>
-                        <Typography variant="body2" style={{ color: "#2e7d32", fontWeight: 600, marginTop: "4px" }}>
+                        <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600, marginTop: "4px" }}>
                           Saved: INR {totalSaved.toFixed(2)}
                         </Typography>
-                        <Typography variant="body2" style={{ color: "#2e7d32", fontWeight: 600, marginTop: "4px" }}>
+                        <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600, marginTop: "4px" }}>
                           Saved %: {savedPercentage.toFixed(2)}%
                         </Typography>
                       </CardContent>
@@ -1110,7 +1121,7 @@ const OrderSuccess = () => {
                           onClick={handleDownloadInvoice}
                           disabled={invoiceLoading}
                           style={{
-                            backgroundColor: "#165d46",
+                            backgroundColor: "var(--brand-primary)",
                             textTransform: "none",
                             fontWeight: 600,
                             borderRadius: "8px",
@@ -1157,18 +1168,18 @@ const OrderSuccess = () => {
                       style={{
                         backgroundColor: isAdminApprovalLocked
                           ? isAdminApprovalEffectiveApproved
-                            ? "#e8f5e9"
+                            ? "var(--brand-tint)"
                             : "#ffebee"
                           : "#fff8e1",
                         color: isAdminApprovalLocked
                           ? isAdminApprovalEffectiveApproved
-                            ? "#2e7d32"
+                            ? "var(--brand-primary-strong)"
                             : "#c62828"
                           : "#8d6e63",
                         border: `1px solid ${
                           isAdminApprovalLocked
                             ? isAdminApprovalEffectiveApproved
-                              ? "#a5d6a7"
+                              ? "var(--brand-tint-border)"
                               : "#ef9a9a"
                             : "#ffe082"
                         }`,
@@ -1192,9 +1203,9 @@ const OrderSuccess = () => {
                         label="Stakeholder Matched"
                         size="small"
                         style={{
-                          backgroundColor: "#e8f5e9",
-                          color: "#2e7d32",
-                          border: "1px solid #a5d6a7",
+                          backgroundColor: "var(--brand-tint)",
+                          color: "var(--brand-primary-strong)",
+                          border: "1px solid var(--brand-tint-border)",
                           fontWeight: 600,
                         }}
                       />
@@ -1262,7 +1273,7 @@ const OrderSuccess = () => {
                                   value={optionUserId}
                                   style={{ whiteSpace: "normal", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px" }}
                                 >
-                                  {isMatched && <MdCheckCircle size={16} color="#2e7d32" />}
+                                  {isMatched && <MdCheckCircle size={16} color="var(--brand-primary-strong)" />}
                                   {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
                                 </MenuItem>
                               );
@@ -1324,12 +1335,13 @@ const OrderSuccess = () => {
                       <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
                         <Button
                           variant="contained"
-                          disabled={approvalLoading}
+                          disabled={isOrderApprovalApproveDisabled}
                           onClick={() => handleApproval("APPROVED")}
                           style={{
                             textTransform: "none",
                             fontWeight: 600,
-                            backgroundColor: "#2e7d32",
+                            backgroundColor: isOrderApprovalApproveDisabled ? "#bdbdbd" : "var(--brand-primary-strong)",
+                            color: isOrderApprovalApproveDisabled ? "#2f2f2f" : "#ffffff",
                           }}
                         >
                           Approve
@@ -1358,7 +1370,7 @@ const OrderSuccess = () => {
                   )}
 
                   {!!approvalMessage && isAdmin && (
-                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                       {approvalMessage}
                     </Typography>
                   )}
@@ -1407,7 +1419,7 @@ const OrderSuccess = () => {
                               <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
                                 Order Qty: {quantity}
                               </Typography>
-                              <Typography variant="body2" style={{ marginTop: "4px", fontWeight: 600, color: "#165d46" }}>
+                              <Typography variant="body2" style={{ marginTop: "4px", fontWeight: 600, color: "var(--brand-primary)" }}>
                                 Available Stock: {availableStock}
                               </Typography>
                             </div>
@@ -1447,19 +1459,19 @@ const OrderSuccess = () => {
                       style={{
                         backgroundColor:
                           isShipmentApproved
-                            ? "#e8f5e9"
+                            ? "var(--brand-tint)"
                             : isShipmentRejected
                               ? "#ffebee"
                               : "#fff8e1",
                         color:
                           isShipmentApproved
-                            ? "#2e7d32"
+                            ? "var(--brand-primary-strong)"
                             : isShipmentRejected
                               ? "#c62828"
                               : "#8d6e63",
                         border: `1px solid ${
                           isShipmentApproved
-                            ? "#a5d6a7"
+                            ? "var(--brand-tint-border)"
                             : isShipmentRejected
                               ? "#ef9a9a"
                               : "#ffe082"
@@ -1509,12 +1521,13 @@ const OrderSuccess = () => {
                       <div style={{ display: "flex", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
                         <Button
                           variant="contained"
-                          disabled={shipmentLoading}
+                          disabled={isShipmentApproveDisabled}
                           onClick={() => handleShipment("APPROVED")}
                           style={{
                             textTransform: "none",
                             fontWeight: 600,
-                            backgroundColor: "#2e7d32",
+                            backgroundColor: isShipmentApproveDisabled ? "#bdbdbd" : "var(--brand-primary-strong)",
+                            color: isShipmentApproveDisabled ? "#2f2f2f" : "#ffffff",
                           }}
                         >
                           Approve
@@ -1543,7 +1556,7 @@ const OrderSuccess = () => {
                   )}
 
                   {!!shipmentMessage && canManageShipment && (
-                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                       {shipmentMessage}
                     </Typography>
                   )}
@@ -1584,19 +1597,19 @@ const OrderSuccess = () => {
                       style={{
                         backgroundColor:
                           isDeliveryCompleted
-                            ? "#e8f5e9"
+                            ? "var(--brand-tint)"
                             : isDeliveryFailed
                               ? "#ffebee"
                               : "#fff8e1",
                         color:
                           isDeliveryCompleted
-                            ? "#2e7d32"
+                            ? "var(--brand-primary-strong)"
                             : isDeliveryFailed
                               ? "#c62828"
                               : "#8d6e63",
                         border: `1px solid ${
                           isDeliveryCompleted
-                            ? "#a5d6a7"
+                            ? "var(--brand-tint-border)"
                             : isDeliveryFailed
                               ? "#ef9a9a"
                               : "#ffe082"
@@ -1676,6 +1689,25 @@ const OrderSuccess = () => {
                               <Typography variant="body2" style={{ fontWeight: 600, color: "#1f1f1f", marginBottom: "8px" }}>
                                 Payment *
                               </Typography>
+
+                              <div
+                                style={{
+                                  marginTop: "6px",
+                                  marginBottom: "10px",
+                                  border: "1px solid var(--brand-border)",
+                                  borderRadius: "10px",
+                                  overflow: "hidden",
+                                  backgroundColor: "#ffffff",
+                                  maxWidth: "320px",
+                                }}
+                              >
+                                <img
+                                  src="/paymentQRcode.png"
+                                  alt="Payment QR Code"
+                                  style={{ display: "block", width: "100%", height: "auto" }}
+                                />
+                              </div>
+
                               <FormControlLabel
                                 control={
                                   <Checkbox
@@ -1712,6 +1744,12 @@ const OrderSuccess = () => {
                               Payment paid online
                             </Typography>
                           )}
+
+                          {isPaymentManuallyApproved && (
+                            <Typography variant="body2" color="text.secondary" style={{ marginTop: "12px", fontWeight: 600 }}>
+                              Payment Manually Approved
+                            </Typography>
+                          )}
                         </>
                       )}
 
@@ -1734,7 +1772,7 @@ const OrderSuccess = () => {
                           style={{
                             textTransform: "none",
                             fontWeight: 600,
-                            backgroundColor: isDeliveryUpdateDisabled ? "#d1d5db" : "#165d46",
+                            backgroundColor: isDeliveryUpdateDisabled ? "#d1d5db" : "var(--brand-primary)",
                             color: isDeliveryUpdateDisabled ? "#4b5563" : "#ffffff",
                           }}
                         >
@@ -1751,7 +1789,7 @@ const OrderSuccess = () => {
                   )}
 
                   {!!deliveryMessage && canManageShipment && (
-                    <Typography variant="body2" style={{ marginTop: "10px", color: "#2e7d32", fontWeight: 600 }}>
+                    <Typography variant="body2" style={{ marginTop: "10px", color: "var(--brand-primary-strong)", fontWeight: 600 }}>
                       {deliveryMessage}
                     </Typography>
                   )}

@@ -131,12 +131,12 @@ const ViewEarning = () => {
           width: "100%",
           height: "100%",
           overflowY: "auto",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
         }}
       >
         <CardContent>
-          <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
+        <Typography variant="h6" style={{ fontWeight: 700, color: "var(--brand-primary)" }}>
             View Earnings Summary
           </Typography>
 

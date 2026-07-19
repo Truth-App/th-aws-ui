@@ -29,7 +29,7 @@ const EditProfile = () => {
             minHeight: "70vh",
           }}
         >
-          <CircularProgress sx={{ color: "#165d46" }} />
+          <CircularProgress sx={{ color: "var(--brand-primary)" }} />
         </Box>
       </>
     );

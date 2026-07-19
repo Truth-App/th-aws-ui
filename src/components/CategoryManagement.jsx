@@ -9,13 +9,11 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
-import Switch from "@mui/material/Switch";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Chip from "@mui/material/Chip";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../store/slices/categorySlice";
 import { CATEGORY_API_URL, PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
+import { compressImageFile } from "../helpers/imageCompression";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -112,18 +110,20 @@ const CategoryManagement = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const maxFileSize = 10 * 1024 * 1024;
-    if (file.size > maxFileSize) {
-      toast.error(`File ${file.name} is too large. Max 10MB allowed.`);
-      return;
-    }
-
     setUploadingFile(true);
     try {
+      const maxFileSize = 10 * 1024 * 1024;
+      const compressedFile = await compressImageFile(file, 0.5);
+
+      if (compressedFile.size > maxFileSize) {
+        toast.error(`File ${file.name} is too large after compression. Max 10MB allowed.`);
+        return;
+      }
+
       toast.info(`Uploading ${file.name}...`);
-      const presignedData = await getPresignedUrl(file.name);
-      await uploadFileToS3(file, presignedData.url);
-      const uploadedKey = getUploadedKey(presignedData, file.name);
+      const presignedData = await getPresignedUrl(compressedFile.name);
+      await uploadFileToS3(compressedFile, presignedData.url);
+      const uploadedKey = getUploadedKey(presignedData, compressedFile.name);
       latestImageKeyRef.current = uploadedKey;
       setCategory((prev) => ({ ...prev, imageKey: uploadedKey }));
       toast.success("Image uploaded successfully");
@@ -164,7 +164,7 @@ const CategoryManagement = () => {
     setCategory({
       title: selectedCategory.title || "",
       imageKey: existingImageKey,
-      isActive: selectedCategory.isActive ?? true,
+      isActive: selectedCategory.isActive || true,
     });
     setOpen(true);
   };
@@ -193,11 +193,11 @@ const CategoryManagement = () => {
       const method = isEditMode ? "PUT" : "POST";
 
       const payload = JSON.stringify({
-        title: category.title.trim(),
-        imageKey,
-        imagekey: imageKey,
-        isActive: category.isActive !== false,
-      });
+                    title: category.title.trim(),
+                    imageKey,
+                    imagekey: imageKey,
+                    isActive: category.isActive,
+                  });
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -243,7 +243,7 @@ const CategoryManagement = () => {
           overflowY: "auto",
           overflowX: "hidden",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -261,12 +261,12 @@ const CategoryManagement = () => {
               variant="contained"
               style={{
                 margin: "5px 0",
-                backgroundColor: "#165d46",
+                backgroundColor: "var(--brand-primary)",
                 textTransform: "none",
                 fontWeight: "bolder",
               }}
             >
-              + Add
+              + Add Category
             </Button>
           </div>
           
@@ -309,69 +309,39 @@ const CategoryManagement = () => {
                 marginTop: "0.75em",
               }}
             >
-              {filteredCategories.map((item) => {
-                const isInactive = item.isActive === false;
-                return (
-                  <Card
-                    key={item.id}
-                    variant="outlined"
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      opacity: isInactive ? 0.7 : 1,
-                      position: "relative",
-                    }}
-                  >
-                    {isInactive && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: isMobile ? "4px" : "6px",
-                          right: isMobile ? "4px" : "6px",
-                          zIndex: 1,
-                        }}
-                      >
-                        <Chip
-                          label="In active"
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          sx={{
-                            fontSize: isMobile ? "0.6rem" : "0.7rem",
-                            height: isMobile ? "22px" : "24px",
-                            backgroundColor: "#fff",
-                          }}
-                        />
-                      </div>
-                    )}
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={getImageUrl(item.imageKey)}
-                      alt={item.title}
-                      style={{ objectFit: "contain", backgroundColor: "#f5f5f5" }}
-                    />
-                    <CardContent style={{ padding: "8px 12px", flexGrow: 1 }}>
-                      <Typography
-                        variant="body2"
-                        style={{ fontWeight: 600, color: "#165d46", textAlign: "center" }}
-                      >
-                        {item.title}
-                      </Typography>
-                    </CardContent>
-                    <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
-                      <Button
-                        onClick={() => handleOpenEdit(item)}
-                        size="small"
-                        variant="contained"
-                        style={{ backgroundColor: "#165d46", textTransform: "none", fontWeight: "bold" }}
-                      >
-                        Update
-                      </Button>
-                    </CardActions>
-                  </Card>
-                );
-              })}
+              {filteredCategories.map((item) => (
+                <Card
+                  key={item.id}
+                  variant="outlined"
+                  style={{ display: "flex", flexDirection: "column" }}
+                >
+                  <CardMedia
+                    component="img"
+                    height="140"
+                    image={getImageUrl(item.imageKey)}
+                    alt={item.title}
+                    style={{ objectFit: "contain", backgroundColor: "#f5f5f5" }}
+                  />
+                  <CardContent style={{ padding: "8px 12px", flexGrow: 1 }}>
+                    <Typography
+                      variant="body2"
+                      style={{ fontWeight: 600, color: "var(--brand-primary)", textAlign: "center" }}
+                    >
+                      {item.title}
+                    </Typography>
+                  </CardContent>
+                  <CardActions style={{ display: "flex", justifyContent: "flex-end", padding: "0 12px 8px" }}>
+                    <Button
+                      onClick={() => handleOpenEdit(item)}
+                      size="small"
+                      variant="contained"
+                      style={{ backgroundColor: "var(--brand-primary)", textTransform: "none", fontWeight: "bold" }}
+                    >
+                      Update Category
+                    </Button>
+                  </CardActions>
+                </Card>
+              ))}
             </div>
           )}
 
@@ -410,20 +380,6 @@ const CategoryManagement = () => {
               onChange={handleOnChange}
               required
             />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={category.isActive !== false}
-                  onChange={(e) =>
-                    setCategory((prev) => ({
-                      ...prev,
-                      isActive: e.target.checked,
-                    }))
-                  }
-                />
-              }
-              label={category.isActive !== false ? "Active" : "Inactive"}
-            />
             <div>
               <input
                 ref={fileInputRef}
@@ -434,7 +390,7 @@ const CategoryManagement = () => {
               />
               {uploadingFile && (
                 <Typography variant="body2" style={{ marginTop: "0.5em", color: "#1976d2" }}>
-                  Uploading image...
+                  Compressing and uploading image...
                 </Typography>
               )}
               {category.imageKey && (

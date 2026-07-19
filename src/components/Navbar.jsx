@@ -147,7 +147,7 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <MdSearch size={18} color="#2b8c5a" />
+                  <MdSearch size={18} color="var(--brand-primary-strong)" />
                 </InputAdornment>
               ),
             }}
@@ -181,11 +181,11 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
           }}
         >
           {authResolving ? (
-            <CircularProgress size={24} sx={{ color: "#165d46" }} />
+            <CircularProgress size={24} sx={{ color: "var(--brand-primary)" }} />
           ) : (
             <Avatar
               src={user?.picture ?? undefined}
-              sx={{ width: 36, height: 36, backgroundColor: "#165d46", cursor: "pointer" }}
+              sx={{ width: 36, height: 36, backgroundColor: "var(--brand-primary)", cursor: "pointer" }}
             >
               {!user?.picture && <MdPerson size={20} color="white" />}
             </Avatar>

@@ -22,7 +22,7 @@ const divisionThemes = {
     labelColor: "#1f1f1f",
   },
   "Wellness & Nutrition": {
-    borderColor: "#1b5e20",
+    borderColor: "var(--brand-ink)",
     labelColor: "#1f1f1f",
   },
   "Pain Relief": {
@@ -30,7 +30,7 @@ const divisionThemes = {
     labelColor: "#1f1f1f",
   },
   "Foods & Staples": {
-    borderColor: "#2e7d32",
+    borderColor: "var(--brand-primary-strong)",
     labelColor: "#1f1f1f",
   },
   "Agri & Natural Products": {
@@ -53,7 +53,7 @@ const categoryAliases = {
   "Herbal Beverages": "Foods & Staples",
 };
 
-const fallbackThemeColors = ["#4aa3ff", "#00acc1", "#d4af37", "#1b5e20", "#1976d2", "#2e7d32", "#2f5d3a"];
+const fallbackThemeColors = ["#4aa3ff", "#00acc1", "#d4af37", "var(--brand-ink)", "#1976d2", "var(--brand-primary-strong)", "#2f5d3a"];
 
 const getInitials = (text) => {
   return text

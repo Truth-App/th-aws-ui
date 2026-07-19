@@ -7,6 +7,8 @@ import Typography from "@mui/material/Typography";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -31,32 +33,22 @@ const TIMELINE_STEP_LABELS = {
 };
 
 const DEFAULT_APPROVAL_CHECKS = {
-  pendingApproval: false,
+  pendingApproval: true,
   approved: false,
   rejected: false,
   guestOrder: false,
 };
 
 const DEFAULT_SHIPMENT_CHECKS = {
-  pendingShipment: false,
+  pendingShipment: true,
   approvedShipment: false,
   rejectedShipment: false,
 };
 
 const DEFAULT_DELIVERY_CHECKS = {
+  pendingDelivery: true,
   deliveryCompleted: false,
   deliveryFailed: false,
-};
-
-const FILTER_OPTION_LABEL_STYLE = {
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  cursor: "pointer",
-  fontSize: "0.9rem",
-  color: "#1f3d31",
-  fontWeight: 500,
-  fontFamily: "inherit",
 };
 
 const formatDate = (value) => {
@@ -74,7 +66,7 @@ const formatDate = (value) => {
 
 const statusColor = (status) => {
   const normalized = (status || "").toUpperCase();
-  if (["DELIVERED", "PAID", "SUCCESS"].includes(normalized)) return "#2e7d32";
+  if (["DELIVERED", "PAID", "SUCCESS"].includes(normalized)) return "var(--brand-primary-strong)";
   if (["SHIPPED", "ACCEPTED", "PLACED"].includes(normalized)) return "#ed6c02";
   return "#555";
 };
@@ -92,52 +84,6 @@ const isCODOrder = (order) => {
   const codFlagValue = String(order?.isPaymentCOD || "").toLowerCase().trim();
 
   return normalizedPaymentStatus === "COD" || normalizedPaymentMode === "COD" || codFlagValue === "true";
-};
-
-const isApprovalApprovedStatus = (status) => ["ORDER_APPROVED", "APPROVED", "ACCEPTED"].includes(status);
-
-const isApprovalRejectedStatus = (status) => ["REJECTED", "ORDER_REJECTED"].includes(status);
-
-const isShipmentPendingStatus = (shipmentStatus, orderStatus) =>
-  ["PENDING", "SHIPMENT_PENDING", "PENDING_SHIPMENT"].includes(shipmentStatus) ||
-  (!shipmentStatus && isApprovalApprovedStatus(orderStatus));
-
-const isShipmentApprovedStatus = (shipmentStatus, orderStatus) =>
-  ["APPROVED", "SHIPMENT_APPROVED", "APPROVED_SHIPMENT"].includes(shipmentStatus) ||
-  ["SHIPMENT_APPROVED", "SHIPPED"].includes(orderStatus);
-
-const isShipmentRejectedStatus = (shipmentStatus, orderStatus) =>
-  ["REJECTED", "SHIPMENT_REJECTED", "REJECTED_SHIPMENT"].includes(shipmentStatus) ||
-  orderStatus === "SHIPMENT_REJECTED";
-
-const isDeliveryCompletedStatus = (deliveryApprovalStatus, orderStatus) =>
-  ["DELIVERY_COMPLETED", "DELIVERED"].includes(deliveryApprovalStatus) ||
-  ["DELIVERY_COMPLETED", "DELIVERED"].includes(orderStatus);
-
-const isDeliveryFailedStatus = (deliveryApprovalStatus, orderStatus) =>
-  ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(deliveryApprovalStatus) ||
-  ["DELIVERY_FAILED", "NOT_DELIVERED"].includes(orderStatus);
-
-const getOrderTimelineStatus = (order) => {
-  const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase();
-  const normalizedPaymentStatus = (order?.paymentStatus || "").toUpperCase();
-  const isPaymentCOD = isCODOrder(order);
-
-  // Steps beyond PAID take priority
-  if (["ACCEPTED", "SHIPPED", "DELIVERED"].includes(normalizedOrderStatus)) {
-    return normalizedOrderStatus;
-  }
-
-  // Payment PAID takes priority over order status of PLACED
-  if (isPaymentCOD || ["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || ["PAID", "SUCCESS"].includes(normalizedOrderStatus)) {
-    return "PAID";
-  }
-
-  if (normalizedOrderStatus === "PLACED") {
-    return "PLACED";
-  }
-
-  return "PLACED";
 };
 
 const getTimelineStepIcon = (step) => {
@@ -182,7 +128,7 @@ const OrdersManagement = ({
     setSelectedStatus(restoredState.selectedStatus || "ALL");
     setApprovalChecks(restoredState.approvalChecks || DEFAULT_APPROVAL_CHECKS);
     setShipmentChecks(restoredState.shipmentChecks || DEFAULT_SHIPMENT_CHECKS);
-    setDeliveryChecks(restoredState.deliveryChecks || DEFAULT_DELIVERY_CHECKS);
+    setDeliveryChecks({ ...DEFAULT_DELIVERY_CHECKS, ...(restoredState.deliveryChecks || {}) });
     setOrderIdSearchTerm(restoredState.orderIdSearchTerm || "");
   }, [location.state]);
 
@@ -251,95 +197,57 @@ const OrdersManagement = ({
 
     const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase();
     const normalizedPaymentStatus = (order?.paymentStatus || "").toUpperCase();
-    const normalizedShipmentStatus = (
-      order?.shipmentStatus ||
-      order?.shipmentApprovalStatus ||
-      order?.shipmentDecision ||
-      ""
-    ).toUpperCase();
-    const normalizedDeliveryApprovalStatus = (order?.deliveryApprovalStatus || "").toUpperCase().trim();
 
     if (selectedStatus === "PLACED") {
       const isPaymentCOD = isCODOrder(order);
-      return normalizedOrderStatus === "PLACED" && normalizedPaymentStatus === "PAYMENT_PENDING" && !isPaymentCOD;
+      const normalizedPaymentMode = (order.paymentMode || order.paymentMethod || order.paymentType || "").toUpperCase().trim();
+      return normalizedOrderStatus === "PLACED" && (normalizedPaymentStatus === "PAYMENT_PENDING" || normalizedPaymentStatus === "PAYMENT_MANUALLY_APPROVED" || normalizedPaymentMode === "PAYMENT_PENDING" || normalizedPaymentMode === "PAYMENT_MANUALLY_APPROVED") && !isPaymentCOD;
     }
 
     if (selectedStatus === "PAID") {
       const isPaymentCOD = isCODOrder(order);
-      if (normalizedPaymentStatus !== "PAID" && !isPaymentCOD) return false;
-
-      const hasApprovalSelection =
-        approvalChecks.pendingApproval ||
-        approvalChecks.approved ||
-        approvalChecks.rejected ||
-        approvalChecks.guestOrder;
-
-      if (approvalChecks.guestOrder) {
-        return order?.isGuestOrder === true;
-      }
-
-      const matchesPendingApproval = approvalChecks.pendingApproval && normalizedOrderStatus === "PLACED";
-      const matchesApproved = approvalChecks.approved && isApprovalApprovedStatus(normalizedOrderStatus);
-      const matchesRejected = approvalChecks.rejected && isApprovalRejectedStatus(normalizedOrderStatus);
-
-      if (!hasApprovalSelection) {
-        return (
-          normalizedOrderStatus === "PLACED" ||
-          isApprovalApprovedStatus(normalizedOrderStatus) ||
-          isApprovalRejectedStatus(normalizedOrderStatus)
+      const matchesPendingApproval =
+        approvalChecks.pendingApproval &&
+        (
+          (normalizedOrderStatus === "PLACED" && normalizedPaymentStatus === "PAID") ||
+          (normalizedOrderStatus === "PLACED" && isPaymentCOD)
         );
-      }
+      const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
+      const matchesRejected = approvalChecks.rejected && normalizedOrderStatus === "ORDER_REJECTED";
+      const matchesGuestOrder = approvalChecks.guestOrder && order?.isGuestOrder === true;
 
-      return matchesPendingApproval || matchesApproved || matchesRejected;
+      return matchesPendingApproval || matchesApproved || matchesRejected || matchesGuestOrder;
     }
 
     if (selectedStatus === "SHIPPED") {
-      const hasShipmentSelection =
-        shipmentChecks.pendingShipment ||
-        shipmentChecks.approvedShipment ||
-        shipmentChecks.rejectedShipment;
-
-      if (!hasShipmentSelection) {
-        return (
-          isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus) ||
-          isShipmentApprovedStatus(normalizedShipmentStatus, normalizedOrderStatus) ||
-          isShipmentRejectedStatus(normalizedShipmentStatus, normalizedOrderStatus)
-        );
-      }
-
       const matchesPendingShipment =
         shipmentChecks.pendingShipment &&
-        isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus);
+        normalizedOrderStatus === "ORDER_APPROVED";
 
       const matchesApprovedShipment =
         shipmentChecks.approvedShipment &&
-        isShipmentApprovedStatus(normalizedShipmentStatus, normalizedOrderStatus);
+        normalizedOrderStatus === "SHIPMENT_APPROVED";
 
       const matchesRejectedShipment =
         shipmentChecks.rejectedShipment &&
-        isShipmentRejectedStatus(normalizedShipmentStatus, normalizedOrderStatus);
+        normalizedOrderStatus === "SHIPMENT_REJECTED";
 
       return matchesPendingShipment || matchesApprovedShipment || matchesRejectedShipment;
     }
 
     if (selectedStatus === "DELIVERED") {
-      const isDeliveryCompleted = isDeliveryCompletedStatus(normalizedDeliveryApprovalStatus, normalizedOrderStatus);
+      const matchesPendingDelivery =
+        deliveryChecks.pendingDelivery && normalizedOrderStatus === "SHIPMENT_APPROVED";
+      const matchesCompleted =
+        deliveryChecks.deliveryCompleted && normalizedOrderStatus === "DELIVERY_COMPLETED";
+      const matchesFailed =
+        deliveryChecks.deliveryFailed &&
+        (normalizedOrderStatus === "DELIVERY_REJECTED" || normalizedOrderStatus === "DELIVERY_FAILED");
 
-      const isDeliveryFailed = isDeliveryFailedStatus(normalizedDeliveryApprovalStatus, normalizedOrderStatus);
-
-      const hasDeliverySelection = deliveryChecks.deliveryCompleted || deliveryChecks.deliveryFailed;
-
-      if (!hasDeliverySelection) {
-        return isDeliveryCompleted || isDeliveryFailed;
-      }
-
-      const matchesCompleted = deliveryChecks.deliveryCompleted && isDeliveryCompleted;
-      const matchesFailed = deliveryChecks.deliveryFailed && isDeliveryFailed;
-
-      return matchesCompleted || matchesFailed;
+      return matchesPendingDelivery || matchesCompleted || matchesFailed;
     }
 
-    return getOrderTimelineStatus(order) === selectedStatus;
+    return false;
   });
 
   return (
@@ -350,7 +258,7 @@ const OrdersManagement = ({
         overflowY: "auto",
         overflowX: "hidden",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-        border: "1px solid #e8efeb",
+        border: "1px solid var(--brand-border)",
       }}
     >
       <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -365,7 +273,7 @@ const OrdersManagement = ({
           }}
         >
           <div>
-            <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
+            <Typography variant="h6" style={{ fontWeight: 700, color: "var(--brand-primary)" }}>
               {title}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -389,7 +297,7 @@ const OrdersManagement = ({
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <MdSearch size={18} color="#2b8c5a" />
+                  <MdSearch size={18} color="var(--brand-primary-strong)" />
                 </InputAdornment>
               ),
             }}
@@ -407,14 +315,14 @@ const OrdersManagement = ({
         {showStatusTimelineFilter && !loading && !error && (
           <div
             style={{
-              border: "1px solid #dce9e2",
+              border: "1px solid var(--brand-border)",
               borderRadius: "12px",
-              backgroundColor: "#f8fcfa",
+              backgroundColor: "var(--brand-surface)",
               padding: isMobile ? "10px" : "12px",
               marginBottom: "12px",
             }}
           >
-            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
+            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "var(--brand-primary)", marginBottom: "10px" }}>
               Order Timeline Filter
             </Typography>
 
@@ -434,9 +342,9 @@ const OrdersManagement = ({
                           textTransform: "none",
                           borderRadius: "999px",
                           fontWeight: 700,
-                          borderColor: "#165d46",
-                          color: isSelected ? "#fff" : "#165d46",
-                          backgroundColor: isSelected ? "#165d46" : "#fff",
+                          borderColor: "var(--brand-primary)",
+                          color: isSelected ? "#fff" : "var(--brand-primary)",
+                          backgroundColor: isSelected ? "var(--brand-primary)" : "#fff",
                           whiteSpace: "nowrap",
                           minWidth: "fit-content",
                         }}
@@ -447,7 +355,7 @@ const OrdersManagement = ({
                         </span>
                       </Button>
                       {index < list.length - 1 && (
-                        <div style={{ width: "20px", height: "2px", backgroundColor: "#cfe3d9", margin: "0 4px" }} />
+                        <div style={{ width: "20px", height: "2px", backgroundColor: "var(--brand-divider)", margin: "0 4px" }} />
                       )}
                     </div>
                   );
@@ -460,69 +368,57 @@ const OrdersManagement = ({
         {showStatusTimelineFilter && selectedStatus === "PAID" && !loading && !error && (
           <div
             style={{
-              border: "1px solid #dce9e2",
+              border: "1px solid var(--brand-border)",
               borderRadius: "12px",
-              backgroundColor: "#f8fcfa",
+              backgroundColor: "var(--brand-surface)",
               padding: isMobile ? "10px" : "12px",
               marginBottom: "12px",
             }}
           >
-            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
+            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "var(--brand-primary)", marginBottom: "10px" }}>
               Approval Status Filter
             </Typography>
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={approvalChecks.pendingApproval}
-                  onChange={(event) =>
-                    setApprovalChecks((previous) => ({
-                      ...previous,
-                      pendingApproval: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Pending Approval</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={approvalChecks.approved}
-                  onChange={(event) =>
-                    setApprovalChecks((previous) => ({
-                      ...previous,
-                      approved: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Approved</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={approvalChecks.rejected}
-                  onChange={(event) =>
-                    setApprovalChecks((previous) => ({
-                      ...previous,
-                      rejected: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Rejected</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={approvalChecks.guestOrder}
-                  onChange={(event) =>
-                    setApprovalChecks((previous) => ({
-                      ...previous,
-                      guestOrder: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Guest Orders</span>
-              </label>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.pendingApproval}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, pendingApproval: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Pending Approval</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.approved}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, approved: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Approved order</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.rejected}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, rejected: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Rejected order</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.guestOrder}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, guestOrder: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Guest Order</Typography>}
+              />
             </div>
           </div>
         )}
@@ -530,43 +426,47 @@ const OrdersManagement = ({
         {showStatusTimelineFilter && selectedStatus === "DELIVERED" && !loading && !error && (
           <div
             style={{
-              border: "1px solid #dce9e2",
+              border: "1px solid var(--brand-border)",
               borderRadius: "12px",
-              backgroundColor: "#f8fcfa",
+              backgroundColor: "var(--brand-surface)",
               padding: isMobile ? "10px" : "12px",
               marginBottom: "12px",
             }}
           >
-            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
+            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "var(--brand-primary)", marginBottom: "10px" }}>
               Delivery Status Filter
             </Typography>
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={deliveryChecks.deliveryCompleted}
-                  onChange={(event) =>
-                    setDeliveryChecks((previous) => ({
-                      ...previous,
-                      deliveryCompleted: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Completed Delivery</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={deliveryChecks.deliveryFailed}
-                  onChange={(event) =>
-                    setDeliveryChecks((previous) => ({
-                      ...previous,
-                      deliveryFailed: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Failed Delivery</span>
-              </label>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryChecks.pendingDelivery}
+                    onChange={(event) => setDeliveryChecks((prev) => ({ ...prev, pendingDelivery: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Pending Delivery</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryChecks.deliveryCompleted}
+                    onChange={(event) => setDeliveryChecks((prev) => ({ ...prev, deliveryCompleted: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Completed Delivery</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={deliveryChecks.deliveryFailed}
+                    onChange={(event) => setDeliveryChecks((prev) => ({ ...prev, deliveryFailed: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Failed Delivery</Typography>}
+              />
             </div>
           </div>
         )}
@@ -574,56 +474,47 @@ const OrdersManagement = ({
         {showStatusTimelineFilter && selectedStatus === "SHIPPED" && !loading && !error && (
           <div
             style={{
-              border: "1px solid #dce9e2",
+              border: "1px solid var(--brand-border)",
               borderRadius: "12px",
-              backgroundColor: "#f8fcfa",
+              backgroundColor: "var(--brand-surface)",
               padding: isMobile ? "10px" : "12px",
               marginBottom: "12px",
             }}
           >
-            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "#165d46", marginBottom: "10px" }}>
+            <Typography variant="subtitle2" style={{ fontWeight: 700, color: "var(--brand-primary)", marginBottom: "10px" }}>
               Shipment Status Filter
             </Typography>
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={shipmentChecks.pendingShipment}
-                  onChange={(event) =>
-                    setShipmentChecks((previous) => ({
-                      ...previous,
-                      pendingShipment: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Pending Shipment</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={shipmentChecks.approvedShipment}
-                  onChange={(event) =>
-                    setShipmentChecks((previous) => ({
-                      ...previous,
-                      approvedShipment: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Approved Shipment</span>
-              </label>
-              <label style={FILTER_OPTION_LABEL_STYLE}>
-                <input
-                  type="checkbox"
-                  checked={shipmentChecks.rejectedShipment}
-                  onChange={(event) =>
-                    setShipmentChecks((previous) => ({
-                      ...previous,
-                      rejectedShipment: event.target.checked,
-                    }))
-                  }
-                />
-                <span>Rejected Shipment</span>
-              </label>
+            <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={shipmentChecks.pendingShipment}
+                    onChange={(event) => setShipmentChecks((prev) => ({ ...prev, pendingShipment: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Pending Shipment</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={shipmentChecks.approvedShipment}
+                    onChange={(event) => setShipmentChecks((prev) => ({ ...prev, approvedShipment: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Approved Shipment</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={shipmentChecks.rejectedShipment}
+                    onChange={(event) => setShipmentChecks((prev) => ({ ...prev, rejectedShipment: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Rejected Shipment</Typography>}
+              />
             </div>
           </div>
         )}
@@ -631,7 +522,7 @@ const OrdersManagement = ({
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "1em" }}>
-            <CircularProgress size={22} style={{ color: "#165d46" }} />
+            <CircularProgress size={22} style={{ color: "var(--brand-primary)" }} />
             <Typography>Fetching orders...</Typography>
           </div>
         )}
@@ -666,9 +557,8 @@ const OrdersManagement = ({
               )
                 .toUpperCase()
                 .trim();
-              const normalizedOrderStatus = (order?.orderStatus || "").toUpperCase().trim();
               const isShipmentPending =
-                isShipmentPendingStatus(normalizedShipmentStatus, normalizedOrderStatus);
+                ["PENDING", "SHIPMENT_PENDING", "PENDING_SHIPMENT"].includes(normalizedShipmentStatus);
               return (
                 <Card key={order.orderId} variant="outlined" style={{ borderRadius: "12px" }}>
                   <CardContent
@@ -699,14 +589,17 @@ const OrdersManagement = ({
 
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                       {(() => {
-                        const normalizedPaymentStatus = (order.paymentStatus || "").toUpperCase();
+                        const normalizedPaymentStatus = (order.paymentStatus || "").toUpperCase().trim();
+                        const normalizedPaymentMode = (order.paymentMode || order.paymentMethod || order.paymentType || "").toUpperCase().trim();
                         const isPaymentCOD = isCODOrder(order);
                         const paymentLabel = isPaymentCOD
                           ? "Cash on Delivery"
-                          : normalizedPaymentStatus === "PAYMENT_PENDING"
+                          : normalizedPaymentStatus === "PAYMENT_PENDING" || normalizedPaymentMode === "PAYMENT_PENDING"
                             ? "Payment Pending"
-                            : (order.paymentStatus || "UNKNOWN");
-                        const isPaymentSuccess = ["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || isPaymentCOD;
+                            : normalizedPaymentStatus === "PAYMENT_MANUALLY_APPROVED" || normalizedPaymentMode === "PAYMENT_MANUALLY_APPROVED"
+                              ? "Payment Manually Approved"
+                              : (order.paymentStatus || order.paymentMode || "UNKNOWN");
+                        const isPaymentSuccess = ["PAID", "SUCCESS"].includes(normalizedPaymentStatus) || ["PAID", "SUCCESS"].includes(normalizedPaymentMode) || isPaymentCOD;
 
                         return (
                           <>
@@ -714,9 +607,9 @@ const OrdersManagement = ({
                         label={order.orderStatus || "UNKNOWN"}
                         size="small"
                         style={{
-                          backgroundColor: "#f1f6f3",
+                          backgroundColor: "var(--brand-surface)",
                           color: statusColor(order.orderStatus),
-                          border: "1px solid #dce9e2",
+                          border: "1px solid var(--brand-border)",
                           fontWeight: 600,
                         }}
                       />
@@ -725,14 +618,14 @@ const OrdersManagement = ({
                         size="small"
                         style={{
                           backgroundColor: isPaymentSuccess
-                            ? "#e8f5e9"
+                            ? "var(--brand-tint)"
                             : "#fff3e0",
                           color: isPaymentSuccess
-                            ? "#2e7d32"
+                            ? "var(--brand-primary-strong)"
                             : "#e65100",
                           border: `1px solid ${
                             isPaymentSuccess
-                              ? "#a5d6a7"
+                              ? "var(--brand-tint-border)"
                               : "#ffcc80"
                           }`,
                           fontWeight: 600,
@@ -777,8 +670,8 @@ const OrdersManagement = ({
                           textTransform: "none",
                           fontWeight: 600,
                           borderRadius: "8px",
-                          borderColor: "#165d46",
-                          color: "#165d46",
+                          borderColor: "var(--brand-primary)",
+                          color: "var(--brand-primary)",
                         }}
                       >
                         View Details

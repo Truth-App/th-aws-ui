@@ -105,18 +105,18 @@ const MyStocks = () => {
           width: "100%",
           height: "100%",
           overflowY: "auto",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
         }}
       >
         <CardContent>
-          <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46" }}>
+          <Typography variant="h6" style={{ fontWeight: 700, color: "var(--brand-primary)" }}>
             My Stocks
           </Typography>
 
           {loading && (
             <div style={{ marginTop: "16px", display: "flex", gap: "10px", alignItems: "center" }}>
-              <CircularProgress size={20} style={{ color: "#165d46" }} />
+              <CircularProgress size={20} style={{ color: "var(--brand-primary)" }} />
               <Typography variant="body2" color="text.secondary">
                 Loading stocks...
               </Typography>
@@ -130,7 +130,7 @@ const MyStocks = () => {
           )}
 
           {!loading && !error && (
-            <TableContainer component={Paper} style={{ marginTop: "16px", border: "1px solid #e8efeb", boxShadow: "none" }}>
+            <TableContainer component={Paper} style={{ marginTop: "16px", border: "1px solid var(--brand-border)", boxShadow: "none" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
@@ -169,7 +169,7 @@ const MyStocks = () => {
                         <TableCell>{row.orderedQuantity}</TableCell>
                         <TableCell>{row.availableQuantity}</TableCell>
                         <TableCell>{row.mrpPrice}</TableCell>
-                        <TableCell style={{ fontWeight: 600, color: "#165d46" }}>{row.price}</TableCell>
+                        <TableCell style={{ fontWeight: 600, color: "var(--brand-primary)" }}>{row.price}</TableCell>
                         <TableCell>{row.inventoryId}</TableCell>
                         <TableCell>{row.userId}</TableCell>
                       </TableRow>

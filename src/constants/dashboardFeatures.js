@@ -29,7 +29,6 @@ export const FEATURE_LABELS = [
   { id: "onboarding-report", label: "Onboarding Users Report", path: "/onboarding-report" },
   { id: "orders-pincode-report", label: "Orders Report by Pincode", path: "/orders-pincode-report" },
   { id: "reports", label: "Reports", path: "/reports" },
-  { id: "my-stocks", label: "My Stocks", path: "/my-stocks" }
 ];
 
 // get Custom Dashboard Features

@@ -20,6 +20,8 @@ import { EARNINGS_API_URL } from "../constants/api";
 import { USER_ROLES } from "../constants/roles";
 
 const PAGE_SIZE = 10;
+const EXCLUDED_EARNINGS_ROLES = new Set(["Administrator", "Customer"]);
+const EARNINGS_ROLE_OPTIONS = USER_ROLES.filter((role) => !EXCLUDED_EARNINGS_ROLES.has(role));
 
 const formatInr = (value) => {
   const normalized = Number(value);
@@ -103,6 +105,7 @@ const ViewEarning = () => {
   const rows = useMemo(
     () =>
       users
+        .filter((item) => !EXCLUDED_EARNINGS_ROLES.has(item?.role))
         .filter((item) => roleFilter === "All" || item?.role === roleFilter)
         .map((item, index) => ({
           id: String(item?.userId || item?.id || item?.email || index + 1),
@@ -152,7 +155,7 @@ const ViewEarning = () => {
             style={{ marginTop: "16px", minWidth: 220 }}
           >
             <MenuItem value="All">All Roles</MenuItem>
-            {USER_ROLES.map((role) => (
+            {EARNINGS_ROLE_OPTIONS.map((role) => (
               <MenuItem key={role} value={role}>
                 {role}
               </MenuItem>

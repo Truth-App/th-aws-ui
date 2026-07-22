@@ -46,7 +46,7 @@ createRoot(document.getElementById("root")).render(
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/order" element={<OrderSuccess />} />
               <Route
-                path="/orders"
+                path="/my-orders"
                 element={
                   <ProtectedRoute>
                     <Orders />

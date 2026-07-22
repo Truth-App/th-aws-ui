@@ -3,7 +3,10 @@ import OrdersManagementPanel from "../components/OrdersManagement";
 
 const Orders = () => (
   <AdminPageLayout activeFeature="orders">
-    <OrdersManagementPanel />
+    <OrdersManagementPanel
+      showStatusTimelineFilter
+      ordersApi="my-orders"
+    />
   </AdminPageLayout>
 );
 

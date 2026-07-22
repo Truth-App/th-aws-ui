@@ -7,6 +7,7 @@ const ViewOrders = () => (
       title="View Orders"
       description="View all orders and open detailed tracking."
       showStatusTimelineFilter
+      ordersApi="orders"
     />
   </AdminPageLayout>
 );

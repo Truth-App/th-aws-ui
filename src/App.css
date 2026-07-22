@@ -9,3 +9,10 @@
 	--brand-tint: #dceaf5;
 	--brand-tint-border: #88acc7;
 }
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background-color: #eff6ff;
+}

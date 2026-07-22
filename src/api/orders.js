@@ -115,6 +115,16 @@ export const getOrderById = async (orderId) => {
   }
 };
 
+const normalizeOrdersList = (responseData) => {
+  if (Array.isArray(responseData)) return responseData;
+  if (Array.isArray(responseData?.orders)) return responseData.orders;
+  if (Array.isArray(responseData?.data)) return responseData.data;
+  if (responseData && typeof responseData === "object" && responseData.orderId) {
+    return [responseData];
+  }
+  return [];
+};
+
 export const getOrders = async (accessToken) => {
   try {
     const response = await fetch(
@@ -132,9 +142,35 @@ export const getOrders = async (accessToken) => {
       throw new Error(`Failed to fetch orders. Status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return normalizeOrdersList(data);
   } catch (error) {
     console.error("Error fetching orders:", error);
+    throw error;
+  }
+};
+
+export const getMyOrders = async (accessToken) => {
+  try {
+    const response = await fetch(
+      "https://y4cbvwkmfa.execute-api.ap-south-2.amazonaws.com/api/my-orders",
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch my orders. Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return normalizeOrdersList(data);
+  } catch (error) {
+    console.error("Error fetching my orders:", error);
     throw error;
   }
 };

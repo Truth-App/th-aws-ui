@@ -173,15 +173,19 @@ const getTimelineStepTimes = (details) => {
     "";
   const isFinalApprovalStatus = ["ORDER_APPROVED", "APPROVED", "REJECTED"].includes(normalizedAdminApprovalStatus);
   const isOrderApprovedStatus = ["ORDER_APPROVED", "ACCEPTED"].includes(normalizedOrderStatus);
+  // Approval is a prerequisite for these statuses — treat them as approved too
+  const isOrderBeyondApproval = ["SHIPMENT_APPROVED", "SHIPPED", "DELIVERED", "DELIVERY_COMPLETED", "SHIPMENT_REJECTED"].includes(normalizedOrderStatus);
   const isDeliveryCompleted = ["DELIVERY_COMPLETED", "DELIVERED"].includes(normalizedDeliveryApprovalStatus);
   const isDeliveryFailed = ["FAILED", "NOT_DELIVERED", "DELIVERY_FAILED"].includes(normalizedDeliveryApprovalStatus);
+  const hasApprovalTimestamp = isFinalApprovalStatus || isOrderApprovedStatus || isOrderBeyondApproval;
 
   return {
     PLACED: getHistoryTimestamp(orderHistory, "PLACED") || details?.createdAt || "",
     PAID: getHistoryTimestamp(paymentHistory, "PAID") || "",
     ACCEPTED:
       getHistoryTimestamp(orderHistory, "ACCEPTED") ||
-      (isFinalApprovalStatus || isOrderApprovedStatus ? adminApprovalDate : ""),
+      getHistoryTimestamp(orderHistory, "ORDER_APPROVED") ||
+      (hasApprovalTimestamp ? adminApprovalDate : ""),
     SHIPPED: getHistoryTimestamp(orderHistory, "SHIPPED") || shipmentApprovedDate,
     DELIVERED:
       getHistoryTimestamp(orderHistory, "DELIVERED") ||
@@ -228,7 +232,7 @@ const OrderSuccess = () => {
   const shortOrderId = String(details?.orderId || orderId || "").slice(0, 8);
   const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
   const showBackButton = location.state?.showBackButton === true;
-  const sourcePath = location.state?.sourcePath || "/orders";
+  const sourcePath = location.state?.sourcePath || "/my-orders";
   const restoreOrdersState = location.state?.restoreOrdersState;
 
   const handleBackClick = () => {

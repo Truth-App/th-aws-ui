@@ -120,18 +120,33 @@ const getStockHistory = (item) => {
   return [];
 };
 
-const getUserReferenceNumber = (user) =>
-  user?.referencenumber || user?.referenceNumber || "";
-
 const getUserReferenceIdForInventory = (users, selectedUserId) => {
   const selectedUser = users.find((item) => item.id === selectedUserId);
   if (!selectedUser) return "";
-  return getUserReferenceNumber(selectedUser) || selectedUser.userId || "";
+  return selectedUser.userId || "";
 };
+
+const getInventoryUserReferenceId = (item) => item.userId || "";
+
+const getUserByReferenceId = (users, userReferenceId) =>
+  users.find((item) => item.userId === userReferenceId) || null;
 
 const getProductLabel = (products, productId) => {
   const product = products.find((item) => item.id === productId);
   return product?.title || "—";
+};
+
+const getUserLabelByReferenceId = (users, userReferenceId) => {
+  const user = getUserByReferenceId(users, userReferenceId);
+  if (!user) return "—";
+  const first = user.firstname || user.firstName || "";
+  const last = user.lastname || user.lastName || "";
+  return `${first} ${last}`.trim() || "—";
+};
+
+const getUserRoleByReferenceId = (users, userReferenceId) => {
+  const user = getUserByReferenceId(users, userReferenceId);
+  return user?.role || "—";
 };
 
 const getUserLabel = (users, userId) => {
@@ -140,11 +155,6 @@ const getUserLabel = (users, userId) => {
   const first = user.firstname || user.firstName || "";
   const last = user.lastname || user.lastName || "";
   return `${first} ${last}`.trim() || "—";
-};
-
-const getUserRole = (users, userId) => {
-  const user = users.find((item) => item.id === userId);
-  return user?.role || "—";
 };
 
 const getUserDetails = (users, userId) => {
@@ -178,21 +188,21 @@ const mapInventoryToEditForm = (item) => {
 
 const StockHistoryTable = ({ history = [], title = "Stock History" }) => (
   <div style={{ marginTop: "0.5em" }}>
-    <Typography variant="body2" style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}>
+    <Typography variant="body2" style={{ fontWeight: 600, color: "var(--brand-primary)", marginBottom: "0.5em" }}>
       {title}
     </Typography>
     <TableContainer
       component={Paper}
       variant="outlined"
-      style={{ border: "1px solid #e8efeb", boxShadow: "none" }}
+      style={{ border: "1px solid var(--brand-border)", boxShadow: "none" }}
     >
       <Table size="small">
         <TableHead>
           <TableRow>
-            <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+            <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
               Quantity
             </TableCell>
-            <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+            <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
               Stock Date
             </TableCell>
           </TableRow>
@@ -309,14 +319,14 @@ const InventoryFormFields = ({
 
 const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView, onToggleEdit }) => {
   const productId = getItemProductId(item);
-  const userId = getItemUserId(item);
+  const userId = getInventoryUserReferenceId(item);
   const stockHistory = getStockHistory(item);
 
   return (
     <>
       <TableRow hover>
         <TableCell>{getProductLabel(products, productId)}</TableCell>
-        <TableCell>{getUserLabel(users, userId)}</TableCell>
+        <TableCell>{getUserLabelByReferenceId(users, userId)}</TableCell>
         <TableCell>{getItemStockQuantity(item) ?? "—"}</TableCell>
         <TableCell>{getItemOrderedQuantity(item) ?? "—"}</TableCell>
         <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
@@ -324,7 +334,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
             onClick={() => onToggleView(item)}
             size="small"
             aria-label="View inventory"
-            style={{ color: "#165d46" }}
+            style={{ color: "var(--brand-primary)" }}
           >
             <MdVisibility size={20} />
           </IconButton>
@@ -332,7 +342,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
             onClick={() => onToggleEdit(item)}
             size="small"
             aria-label="Edit inventory"
-            style={{ color: "#165d46" }}
+            style={{ color: "var(--brand-primary)" }}
           >
             <MdEdit size={20} />
           </IconButton>
@@ -342,7 +352,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
             size="small"
             onClick={onToggle}
             aria-label={expanded ? "Collapse stock history" : "Expand stock history"}
-            style={{ color: "#165d46" }}
+            style={{ color: "var(--brand-primary)" }}
           >
             {expanded ? <MdKeyboardArrowUp size={20} /> : <MdKeyboardArrowDown size={20} />}
           </IconButton>
@@ -378,8 +388,6 @@ const InventoryManagement = () => {
   const [productFilter, setProductFilter] = useState("");
   const [userFilter, setUserFilter] = useState("");
   const [expandedRowId, setExpandedRowId] = useState(null);
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
 
   const superStockistUsers = useMemo(
     () => users.filter((user) => user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator"),
@@ -403,10 +411,10 @@ const InventoryManagement = () => {
 
     return inventoryItems.filter((item) => {
       const productId = getItemProductId(item);
-      const userId = getItemUserId(item);
+      const userId = getInventoryUserReferenceId(item);
       const productLabel = getProductLabel(products, productId).toLowerCase();
-      const userLabel = getUserLabel(users, userId).toLowerCase();
-      const userRole = getUserRole(users, userId).toLowerCase();
+      const userLabel = getUserLabelByReferenceId(users, userId).toLowerCase();
+      const userRole = getUserRoleByReferenceId(users, userId).toLowerCase();
       const stockQuantity = String(getItemStockQuantity(item) ?? "");
 
       const searchable = [productLabel, userLabel, userRole, stockQuantity].join(" ");
@@ -416,13 +424,6 @@ const InventoryManagement = () => {
       return matchesSearch && matchesProduct && matchesUser;
     });
   }, [inventoryItems, products, users, searchTerm, productFilter, userFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredInventory.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedInventory = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredInventory.slice(start, start + PAGE_SIZE);
-  }, [filteredInventory, currentPage]);
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
@@ -514,6 +515,7 @@ const InventoryManagement = () => {
       const payload = {
         productid: inventory.productid,
         userid: inventory.userid,
+        userId: inventory.userId,
         stockquantity: stockPayload.stockquantity,
         stockhistory: stockPayload.stockhistory,
       };
@@ -521,10 +523,7 @@ const InventoryManagement = () => {
       if (isEditMode) {
         await updateInventory(editingInventoryId, payload);
       } else {
-        await createInventory({
-          ...payload,
-          userId: inventory.userId || getUserReferenceIdForInventory(users, inventory.userid),
-        });
+        await createInventory(payload);
       }
       toast.success(isEditMode ? "Inventory updated successfully" : "Inventory added successfully");
       dispatch(fetchInventory());
@@ -554,7 +553,7 @@ const InventoryManagement = () => {
           overflowY: "auto",
           overflowX: "hidden",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -570,7 +569,7 @@ const InventoryManagement = () => {
               onClick={handleClickOpen}
               size="small"
               aria-label="Add inventory"
-              style={{ color: "#165d46" }}
+              style={{ color: "var(--brand-primary)" }}
             >
               <MdAddBox size={50} style={{ fontSize: "20px" }} />
             </IconButton>
@@ -591,10 +590,7 @@ const InventoryManagement = () => {
               size="small"
               label="Filter by product"
               value={productFilter}
-              onChange={(e) => {
-                setProductFilter(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setProductFilter(e.target.value)}
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
             >
               <MenuItem value="">All products</MenuItem>
@@ -609,15 +605,12 @@ const InventoryManagement = () => {
               size="small"
               label="Filter by user (Super Stockist or Administrator)"
               value={userFilter}
-              onChange={(e) => {
-                setUserFilter(e.target.value);
-                setPage(1);
-              }}
+              onChange={(e) => setUserFilter(e.target.value)}
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
             >
               <MenuItem value="">All users</MenuItem>
               {superStockistUsers.map((user) => (
-                <MenuItem key={user.id} value={user.id}>
+                <MenuItem key={user.id} value={user.userId || ""}>
                   {user.firstname || user.firstName} {user.lastname || user.lastName}
                 </MenuItem>
               ))}
@@ -638,39 +631,39 @@ const InventoryManagement = () => {
               style={{
                 marginTop: "0.75em",
                 overflowX: "auto",
-                border: "1px solid #e8efeb",
+                border: "1px solid var(--brand-border)",
                 boxShadow: "none",
               }}
             >
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
                       Product
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
                       User
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
                       Stock Quantity
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
                       Ordered Quantity
                     </TableCell>
                     <TableCell
                       align="right"
-                      style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", minWidth: 120 }}
+                      style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)", minWidth: 120 }}
                     >
                       Action
                     </TableCell>
                     <TableCell
                       align="center"
-                      style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", width: 40 }}
+                      style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)", width: 40 }}
                     />
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {paginatedInventory.map((item) => (
+                  {filteredInventory.map((item) => (
                     <InventoryRow
                       key={item.id}
                       item={item}
@@ -687,38 +680,6 @@ const InventoryManagement = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-          )}
-
-          {filteredInventory.length > 0 && totalPages > 1 && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "12px",
-                marginTop: "1.5em",
-                marginBottom: "0.5em",
-                flexWrap: "wrap",
-              }}
-            >
-              <Button
-                variant="outlined"
-                disabled={currentPage === 1}
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              >
-                Previous
-              </Button>
-              <Typography variant="body2">
-                Page {currentPage} of {totalPages}
-              </Typography>
-              <Button
-                variant="outlined"
-                disabled={currentPage === totalPages}
-                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-              >
-                Next
-              </Button>
-            </div>
           )}
 
           {status === "succeeded" && inventoryItems.length === 0 && (

@@ -41,6 +41,13 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
     [users, user?.email],
   );
 
+  const backendUser = useMemo(
+    () => users.find((u) => (u.email || "").toLowerCase() === (user?.email || "").toLowerCase()),
+    [users, user?.email],
+  );
+  const backendUserId = backendUser?.userId || "";
+  const backendUserRole = backendUser?.role || "";
+
   const showDashboard = hasDashboardAccess(userPrivileges);
   const dashboardPath = getDashboardHomePath("", userPrivileges);
 
@@ -177,18 +184,34 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
             paddingRight: "12px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "center",
+            gap: "8px",
           }}
         >
           {authResolving ? (
             <CircularProgress size={24} sx={{ color: "var(--brand-primary)" }} />
           ) : (
-            <Avatar
-              src={user?.picture ?? undefined}
-              sx={{ width: 36, height: 36, backgroundColor: "var(--brand-primary)", cursor: "pointer" }}
-            >
-              {!user?.picture && <MdPerson size={20} color="white" />}
-            </Avatar>
+            <>
+              {isAuthenticated && (user?.name || backendUserId || backendUserRole) && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>
+                  {(user?.name || backendUserId) && (
+                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1f1f1f", whiteSpace: "nowrap", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {user?.name || ""}{user?.name && backendUserId ? ` (${backendUserId})` : backendUserId || ""}
+                    </span>
+                  )}
+                  {backendUserRole && (
+                    <span style={{ fontSize: "0.7rem", color: "var(--brand-primary-strong)", fontWeight: 500 }}>
+                      {backendUserRole}
+                    </span>
+                  )}
+                </div>
+              )}
+              <Avatar
+                src={user?.picture ?? undefined}
+                sx={{ width: 36, height: 36, backgroundColor: "var(--brand-primary)", cursor: "pointer" }}
+              >
+                {!user?.picture && <MdPerson size={20} color="white" />}
+              </Avatar>
+            </>
           )}
         </button>
 

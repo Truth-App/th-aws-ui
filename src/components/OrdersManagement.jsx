@@ -21,7 +21,7 @@ import {
   MdInventory,
   MdSearch,
 } from "react-icons/md";
-import { getOrders } from "../api/orders";
+import { getMyOrders, getOrders } from "../api/orders";
 
 const TIMELINE_FILTER_STEPS = ["PLACED", "PAID", "SHIPPED", "DELIVERED"];
 const TIMELINE_STEP_LABELS = {
@@ -100,6 +100,7 @@ const OrdersManagement = ({
   title = "My Orders",
   description = "View order summaries and open detailed tracking.",
   showStatusTimelineFilter = false,
+  ordersApi = "my-orders",
 }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +148,8 @@ const OrdersManagement = ({
           return;
         }
 
-        const data = await getOrders(accessToken);
+        const fetchOrders = ordersApi === "orders" ? getOrders : getMyOrders;
+        const data = await fetchOrders(accessToken);
         const sortedOrders = Array.isArray(data)
           ? [...data].sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0))
           : [];
@@ -161,7 +163,7 @@ const OrdersManagement = ({
     };
 
     fetchUserOrders();
-  }, []);
+  }, [ordersApi]);
 
   const visibleOrders = orders.filter((order) => {
     const normalizedSearchTerm = orderIdSearchTerm.trim().toLowerCase();
@@ -186,10 +188,24 @@ const OrdersManagement = ({
       .filter((value) => value !== undefined && value !== null && value !== "")
       .map((value) => String(value).toLowerCase());
 
+    const orderPhoneCandidates = [
+      order?.phone,
+      order?.mobile,
+      order?.user?.phone,
+      order?.user?.mobile,
+      order?.shippingAddress?.phone,
+      order?.deliveryAddress?.phone,
+      order?.address?.phone,
+      order?.customerAddress?.phone,
+    ]
+      .filter((value) => value !== undefined && value !== null && value !== "")
+      .map((value) => String(value).toLowerCase());
+
     const matchesOrderId = fullOrderId.includes(normalizedSearchTerm) || shortOrderId.includes(normalizedSearchTerm);
     const matchesPincode = orderPincodeCandidates.some((pincode) => pincode.includes(normalizedSearchTerm));
+    const matchesPhone = orderPhoneCandidates.some((phone) => phone.includes(normalizedSearchTerm));
 
-    if (normalizedSearchTerm && !matchesOrderId && !matchesPincode) {
+    if (normalizedSearchTerm && !matchesOrderId && !matchesPincode && !matchesPhone) {
       return false;
     }
 
@@ -291,7 +307,7 @@ const OrdersManagement = ({
         >
           <TextField
             size="small"
-            placeholder="Search by order id or pincode"
+            placeholder="Search by order id, pincode, or phone number"
             value={orderIdSearchTerm}
             onChange={(event) => setOrderIdSearchTerm(event.target.value)}
             InputProps={{

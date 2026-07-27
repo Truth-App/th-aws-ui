@@ -266,7 +266,7 @@ const CategoryManagement = () => {
                 fontWeight: "bolder",
               }}
             >
-              + Add Category
+              + Add
             </Button>
           </div>
           
@@ -337,7 +337,7 @@ const CategoryManagement = () => {
                       variant="contained"
                       style={{ backgroundColor: "var(--brand-primary)", textTransform: "none", fontWeight: "bold" }}
                     >
-                      Update Category
+                      Update
                     </Button>
                   </CardActions>
                 </Card>

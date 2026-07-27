@@ -47,7 +47,7 @@ const ReportsHub = () => {
       style={{
         width: "100%",
         height: "100%",
-        overflowY: "auto",
+        overflowY: "visible",
         border: "none",
         boxShadow: "none",
         backgroundColor: "#ffffff",
@@ -67,7 +67,7 @@ const ReportsHub = () => {
           variant={isMobile ? "scrollable" : "standard"}
           scrollButtons={isMobile ? "auto" : false}
           sx={{
-            borderBottom: "1px solid #e8e8e8",
+            borderBottom: "1px solid var(--brand-border)",
             mb: 1,
             "& .MuiTab-root": {
               textTransform: "none",
@@ -75,10 +75,10 @@ const ReportsHub = () => {
               minHeight: 44,
             },
             "& .Mui-selected": {
-              color: "#0c831f",
+              color: "var(--brand-primary)",
             },
             "& .MuiTabs-indicator": {
-              backgroundColor: "#0c831f",
+              backgroundColor: "var(--brand-primary)",
             },
           }}
         >

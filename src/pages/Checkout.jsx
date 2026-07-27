@@ -168,7 +168,13 @@ const Checkout = () => {
       setOrderLoading(true);
       
       // For COD, pass isPaymentCOD flag
-      const orderResponse = await createOrder(cart, formData, paymentMethod === "cod");
+      const orderResponse = await createOrder(
+        cart,
+        formData,
+        paymentMethod === "cod",
+        finalTotal,
+        orderTotal < 499 ? 50 : 0,
+      );
       setOrderLoading(false);
       
       if (!orderResponse || !orderResponse.orderId) {
@@ -298,6 +304,10 @@ const Checkout = () => {
     }
   };
 
+  const orderTotal = cart.reduce((sum, item) => sum + item.customerPrice * item.quantity, 0);
+  const finalTotal = orderTotal + (orderTotal < 499 ? 50 : 0);
+  const amountToFreeDelivery = Math.max(0, 499 - orderTotal);
+
   return (
     <>
       <Navbar />
@@ -308,7 +318,7 @@ const Checkout = () => {
           gap: "16px",
           padding: "20px",
           height: "calc(100vh - 100px)",
-          overflow: "auto",
+          overflow: "visible",
           boxSizing: "border-box",
         }}
       >
@@ -318,7 +328,7 @@ const Checkout = () => {
             flex: "1 1 55%",
             minWidth: "300px",
             maxHeight: "100%",
-            overflowY: "auto",
+            overflowY: "visible",
             borderRadius: "12px",
           }}
         >
@@ -339,6 +349,26 @@ const Checkout = () => {
                 Continue Shopping
               </Button>
             </div>
+            <Typography
+              variant="body2"
+              style={{
+                marginTop: "-4px",
+                marginBottom: "14px",
+                padding: "8px 10px",
+                borderRadius: "8px",
+                backgroundColor: "#f4f8f6",
+                border: "1px solid #dce7df",
+                color: "#2b4d3a",
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
+              <span style={{ display: "inline-block", textAlign: "left" }}>
+                Enjoy free delivery on orders above Rs. 499.
+                <br />
+                A delivery fee of Rs. 50 applies to orders below Rs. 499.
+              </span>
+            </Typography>
             {cart.length === 0 ? (
               <Typography color="text.secondary" style={{ textAlign: "center" }}>Your cart is empty.</Typography>
             ) : (
@@ -450,7 +480,43 @@ const Checkout = () => {
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
                   <Typography variant="body1" style={{ fontWeight: 700 }}>Our Price</Typography>
                   <Typography variant="body1" style={{ fontWeight: 700 }}>
-                    ₹{cart.reduce((sum, item) => sum + item.customerPrice * item.quantity, 0)}
+                    ₹{orderTotal}
+                  </Typography>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <Typography
+                    variant="body2"
+                    style={{
+                      color: "#1f1f1f",
+                      fontWeight: 400,
+                    }}
+                  >
+                    {orderTotal < 499 ? (
+                      <>
+                        Delivery charges included.
+                        <br />
+                        <span style={{ color: "#0b6bcb", fontSize: "0.78rem", fontWeight: 400 }}>
+                          Add more ₹{amountToFreeDelivery} to save on delivery charges
+                        </span>
+                      </>
+                    ) : (
+                      "You saved on delivery charges"
+                    )}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    style={{
+                      color: "#1f1f1f",
+                      fontWeight: 400,
+                    }}
+                  >
+                    {orderTotal < 499 ? "+ ₹50" : "- ₹50"}
+                  </Typography>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <Typography variant="body1" style={{ fontWeight: 700 }}>Total</Typography>
+                  <Typography variant="body1" style={{ fontWeight: 700 }}>
+                    ₹{finalTotal}
                   </Typography>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -469,7 +535,7 @@ const Checkout = () => {
             flex: "1 1 35%",
             minWidth: "280px",
             maxHeight: "100%",
-            overflowY: "auto",
+            overflowY: "visible",
             borderRadius: "12px",
           }}
         >

@@ -550,7 +550,7 @@ const InventoryManagement = () => {
         style={{
           height: "100%",
           width: "100%",
-          overflowY: "auto",
+          overflowY: "visible",
           overflowX: "hidden",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
           border: "1px solid var(--brand-border)",

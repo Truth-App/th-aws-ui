@@ -87,8 +87,8 @@ const HierarchyNode = ({
           padding: isMobile ? "0.55em 0.65em" : "0.5em 0.75em",
           marginBottom: "0.35em",
           borderRadius: "6px",
-          border: "1px solid #e8efeb",
-          backgroundColor: depth === 0 ? "#fafbf9" : "#fff",
+          border: "1px solid var(--brand-border)",
+          backgroundColor: depth === 0 ? "var(--brand-surface)" : "#fff",
         }}
       >
         {hasChildren ? (
@@ -100,7 +100,7 @@ const HierarchyNode = ({
               border: "none",
               background: "transparent",
               cursor: "pointer",
-              color: "#165d46",
+              color: "var(--brand-primary-strong)",
               fontWeight: 700,
               width: "1.25em",
               flexShrink: 0,
@@ -119,7 +119,7 @@ const HierarchyNode = ({
             minWidth: 0,
             flex: 1,
             fontWeight: 600,
-            color: "#165d46",
+            color: "var(--brand-primary-strong)",
             lineHeight: 1.35,
             wordBreak: "break-word",
             fontSize: isMobile ? "0.8rem" : undefined,
@@ -269,7 +269,7 @@ const UserHierarchy = () => {
         width: "100%",
         height: "100%",
         boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-        border: "1px solid #e8efeb",
+        border: "1px solid var(--brand-border)",
         display: "flex",
         flexDirection: "column",
       }}
@@ -278,7 +278,7 @@ const UserHierarchy = () => {
         <Typography
           variant="h6"
           style={{
-            color: "#165d46",
+            color: "var(--brand-primary-strong)",
             fontWeight: 700,
             marginBottom: "0.25em",
             fontSize: isMobile ? "1rem" : undefined,
@@ -321,8 +321,8 @@ const UserHierarchy = () => {
             variant="outlined"
             onClick={() => setExpandAll((prev) => !prev)}
             style={{
-              color: "#165d46",
-              borderColor: "#165d46",
+              color: "var(--brand-primary-strong)",
+              borderColor: "var(--brand-primary-strong)",
               textTransform: "none",
               width: isMobile ? "100%" : "auto",
             }}
@@ -347,7 +347,7 @@ const UserHierarchy = () => {
             <Typography
               variant="body2"
               style={{
-                color: "#165d46",
+                color: "var(--brand-primary-strong)",
                 marginBottom: "0.75em",
                 fontWeight: 600,
                 fontSize: isMobile ? "0.8rem" : undefined,
@@ -360,7 +360,13 @@ const UserHierarchy = () => {
 
             <div
               key={expandAll ? "expanded" : "collapsed"}
-              style={{ flex: 1, overflow: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                overflowX: "hidden",
+                WebkitOverflowScrolling: "touch",
+              }}
             >
               {roots.length === 0 && (
                 <Typography style={{ color: "#6f7378", textAlign: "center", marginTop: "2em" }}>
@@ -384,7 +390,7 @@ const UserHierarchy = () => {
                 <div style={{ marginTop: "1.5em" }}>
                   <Typography
                     variant="subtitle2"
-                    style={{ color: "#165d46", fontWeight: 700, marginBottom: "0.75em", fontSize: isMobile ? "0.85rem" : undefined }}
+                    style={{ color: "var(--brand-primary-strong)", fontWeight: 700, marginBottom: "0.75em", fontSize: isMobile ? "0.85rem" : undefined }}
                   >
                     Unlinked Users ({unlinked.length})
                   </Typography>

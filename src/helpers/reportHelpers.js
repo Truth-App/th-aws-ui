@@ -1,14 +1,14 @@
 export const CHART_COLORS = [
-  "#165d46",
-  "#0c831f",
-  "#1976d2",
-  "#ef6c00",
-  "#7b1fa2",
-  "#c62828",
-  "#00838f",
-  "#546e7a",
-  "#6a1b9a",
-  "#2e7d32",
+  "#0f2f7e",
+  "#1846aa",
+  "#245ac2",
+  "#2f6fd7",
+  "#3f83e9",
+  "#5f99f2",
+  "#7caef7",
+  "#9ac2fb",
+  "#5b88dd",
+  "#355fae",
 ];
 
 export const toInputDate = (date) => {

@@ -32,11 +32,11 @@ import { USER_ROLES } from "../constants/roles";
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const ROLE_COLORS = {
-  Administrator: "#2e7d32",
-  "Super Stockist": "#1976d2",
-  Stockist: "#ef6c00",
-  Dealer: "#7b1fa2",
-  Customer: "#546e7a",
+  Administrator: "#0f2f7e",
+  "Super Stockist": "#1846aa",
+  Stockist: "#2f6fd7",
+  Dealer: "#5f99f2",
+  Customer: "#355fae",
 };
 
 const toInputDate = (date) => {
@@ -87,6 +87,8 @@ const getUserDisplayName = (user) =>
   "—";
 
 const OnboardingUsersReport = ({ embedded = false }) => {
+  const barBlueStrong = "#0f2f7e";
+  const barBlueActive = "#1846aa";
   const isMobile = useMediaQuery("(max-width:600px)");
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
@@ -210,7 +212,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
     return {
       labels: roles,
       counts: roles.map((role) => counts[role]),
-      colors: roles.map((role) => ROLE_COLORS[role] || "#90a4ae"),
+      colors: roles.map((role) => ROLE_COLORS[role] || "#5f99f2"),
     };
   }, [filteredUsers, selectedDayKey]);
 
@@ -221,7 +223,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
         label: "Users onboarded",
         data: dailyTrend.counts,
         backgroundColor: dailyTrend.dateKeys.map((key) =>
-          key === selectedDayKey ? "#0c831f" : "#165d46",
+          key === selectedDayKey ? barBlueActive : barBlueStrong,
         ),
         borderRadius: 6,
         maxBarThickness: 28,
@@ -235,7 +237,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       {
         data: roleBreakdown.counts,
         backgroundColor: roleBreakdown.labels.map((role) => {
-          const base = ROLE_COLORS[role] || "#90a4ae";
+          const base = ROLE_COLORS[role] || "#5f99f2";
           if (!selectedChartRole) return base;
           return role === selectedChartRole ? base : `${base}66`;
         }),
@@ -270,7 +272,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
       style={{
         width: "100%",
         height: "100%",
-        overflowY: "auto",
+        overflowY: "visible",
         border: "none",
         boxShadow: "none",
         backgroundColor: "#ffffff",
@@ -335,7 +337,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             variant="contained"
             onClick={handleApply}
             style={{
-              backgroundColor: "#0c831f",
+              backgroundColor: "var(--brand-primary)",
               textTransform: "none",
               fontWeight: 700,
               borderRadius: "8px",
@@ -348,7 +350,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px" }}>
-            <CircularProgress size={20} style={{ color: "#165d46" }} />
+            <CircularProgress size={20} style={{ color: "var(--brand-primary-strong)" }} />
             <Typography variant="body2" color="text.secondary">
               Loading onboarding data...
             </Typography>
@@ -371,27 +373,27 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                 marginBottom: "1em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Total onboarded
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {filteredUsers.length}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Peak day count
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {dailyTrend.counts.length ? Math.max(...dailyTrend.counts) : 0}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Roles covered
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {roleBreakdown.labels.length}
                 </Typography>
               </Paper>
@@ -405,7 +407,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                 marginBottom: "1.25em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Daily onboarding trend
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -467,7 +469,7 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                 )}
               </Paper>
 
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Role-wise onboarding
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -544,14 +546,14 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                     setSelectedChartRole("");
                     setPage(1);
                   }}
-                  style={{ textTransform: "none", borderColor: "#165d46", color: "#165d46" }}
+                  style={{ textTransform: "none", borderColor: "var(--brand-primary-strong)", color: "var(--brand-primary-strong)" }}
                 >
                   Clear chart filters
                 </Button>
               )}
             </div>
 
-            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "#e8e8e8", boxShadow: "none" }}>
+            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "var(--brand-border)", boxShadow: "none" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>

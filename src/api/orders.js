@@ -1,7 +1,19 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
-export const createOrder = async (cart, formData, isPaymentCOD = false) => {
-  console.log("createOrder called with:", { cart, formData, isPaymentCOD });
+export const createOrder = async (
+  cart,
+  formData,
+  isPaymentCOD = false,
+  computedTotal = null,
+  deliveryChargeApplied = 0,
+) => {
+  console.log("createOrder called with:", {
+    cart,
+    formData,
+    isPaymentCOD,
+    computedTotal,
+    deliveryChargeApplied,
+  });
   try {
     const products = cart.map((item) => ({
       id: item.id,
@@ -11,7 +23,11 @@ export const createOrder = async (cart, formData, isPaymentCOD = false) => {
       mrpPrice: item.mrpPrice,
     }));
 
-    const total = products.reduce((sum, p) => sum + p.subTotal, 0);
+    const productsTotal = products.reduce((sum, p) => sum + p.subTotal, 0);
+    const parsedComputedTotal = Number(computedTotal);
+    const total = Number.isFinite(parsedComputedTotal) && parsedComputedTotal >= 0
+      ? parsedComputedTotal
+      : productsTotal;
 
     const user = {
       fullName: formData.fullName,
@@ -29,6 +45,7 @@ export const createOrder = async (cart, formData, isPaymentCOD = false) => {
     const payload = {
       products,
       amount: { total },
+      ...(deliveryChargeApplied === 50 ? { deliveryChargeApplied: 50 } : {}),
       user,
       shippingAddress,
       ...(isPaymentCOD && { isPaymentCOD: true }),

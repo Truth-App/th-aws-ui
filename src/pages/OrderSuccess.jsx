@@ -426,7 +426,6 @@ const OrderSuccess = () => {
   const isSuperStockist = userRole === SUPER_STOCKIST_ROLE;
   const isStockist = userRole === "Stockist";
   const isDealer = userRole === "Dealer";
-  const isRoleUndefined = !String(userRole || "").trim();
   const canManageShipment = isAdmin || isSuperStockist;
   const isAdminApproved =
     details?.isAdminApproved === true ||
@@ -461,14 +460,31 @@ const OrderSuccess = () => {
     details?.deliveryDetails?.customerDeliveryPin ||
     details?.customerDeliveryPin ||
     "";
+  const orderUserIdCandidates = [
+    details?.userId,
+    details?.user?.userId,
+    details?.user?.id,
+    details?.user?.email,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  const loggedInUserIdCandidates = [
+    authUser?.userId,
+    authUser?.id,
+    authUser?.email,
+    authUser?.username,
+    authUser?.sub,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean);
+  const doesOrderBelongToLoggedInUser =
+    orderUserIdCandidates.length > 0 &&
+    loggedInUserIdCandidates.some((loggedInId) => orderUserIdCandidates.includes(loggedInId));
+  const isGuestUser = !authUser || loggedInUserIdCandidates.length === 0;
   const shouldShowDeliveryPinInput = !(isStockist || isDealer);
-  const isRoleUnknownOrNotMatched =
-    isRoleUndefined || ![ADMIN_ROLE, SUPER_STOCKIST_ROLE, "Stockist", "Dealer", "Customer"].includes(userRole);
   const canShowDeliveryPinChip =
     Boolean(String(deliveryPin || "").trim()) &&
-    !(isStockist || isDealer) &&
-    !isSuperStockist &&
-    (isAdmin || isCustomer || isRoleUnknownOrNotMatched);
+    (isAdmin || doesOrderBelongToLoggedInUser || isGuestUser);
   const isOrderApprovedForOps = normalizedOrderStatus === "ORDER_APPROVED";
   const hasShipmentApprovalPayload =
     Boolean((details?.shipmentApprovalStatus || "").trim()) ||
@@ -545,6 +561,13 @@ const OrderSuccess = () => {
   const totalMrp = products.reduce((sum, item) => sum + (item.mrpPrice || 0) * (item.quantity || 0), 0);
   const totalSaved = totalMrp - totalAmount;
   const savedPercentage = totalMrp > 0 ? (totalSaved / totalMrp) * 100 : 0;
+  const normalizedDeliveryChargeApplied = Number(details?.deliveryChargeApplied);
+  const hasDeliveryChargeApplied =
+    details?.deliveryChargeApplied !== undefined &&
+    details?.deliveryChargeApplied !== null &&
+    Number.isFinite(normalizedDeliveryChargeApplied);
+  const normalizedApiTotal = Number(details?.amount?.total);
+  const hasApiTotal = Number.isFinite(normalizedApiTotal);
   const isShipmentCardEditable = canManageShipment && canShowShipmentCard && !hasFinalShipmentDecision;
 
   /* eslint-disable react-hooks/set-state-in-effect -- fetch and reset stock when shipment card edit mode toggles */
@@ -1021,7 +1044,7 @@ const OrderSuccess = () => {
                   {details.shippingAddress?.address || "-"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
-                  {details.shippingAddress?.city || "-"}
+                  {details.shippingAddress?.landmark || "-"}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
                   {details.shippingAddress?.pincode || "-"}
@@ -1107,6 +1130,14 @@ const OrderSuccess = () => {
                         <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
                           Amount: INR {totalAmount.toFixed(2)}
                         </Typography>
+                        {hasDeliveryChargeApplied && (
+                          <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
+                            Delivery charge: INR {normalizedDeliveryChargeApplied.toFixed(2)}
+                          </Typography>
+                        )}
+                        <Typography variant="body2" color="text.secondary" style={{ marginTop: "4px" }}>
+                          Total: INR {hasApiTotal ? normalizedApiTotal.toFixed(2) : "-"}
+                        </Typography>
                         <Typography variant="body2" style={{ color: "var(--brand-primary-strong)", fontWeight: 600, marginTop: "4px" }}>
                           Saved: INR {totalSaved.toFixed(2)}
                         </Typography>
@@ -1115,9 +1146,7 @@ const OrderSuccess = () => {
                         </Typography>
                       </CardContent>
                     </Card>
-                    <Typography variant="body2" color="text.secondary" style={{ marginTop: "6px" }}>
-                      Email: thriftyHome@gmail.com | Ph no: 12313221
-                    </Typography>
+        
                     {isAdminApprovalApproved && (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", marginTop: "10px" }}>
                         <Button

@@ -1,18 +1,18 @@
 :root {
 	color-scheme: light;
-	--brand-primary: #2b5f84;
-	--brand-primary-strong: #2b5f84;
-	--brand-ink: #1f4a67;
-	--brand-border: #c9dceb;
-	--brand-surface: #eef5fb;
-	--brand-divider: #a6c4da;
-	--brand-tint: #dceaf5;
-	--brand-tint-border: #88acc7;
+	--brand-primary: #1846aa;
+	--brand-primary-strong: #0f2f7e;
+	--brand-ink: #081b4a;
+	--brand-border: #bccdf0;
+	--brand-surface: #f2f6ff;
+	--brand-divider: #98b3e8;
+	--brand-tint: #dfe9ff;
+	--brand-tint-border: #6f96dd;
 }
 
 html,
 body {
 	margin: 0;
 	padding: 0;
-	background-color: #eff6ff;
+	background-color: #eef3ff;
 }

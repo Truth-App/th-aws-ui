@@ -32,16 +32,16 @@ import { getOrders } from "../api/orders";
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const PINCODE_COLORS = [
-  "#165d46",
-  "#0c831f",
-  "#1976d2",
-  "#ef6c00",
-  "#7b1fa2",
-  "#c62828",
-  "#00838f",
-  "#546e7a",
-  "#6a1b9a",
-  "#2e7d32",
+  "#0f2f7e",
+  "#1846aa",
+  "#245ac2",
+  "#2f6fd7",
+  "#3f83e9",
+  "#5f99f2",
+  "#7caef7",
+  "#9ac2fb",
+  "#5b88dd",
+  "#355fae",
 ];
 
 const toInputDate = (date) => {
@@ -125,6 +125,8 @@ const formatCurrency = (value) =>
   })}`;
 
 const OrdersPincodeReport = ({ embedded = false }) => {
+  const barBlueStrong = "#0f2f7e";
+  const barBlueActive = "#1846aa";
   const isMobile = useMediaQuery("(max-width:600px)");
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
@@ -284,7 +286,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
         label: "Orders",
         data: dailyTrend.counts,
         backgroundColor: dailyTrend.dateKeys.map((key) =>
-          key === selectedDayKey ? "#0c831f" : "#165d46",
+          key === selectedDayKey ? barBlueActive : barBlueStrong,
         ),
         borderRadius: 6,
         maxBarThickness: 28,
@@ -319,7 +321,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
       style={{
         width: "100%",
         height: "100%",
-        overflowY: "auto",
+        overflowY: "visible",
         border: "none",
         boxShadow: "none",
         backgroundColor: "#ffffff",
@@ -384,7 +386,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
             variant="contained"
             onClick={handleApply}
             style={{
-              backgroundColor: "#0c831f",
+              backgroundColor: "var(--brand-primary)",
               textTransform: "none",
               fontWeight: 700,
               borderRadius: "8px",
@@ -397,7 +399,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px" }}>
-            <CircularProgress size={20} style={{ color: "#165d46" }} />
+            <CircularProgress size={20} style={{ color: "var(--brand-primary-strong)" }} />
             <Typography variant="body2" color="text.secondary">
               Loading orders data...
             </Typography>
@@ -420,27 +422,27 @@ const OrdersPincodeReport = ({ embedded = false }) => {
                 marginBottom: "1em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Total orders
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {filteredOrders.length}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Total revenue
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {formatCurrency(totalRevenue)}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Pincodes covered
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {uniquePincodeCount}
                 </Typography>
               </Paper>
@@ -454,7 +456,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
                 marginBottom: "1.25em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Daily orders trend
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -516,7 +518,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
                 )}
               </Paper>
 
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Orders by pincode
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -600,14 +602,14 @@ const OrdersPincodeReport = ({ embedded = false }) => {
                     setSelectedChartPincode("");
                     setPage(1);
                   }}
-                  style={{ textTransform: "none", borderColor: "#165d46", color: "#165d46" }}
+                  style={{ textTransform: "none", borderColor: "var(--brand-primary-strong)", color: "var(--brand-primary-strong)" }}
                 >
                   Clear chart filters
                 </Button>
               )}
             </div>
 
-            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "#e8e8e8", boxShadow: "none" }}>
+            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "var(--brand-border)", boxShadow: "none" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>

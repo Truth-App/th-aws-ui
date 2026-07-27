@@ -340,7 +340,7 @@ const PrivilegesSection = ({
     <div style={{ gridColumn: "1 / -1" }}>
       <Typography
         variant="body2"
-        style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}
+        style={{ fontWeight: 600, color: "var(--brand-primary-strong)", marginBottom: "0.5em" }}
       >
         Privileges
       </Typography>
@@ -360,7 +360,7 @@ const PrivilegesSection = ({
                 onChange={() => onToggle(feature.id)}
                 disabled={disabled}
                 size="small"
-                sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
+                sx={{ color: "var(--brand-primary-strong)", "&.Mui-checked": { color: "var(--brand-primary-strong)" } }}
               />
             }
             label={feature.label}
@@ -410,7 +410,7 @@ const SupportedPincodesSection = ({
     <div style={{ gridColumn: "1 / -1" }}>
       <Typography
         variant="body2"
-        style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.5em" }}
+        style={{ fontWeight: 600, color: "var(--brand-primary-strong)", marginBottom: "0.5em" }}
       >
         Supported Pincodes
       </Typography>
@@ -434,8 +434,8 @@ const SupportedPincodesSection = ({
             style={{
               textTransform: "none",
               fontWeight: 600,
-              borderColor: "#165d46",
-              color: "#165d46",
+              borderColor: "var(--brand-primary-strong)",
+              color: "var(--brand-primary-strong)",
               marginTop: "2px",
             }}
           >
@@ -451,7 +451,7 @@ const SupportedPincodesSection = ({
               label={pincode}
               size="small"
               onDelete={disabled ? undefined : () => onRemove(pincode)}
-              style={{ backgroundColor: "#e8f3ee", color: "#165d46" }}
+              style={{ backgroundColor: "var(--brand-tint)", color: "var(--brand-primary-strong)" }}
             />
           ))
         ) : (
@@ -704,7 +704,7 @@ const ProfileUserSelectTable = ({
     <div style={{ gridColumn: "1 / -1", marginTop: "0.5em" }}>
       <Typography
         variant="body2"
-        style={{ fontWeight: 600, color: "#165d46", marginBottom: "0.75em" }}
+        style={{ fontWeight: 600, color: "var(--brand-primary-strong)", marginBottom: "0.75em" }}
       >
         Select User
       </Typography>
@@ -721,31 +721,31 @@ const ProfileUserSelectTable = ({
         variant="outlined"
         style={{
           overflowX: "auto",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
           boxShadow: "none",
         }}
       >
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow>
-              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                 First Name
               </TableCell>
-              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                 Last Name
               </TableCell>
-              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                 Email
               </TableCell>
-              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                 Role
               </TableCell>
-              <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                 User ID
               </TableCell>
               <TableCell
                 align="center"
-                style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", width: 80 }}
+                style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)", width: 80 }}
               >
                 Select
               </TableCell>
@@ -778,7 +778,7 @@ const ProfileUserSelectTable = ({
                     onChange={() => onSelectUser(item)}
                     value={item.id}
                     size="small"
-                    sx={{ color: "#165d46", "&.Mui-checked": { color: "#165d46" } }}
+                    sx={{ color: "var(--brand-primary-strong)", "&.Mui-checked": { color: "var(--brand-primary-strong)" } }}
                   />
                 </TableCell>
               </TableRow>
@@ -1363,14 +1363,14 @@ const UserManagement = ({ profileMode = false }) => {
           style={{
             height: "100%",
             width: "100%",
-            overflowY: "auto",
+            overflowY: "visible",
             overflowX: "hidden",
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-            border: "1px solid #e8efeb",
+            border: "1px solid var(--brand-border)",
           }}
         >
           <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
-            <Typography variant="h6" style={{ fontWeight: 700, color: "#165d46", marginBottom: "0.5em" }}>
+            <Typography variant="h6" style={{ fontWeight: 700, color: "var(--brand-primary-strong)", marginBottom: "0.5em" }}>
               {isSetupFlow ? "Complete Your Profile" : "Edit Profile"}
             </Typography>
             <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
@@ -1435,7 +1435,7 @@ const UserManagement = ({ profileMode = false }) => {
                     disabled={uploadingFiles}
                     variant="contained"
                     style={{
-                      backgroundColor: "#165d46",
+                      backgroundColor: "var(--brand-primary-strong)",
                       textTransform: "none",
                       fontWeight: "bolder",
                     }}
@@ -1450,8 +1450,8 @@ const UserManagement = ({ profileMode = false }) => {
                       style={{
                         textTransform: "none",
                         fontWeight: "bolder",
-                        borderColor: "#165d46",
-                        color: "#165d46",
+                        borderColor: "var(--brand-primary-strong)",
+                        color: "var(--brand-primary-strong)",
                       }}
                     >
                       Skip for now
@@ -1481,10 +1481,10 @@ const UserManagement = ({ profileMode = false }) => {
         style={{
           height: "100%",
           width: "100%",
-          overflowY: "auto",
+          overflowY: "visible",
           overflowX: "hidden",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-          border: "1px solid #e8efeb",
+          border: "1px solid var(--brand-border)",
         }}
       >
         <CardContent style={{ padding: isMobile ? "8px 12px" : "16px" }}>
@@ -1492,7 +1492,7 @@ const UserManagement = ({ profileMode = false }) => {
           <div
             style={{
               marginTop: 0,
-              backgroundColor: "#fafbf9",
+              backgroundColor: "var(--brand-surface)",
               padding: 0,
               borderRadius: "8px",
             }}
@@ -1543,40 +1543,40 @@ const UserManagement = ({ profileMode = false }) => {
               style={{
                 marginTop: "0.75em",
                 overflowX: "auto",
-                border: "1px solid #e8efeb",
+                border: "1px solid var(--brand-border)",
                 boxShadow: "none",
               }}
             >
               <Table size="small" stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       First Name
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Last Name
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       User ID
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Email
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Mobile
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Role
                     </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Pincode
                     </TableCell>                    
-                    <TableCell style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9" }}>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Reference Number
                     </TableCell>
                     <TableCell
                       align="right"
-                      style={{ fontWeight: 700, color: "#165d46", backgroundColor: "#fafbf9", minWidth: 120 }}
+                      style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)", minWidth: 120 }}
                     >
                       Action
                     </TableCell>
@@ -1598,7 +1598,7 @@ const UserManagement = ({ profileMode = false }) => {
                           onClick={() => handleOpenView(item)}
                           size="small"
                           aria-label="View user"
-                          style={{ color: "#165d46" }}
+                          style={{ color: "var(--brand-primary-strong)" }}
                         >
                           <MdVisibility size={20} />
                         </IconButton>
@@ -1606,7 +1606,7 @@ const UserManagement = ({ profileMode = false }) => {
                           onClick={() => handleOpenEdit(item)}
                           size="small"
                           aria-label="Edit user"
-                          style={{ color: "#165d46" }}
+                          style={{ color: "var(--brand-primary-strong)" }}
                         >
                           <MdEdit size={20} />
                         </IconButton>

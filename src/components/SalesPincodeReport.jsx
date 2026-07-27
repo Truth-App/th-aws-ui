@@ -48,6 +48,8 @@ import {
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
 const SalesPincodeReport = ({ embedded = false }) => {
+  const barBlueStrong = "#0f2f7e";
+  const barBlueActive = "#1846aa";
   const isMobile = useMediaQuery("(max-width:600px)");
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
@@ -186,7 +188,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
         label: "Sales",
         data: dailyTrend.totals,
         backgroundColor: dailyTrend.dateKeys.map((key) =>
-          key === selectedDayKey ? "#0c831f" : "#165d46",
+          key === selectedDayKey ? barBlueActive : barBlueStrong,
         ),
         borderRadius: 6,
         maxBarThickness: 28,
@@ -221,7 +223,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
       style={{
         width: "100%",
         height: "100%",
-        overflowY: "auto",
+        overflowY: "visible",
         border: "none",
         boxShadow: "none",
         backgroundColor: "#ffffff",
@@ -296,7 +298,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
             variant="contained"
             onClick={handleApply}
             style={{
-              backgroundColor: "#0c831f",
+              backgroundColor: "var(--brand-primary)",
               textTransform: "none",
               fontWeight: 700,
               borderRadius: "8px",
@@ -309,7 +311,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
 
         {loading && (
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px" }}>
-            <CircularProgress size={20} style={{ color: "#165d46" }} />
+            <CircularProgress size={20} style={{ color: "var(--brand-primary-strong)" }} />
             <Typography variant="body2" color="text.secondary">
               Loading sales data...
             </Typography>
@@ -332,27 +334,27 @@ const SalesPincodeReport = ({ embedded = false }) => {
                 marginBottom: "1em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Total sales
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {formatCurrency(totalRevenue)}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Avg order value
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {formatCurrency(avgOrderValue)}
                 </Typography>
               </Paper>
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="caption" color="text.secondary">
                   Peak day sales
                 </Typography>
-                <Typography variant="h5" style={{ fontWeight: 700, color: "#165d46" }}>
+                <Typography variant="h5" style={{ fontWeight: 700, color: "var(--brand-primary-strong)" }}>
                   {formatCurrency(peakDaySales)}
                 </Typography>
               </Paper>
@@ -366,7 +368,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
                 marginBottom: "1.25em",
               }}
             >
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Daily sales trend
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -416,7 +418,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
                 )}
               </Paper>
 
-              <Paper variant="outlined" style={{ padding: "14px", borderColor: "#e8e8e8" }}>
+              <Paper variant="outlined" style={{ padding: "14px", borderColor: "var(--brand-border)" }}>
                 <Typography variant="subtitle2" style={{ fontWeight: 700, marginBottom: "12px" }}>
                   Sales by pincode
                   <Typography component="span" variant="caption" color="text.secondary" style={{ marginLeft: "8px" }}>
@@ -498,14 +500,14 @@ const SalesPincodeReport = ({ embedded = false }) => {
                     setSelectedChartPincode("");
                     setPage(1);
                   }}
-                  style={{ textTransform: "none", borderColor: "#165d46", color: "#165d46" }}
+                  style={{ textTransform: "none", borderColor: "var(--brand-primary-strong)", color: "var(--brand-primary-strong)" }}
                 >
                   Clear chart filters
                 </Button>
               )}
             </div>
 
-            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "#e8e8e8", boxShadow: "none" }}>
+            <TableContainer component={Paper} variant="outlined" style={{ borderColor: "var(--brand-border)", boxShadow: "none" }}>
               <Table size="small">
                 <TableHead>
                   <TableRow>

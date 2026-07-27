@@ -19,7 +19,9 @@ const Home = () => {
     <div
       style={{
         minHeight: "100vh",
-        backgroundColor: "#eff6ff",
+        backgroundColor: "#e4f2ff",
+        backgroundImage:
+          "radial-gradient(circle at 8% 10%, rgba(72, 149, 255, 0.16) 0, rgba(72, 149, 255, 0) 34%), radial-gradient(circle at 88% 12%, rgba(37, 99, 235, 0.16) 0, rgba(37, 99, 235, 0) 36%), radial-gradient(circle at 52% -8%, rgba(96, 165, 250, 0.18) 0, rgba(96, 165, 250, 0) 32%), linear-gradient(180deg, #f6fbff 0%, #eaf5ff 52%, #dcebff 100%)",
       }}
     >
       <Navbar

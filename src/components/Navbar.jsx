@@ -22,6 +22,7 @@ import {
 const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, onLogoClick }) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const isTablet = useMediaQuery("(max-width:900px)");
+  const isNarrowMobile = useMediaQuery("(max-width:420px)");
   const [anchorEl, setAnchorEl] = useState(null);
 
   const dispatch = useDispatch();
@@ -95,12 +96,17 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        flexWrap: isMobile ? "wrap" : "nowrap",
         height: "auto",
-        borderBottom: "1.5px solid #dee6de",
-        padding: "0 8px",
-        backgroundColor: "#ffffff",
-        gap: "12px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+        borderBottom: "1.5px solid #234a98",
+        padding: isNarrowMobile ? "8px 6px" : "8px 8px",
+        backgroundColor: "var(--brand-primary-strong)",
+        backgroundImage:
+          "radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 34%), radial-gradient(circle at 88% 10%, rgba(120, 170, 255, 0.3) 0%, rgba(120, 170, 255, 0) 36%), linear-gradient(90deg, #0b245f 0%, #123a92 42%, #1b4db3 58%, #2a68d1 100%)",
+        backgroundSize: "auto, auto, 100% 100%",
+        backgroundPosition: "left top, right top, center",
+        gap: isNarrowMobile ? "6px" : "12px",
+        boxShadow: "0 12px 24px rgba(8, 26, 74, 0.34)",
       }}
     >
       <div
@@ -109,14 +115,15 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
           fontWeight: "600",
           fontSize: "1.5em",
           fontStyle: "bold",
-          flexShrink: 0,
+          flex: "0 1 auto",
+          minWidth: 0,
         }}
       >
           <NavLink to="/" end
           onClick={onLogoClick}
           style={{ textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 0 }}
           >
-          <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isMobile ? "150px" : isTablet ? "170px" : "190px", height: isMobile ? "48px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />
+          <img src = "/thriftyhomelogo.png" alt="Logo" style={{ width: isNarrowMobile ? "112px" : isMobile ? "132px" : isTablet ? "170px" : "190px", height: isNarrowMobile ? "38px" : isMobile ? "44px" : isTablet ? "54px" : "60px", objectFit: "contain", verticalAlign: "middle" }} />
           </NavLink>
       </div>
       {showSearchInNavbar && (
@@ -139,7 +146,7 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
               maxWidth: "760px",
               "& .MuiOutlinedInput-root": {
                 borderRadius: "12px",
-                backgroundColor: "#f1f3f4",
+                backgroundColor: "rgba(255, 255, 255, 0.92)",
                 "& fieldset": {
                   border: "none",
                 },
@@ -167,11 +174,12 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
             alignItems: "center",
             justifyContent: "flex-end",
             width: "auto",
-            gap: "1.5em",
+            gap: isNarrowMobile ? "0.5em" : "1em",
             fontFamily: "Montserrat, sans-serif",
             fontWeight: "500",
-            flexWrap: "wrap",
-            flexShrink: 0,
+            flexWrap: isMobile ? "wrap" : "nowrap",
+            flex: "0 1 auto",
+            minWidth: 0,
           }}
         >
         <button
@@ -180,11 +188,12 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
             background: "none",
             border: "none",
             cursor: "pointer",
-            padding: "4px",
-            paddingRight: "12px",
+            padding: isNarrowMobile ? "2px" : "4px",
+            paddingRight: isNarrowMobile ? "4px" : "12px",
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: isNarrowMobile ? "6px" : "8px",
+            minWidth: 0,
           }}
         >
           {authResolving ? (
@@ -192,14 +201,14 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
           ) : (
             <>
               {isAuthenticated && (user?.name || backendUserId || backendUserRole) && (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2, minWidth: 0 }}>
                   {(user?.name || backendUserId) && (
-                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1f1f1f", whiteSpace: "nowrap", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <span style={{ fontSize: isNarrowMobile ? "0.74rem" : "0.82rem", fontWeight: 600, color: "#f5f9ff", whiteSpace: "nowrap", maxWidth: isNarrowMobile ? "108px" : isMobile ? "140px" : "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {user?.name || ""}{user?.name && backendUserId ? ` (${backendUserId})` : backendUserId || ""}
                     </span>
                   )}
                   {backendUserRole && (
-                    <span style={{ fontSize: "0.7rem", color: "var(--brand-primary-strong)", fontWeight: 500 }}>
+                    <span style={{ fontSize: isNarrowMobile ? "0.66rem" : "0.7rem", color: "#d6e5ff", fontWeight: 500, whiteSpace: "nowrap", maxWidth: isNarrowMobile ? "108px" : isMobile ? "140px" : "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {backendUserRole}
                     </span>
                   )}

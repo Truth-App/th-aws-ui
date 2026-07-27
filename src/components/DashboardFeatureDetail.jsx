@@ -32,6 +32,7 @@ const INITIAL_PRODUCT_FORM = {
   stockistPrice: "",
   dealerPrice: "",
   category: "",
+  categoryId: "",
   isActive: true,
   imageKeys: [],
 };
@@ -44,7 +45,19 @@ const PRODUCT_PRICE_FIELDS = new Set([
   "dealerPrice",
 ]);
 
-const mapProductToForm = (selectedProduct) => ({
+const resolveCategoryId = (selectedProduct, categories = []) => {
+  const existingId =
+    selectedProduct?.categoryId || selectedProduct?.categoryid || selectedProduct?.category_id || "";
+  if (existingId) return String(existingId);
+
+  const categoryTitle = selectedProduct?.category || "";
+  if (!categoryTitle) return "";
+
+  const matched = categories.find((item) => item?.title === categoryTitle);
+  return matched?.id != null ? String(matched.id) : "";
+};
+
+const mapProductToForm = (selectedProduct, categories = []) => ({
   title: selectedProduct.title || "",
   mrpPrice: selectedProduct.mrpPrice ?? "",
   customerPrice: selectedProduct.customerPrice ?? "",
@@ -53,6 +66,7 @@ const mapProductToForm = (selectedProduct) => ({
   stockistPrice: selectedProduct.stockistPrice ?? "",
   dealerPrice: selectedProduct.dealerPrice ?? "",
   category: selectedProduct.category || "",
+  categoryId: resolveCategoryId(selectedProduct, categories),
   isActive: selectedProduct.isActive ?? true,
   imageKeys:
     selectedProduct.imageKeys || selectedProduct.images || selectedProduct.fileKeys || [],
@@ -66,16 +80,21 @@ const DashboardFeatureDetail = () => {
   const { items: categoryItems } = useSelector((state) => state.categories);
   const catalogCategories = categoryItems.length > 0
     ? categoryItems
-        .filter((item) => item?.isActive !== false)
+        .filter((item) => item?.isActive !== false && item?.id != null && item?.title)
         .map((item) => ({
-          title: item?.title || "",
+          id: String(item.id),
+          title: item.title || "",
           imageKey: item?.imageKey || item?.imagekey || "",
         }))
-        .filter((item) => item.title)
     : [];
   const productCategories = categoryItems.length > 0
-    ? categoryItems.map((item) => item.title)
-    : fallbackCategories;
+    ? categoryItems
+        .filter((item) => item?.id != null && item?.title)
+        .map((item) => ({
+          id: String(item.id),
+          title: item.title,
+        }))
+    : fallbackCategories.map((title) => ({ id: title, title }));
   const [open, setOpen] = React.useState(false);
   const [dialogMode, setDialogMode] = useState("create");
   const [editingProductId, setEditingProductId] = useState(null);
@@ -87,6 +106,15 @@ const DashboardFeatureDetail = () => {
   const [product, setProduct] = useState(INITIAL_PRODUCT_FORM);
   const fileInputRef = React.useRef(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  const selectedCategoryTitle = useMemo(() => {
+    if (categoryFilter === "All Items") return "";
+    return (
+      catalogCategories.find((item) => String(item.id) === String(categoryFilter))?.title ||
+      categoryItems.find((item) => String(item.id) === String(categoryFilter))?.title ||
+      String(categoryFilter)
+    );
+  }, [categoryFilter, catalogCategories, categoryItems]);
 
   useEffect(() => {
     if (status === "idle") {
@@ -101,12 +129,13 @@ const DashboardFeatureDetail = () => {
     return products.filter((item) => {
       const title = (item.title || "").toLowerCase();
       const description = (item.description || "").toLowerCase();
-      const category = item.category || "";
+      const productCategoryId = String(item.categoryId || item.categoryid || item.category_id || "");
       const matchesSearch =
         !normalizedSearchTerm ||
         title.includes(normalizedSearchTerm) ||
         description.includes(normalizedSearchTerm);
-      const matchesCategory = categoryFilter === "All Items" || category === categoryFilter;
+      const matchesCategory =
+        categoryFilter === "All Items" || productCategoryId === String(categoryFilter);
 
       return matchesSearch && matchesCategory;
     });
@@ -119,6 +148,17 @@ const DashboardFeatureDetail = () => {
 
   const handleOnChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "categoryId") {
+      const matched = productCategories.find((item) => String(item.id) === String(value));
+      setProduct((prev) => ({
+        ...prev,
+        categoryId: value,
+        category: matched?.title || "",
+      }));
+      return;
+    }
+
     setProduct((prev) => ({
       ...prev,
       [name]: PRODUCT_PRICE_FIELDS.has(name) ? Number(value) : value,
@@ -138,7 +178,7 @@ const DashboardFeatureDetail = () => {
   const handleOpenEdit = (selectedProduct) => {
     setDialogMode("edit");
     setEditingProductId(selectedProduct.id);
-    setProduct(mapProductToForm(selectedProduct));
+    setProduct(mapProductToForm(selectedProduct, categoryItems));
     setOpen(true);
   };
 
@@ -249,20 +289,40 @@ const DashboardFeatureDetail = () => {
     setOpen(false);
   };
 
-  const handleSaveProduct = async () => {
-    // Validate required fields
-    if (
-      !product.title ||
-      !product.mrpPrice ||
-      !product.customerPrice ||
-      product.superStockistPrice === "" ||
-      product.dealerPrice === "" ||
-      product.stockistPrice === "" ||
-      !product.category
-    ) {
-      toast.error("Please fill in all required fields");
-      return;
+  const validateProductForm = () => {
+    if (!String(product.title || "").trim()) {
+      toast.error("Please enter product title");
+      return false;
     }
+    if (product.mrpPrice === "" || product.mrpPrice == null) {
+      toast.error("Please enter MRP price");
+      return false;
+    }
+    if (product.customerPrice === "" || product.customerPrice == null) {
+      toast.error("Please enter customer price");
+      return false;
+    }
+    if (product.superStockistPrice === "" || product.superStockistPrice == null) {
+      toast.error("Please enter super stockist price");
+      return false;
+    }
+    if (product.stockistPrice === "" || product.stockistPrice == null) {
+      toast.error("Please enter stockist price");
+      return false;
+    }
+    if (product.dealerPrice === "" || product.dealerPrice == null) {
+      toast.error("Please enter dealer price");
+      return false;
+    }
+    if (!product.categoryId || !String(product.category || "").trim()) {
+      toast.error("Please select a category");
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveProduct = async () => {
+    if (!validateProductForm()) return;
 
     try {
       const isEditMode = dialogMode === "edit" && editingProductId !== null;
@@ -271,6 +331,8 @@ const DashboardFeatureDetail = () => {
       const { fileKeys, images, ...restProduct } = product;
       const payload = {
         ...restProduct,
+        category: product.category,
+        categoryId: product.categoryId,
         imageKeys: product.imageKeys || images || fileKeys || [],
       };
 
@@ -344,7 +406,7 @@ const DashboardFeatureDetail = () => {
                 fontWeight: "bolder",
               }}
             >
-              + Add new Product
+              + Add
             </Button>
           </div>
 
@@ -358,9 +420,9 @@ const DashboardFeatureDetail = () => {
               }}
             >
               <CategoryCarousel
-                selectedCategory={null}
-                onCategorySelect={(category) => {
-                  setCategoryFilter(category || "All Items");
+                selectedCategory={categoryFilter === "All Items" ? null : categoryFilter}
+                onCategorySelect={(categoryId) => {
+                  setCategoryFilter(categoryId || "All Items");
                   setPage(1);
                 }}
                 items={catalogCategories.length > 0 ? catalogCategories : fallbackCategories}
@@ -423,7 +485,7 @@ const DashboardFeatureDetail = () => {
                 &gt;
               </Typography>
               <Typography variant="body2" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
-                {categoryFilter}
+                {selectedCategoryTitle}
               </Typography>
             </div>
           )}
@@ -450,7 +512,7 @@ const DashboardFeatureDetail = () => {
                   <ProductCard
                     product={item}
                     actionType="update"
-                    actionLabel="Update Product"
+                    actionLabel="Update"
                     onAction={handleOpenEdit}
                   />
                 </div>
@@ -580,8 +642,8 @@ const DashboardFeatureDetail = () => {
               id="outlined-category"
               label="Category"
               variant="outlined"
-              name="category"
-              value={product.category}
+              name="categoryId"
+              value={product.categoryId}
               onChange={handleOnChange}
               required
             >
@@ -589,8 +651,8 @@ const DashboardFeatureDetail = () => {
                 Select category
               </MenuItem>
               {productCategories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
+                <MenuItem key={category.id} value={category.id}>
+                  {category.title}
                 </MenuItem>
               ))}
             </TextField>

@@ -17,18 +17,24 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   const homeCategories = (categoryItems || [])
-    .filter((category) => category?.isActive !== false)
+    .filter((category) => category?.isActive !== false && category?.id != null && category?.title)
     .map((category) => ({
+      id: String(category.id),
       title: category?.title || "",
       imageKey: category?.imageKey || category?.imagekey || "",
-    }))
-    .filter((category) => category.title);
+    }));
+
+  const selectedCategoryTitle =
+    homeCategories.find((category) => String(category.id) === String(selectedCategory))?.title ||
+    selectedCategory;
 
   const filteredProducts = products.filter((product) => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
     const title = (product.title || "").toLowerCase();
     const description = (product.description || "").toLowerCase();
-    const productCategory = product.category || "";
+    const productCategoryId = String(
+      product.categoryId || product.categoryid || product.category_id || "",
+    );
 
     if (normalizedSearchTerm) {
       const matchesSearch = title.includes(normalizedSearchTerm) || description.includes(normalizedSearchTerm);
@@ -36,7 +42,7 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
     }
 
     if (selectedCategory) {
-      if (productCategory !== selectedCategory) return false;
+      if (productCategoryId !== String(selectedCategory)) return false;
     }
 
     return true;
@@ -122,7 +128,7 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
 
       <section className="storefront-products-panel">
         <div className="storefront-section-head">
-          <h2>{selectedCategory ? selectedCategory : "Products"}</h2>
+          <h2>{selectedCategory ? selectedCategoryTitle : "Products"}</h2>
         </div>
 
         {status === "loading" && <Typography>Loading products...</Typography>}

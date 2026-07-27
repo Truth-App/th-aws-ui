@@ -66,9 +66,22 @@ const getInitials = (text) => {
 
 const normalizeCategory = (item) => {
   if (typeof item === "string") {
-    return { title: item, imageKey: "" };
+    return { id: item, title: item, imageKey: "" };
   }
-  return { title: item.title || "", imageKey: item.imageKey || item.imagekey || "" };
+
+  const title = item?.title || "";
+  const id =
+    item?.id != null
+      ? String(item.id)
+      : item?.categoryId != null
+        ? String(item.categoryId)
+        : title;
+
+  return {
+    id,
+    title,
+    imageKey: item?.imageKey || item?.imagekey || "",
+  };
 };
 
 const CategoryCarousel = ({ selectedCategory, onCategorySelect, items, avatarVariant = "rounded", useDivisionThemes = false }) => {
@@ -114,70 +127,74 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect, items, avatarVar
         overflowX: "visible",
       }}
     >
-      {categoryItems.map((category, index) => (
-        <div
-          key={category.title}
-          onClick={() => onCategorySelect(selectedCategory === category.title ? null : category.title)}
-          aria-label={category.title}
-          role="button"
-          tabIndex={0}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "5px",
-            minWidth: isMobile ? "calc((100% - 24px) / 4)" : "122px",
-            flex: isMobile ? "0 0 calc((100% - 24px) / 4)" : "0 0 auto",
-            cursor: "pointer",
-            padding: useDivisionThemes ? "6px 4px 8px" : 0,
-            borderRadius: useDivisionThemes ? "14px" : 0,
-            backgroundColor: "transparent",
-            boxShadow: useDivisionThemes 
-              ? selectedCategory === category.title
-                ? `0 0 0 2px ${getCategoryTheme(category.title, index).borderColor}`
-                : `0 0 0 1px ${getCategoryTheme(category.title, index).borderColor} inset`
-              : "none",
-            border: useDivisionThemes
-              ? selectedCategory === category.title
-                ? `2px solid ${getCategoryTheme(category.title, index).borderColor}`
-                : `0.3px solid ${getCategoryTheme(category.title, index).borderColor}`
-              : "none",
-          }}
-        >
-          <Avatar
-            variant={avatarVariant}
-            src={category.imageKey ? `${S3_BASE_URL}/${category.imageKey}` : undefined}
-            sx={{
-              width: isMobile ? "100%" : 108,
-              height: isMobile ? "auto" : 108,
-              aspectRatio: "1 / 1",
-              backgroundColor: useDivisionThemes ? "transparent" : colors[index % colors.length],
-              fontWeight: 700,
-              fontSize: "15px",
-              borderRadius: avatarVariant === "rounded" ? "10px" : "50%",
-              border: "none",
-              boxShadow: "none",
+      {categoryItems.map((category, index) => {
+        const isSelected = String(selectedCategory ?? "") === String(category.id);
+
+        return (
+          <div
+            key={category.id || category.title}
+            onClick={() => onCategorySelect(isSelected ? null : category.id)}
+            aria-label={category.title}
+            role="button"
+            tabIndex={0}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "5px",
+              minWidth: isMobile ? "calc((100% - 24px) / 4)" : "122px",
+              flex: isMobile ? "0 0 calc((100% - 24px) / 4)" : "0 0 auto",
+              cursor: "pointer",
+              padding: useDivisionThemes ? "6px 4px 8px" : 0,
+              borderRadius: useDivisionThemes ? "14px" : 0,
+              backgroundColor: "transparent",
+              boxShadow: useDivisionThemes
+                ? isSelected
+                  ? `0 0 0 2px ${getCategoryTheme(category.title, index).borderColor}`
+                  : `0 0 0 1px ${getCategoryTheme(category.title, index).borderColor} inset`
+                : "none",
+              border: useDivisionThemes
+                ? isSelected
+                  ? `2px solid ${getCategoryTheme(category.title, index).borderColor}`
+                  : `0.3px solid ${getCategoryTheme(category.title, index).borderColor}`
+                : "none",
             }}
           >
-            {!category.imageKey && getInitials(category.title)}
-          </Avatar>
-          <Typography
-            variant="caption"
-            sx={{
-              fontSize: "11px",
-              fontWeight: 600,
-              color: useDivisionThemes ? getCategoryTheme(category.title, index).labelColor : "#000000",
-              textAlign: "center",
-              maxWidth: isMobile ? "100%" : "122px",
-              lineHeight: "1.2",
-              wordBreak: "break-word",
-              textShadow: useDivisionThemes ? "0 1px 2px rgba(0, 0, 0, 0.25)" : "none",
-            }}
-          >
-            {category.title}
-          </Typography>
-        </div>
-      ))}
+            <Avatar
+              variant={avatarVariant}
+              src={category.imageKey ? `${S3_BASE_URL}/${category.imageKey}` : undefined}
+              sx={{
+                width: isMobile ? "100%" : 108,
+                height: isMobile ? "auto" : 108,
+                aspectRatio: "1 / 1",
+                backgroundColor: useDivisionThemes ? "transparent" : colors[index % colors.length],
+                fontWeight: 700,
+                fontSize: "15px",
+                borderRadius: avatarVariant === "rounded" ? "10px" : "50%",
+                border: "none",
+                boxShadow: "none",
+              }}
+            >
+              {!category.imageKey && getInitials(category.title)}
+            </Avatar>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: "11px",
+                fontWeight: 600,
+                color: useDivisionThemes ? getCategoryTheme(category.title, index).labelColor : "#000000",
+                textAlign: "center",
+                maxWidth: isMobile ? "100%" : "122px",
+                lineHeight: "1.2",
+                wordBreak: "break-word",
+                textShadow: useDivisionThemes ? "0 1px 2px rgba(0, 0, 0, 0.25)" : "none",
+              }}
+            >
+              {category.title}
+            </Typography>
+          </div>
+        );
+      })}
     </div>
   );
 };

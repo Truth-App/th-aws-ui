@@ -20,7 +20,8 @@ import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import Radio from "@mui/material/Radio";
-import { useEffect, useMemo, useRef, useState } from "react";
+import Collapse from "@mui/material/Collapse";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
 import { createUser, getUsers, updateUser } from "../api/users";
@@ -38,7 +39,7 @@ import {
   markProfileSetupSkipped,
 } from "../helpers/profileHelpers";
 import { ToastContainer, toast } from "react-toastify";
-import { MdEdit, MdPersonAdd, MdVisibility } from "react-icons/md";
+import { MdEdit, MdPersonAdd, MdVisibility, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -62,6 +63,8 @@ const INITIAL_USER_FORM = {
   bankname: "",
   accountno: "",
   ifsccode: "",
+  status: "",
+  activitylog: [],
 };
 
 const getUserId = (user) => user.userId || user.email || user.id || "—";
@@ -120,6 +123,223 @@ const CLEARED_BANK_DETAILS = {
   bankname: null,
   accountno: null,
   ifsccode: null,
+};
+
+const IST_TIME_ZONE = "Asia/Kolkata";
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const getISTDateParts = (date = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: IST_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value || "";
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+};
+
+const getNowDateString = () => {
+  const { year, month, day, hour, minute, second } = getISTDateParts();
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}+05:30`;
+};
+
+const formatActivityDateDisplay = (dateStr) => {
+  if (!dateStr) return "—";
+
+  const parsed = new Date(dateStr);
+  if (!Number.isNaN(parsed.getTime()) && String(dateStr).includes("T")) {
+    const { year, month, day, hour, minute, second } = getISTDateParts(parsed);
+    const monthIndex = Number(month) - 1;
+    if (monthIndex >= 0 && monthIndex <= 11) {
+      return `${Number(day)} ${MONTH_LABELS[monthIndex]} ${year}, ${hour}:${minute}:${second} IST`;
+    }
+  }
+
+  const normalized = String(dateStr).slice(0, 10);
+  const [year, month, day] = normalized.split("-");
+  if (year && month && day) {
+    const monthIndex = Number(month) - 1;
+    if (monthIndex >= 0 && monthIndex <= 11) {
+      return `${Number(day)} ${MONTH_LABELS[monthIndex]} ${year}`;
+    }
+  }
+
+  return String(dateStr);
+};
+
+const normalizeActivityLogEntry = (entry) => {
+  if (!entry || typeof entry !== "object") {
+    return {
+      role: "",
+      referencenumber: "",
+      modifiedBy: "",
+      modifiedAt: "",
+      field: "",
+      oldValue: "",
+      newValue: "",
+    };
+  }
+
+  return {
+    role: entry.role || "",
+    referencenumber: entry.referencenumber || entry.referenceNumber || "",
+    modifiedBy: entry.modifiedBy ?? entry.modifiedby ?? "",
+    modifiedAt: entry.modifiedAt ?? entry.modifiedat ?? "",
+    field: entry.field || "",
+    oldValue: entry.oldValue ?? entry.oldvalue ?? "",
+    newValue: entry.newValue ?? entry.newvalue ?? "",
+  };
+};
+
+const getActivityLog = (item) => {
+  const raw = item?.activitylog ?? item?.activityLog ?? null;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(normalizeActivityLogEntry);
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(normalizeActivityLogEntry);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
+const toUpdateActivityRows = (history = []) => {
+  const groups = new Map();
+
+  history.forEach((entry, index) => {
+    const isLegacyFieldEntry = Boolean(entry.field);
+    const key = entry.modifiedAt || `row-${index}`;
+    const existing = groups.get(key) || {
+      role: "—",
+      referencenumber: "—",
+      modifiedBy: entry.modifiedBy || "—",
+      modifiedAt: entry.modifiedAt || "",
+    };
+
+    if (isLegacyFieldEntry) {
+      if (entry.field === "role") {
+        existing.role = entry.oldValue || "—";
+      }
+      if (entry.field === "referencenumber") {
+        existing.referencenumber = entry.oldValue || "—";
+      }
+    } else {
+      if (entry.role) existing.role = entry.role;
+      if (entry.referencenumber) existing.referencenumber = entry.referencenumber;
+    }
+
+    existing.modifiedBy = entry.modifiedBy || existing.modifiedBy || "—";
+    existing.modifiedAt = entry.modifiedAt || existing.modifiedAt || "";
+    groups.set(key, existing);
+  });
+
+  return [...groups.values()].sort((a, b) => {
+    const timeA = new Date(a.modifiedAt).getTime();
+    const timeB = new Date(b.modifiedAt).getTime();
+    const safeA = Number.isFinite(timeA) ? timeA : 0;
+    const safeB = Number.isFinite(timeB) ? timeB : 0;
+    return safeB - safeA;
+  });
+};
+
+const buildActivityLogPayload = ({
+  existingHistory = [],
+  previousRole = "",
+  previousReferenceNumber = "",
+  nextRole = "",
+  nextReferenceNumber = "",
+  modifiedBy = "",
+}) => {
+  const prevRef = (previousReferenceNumber || "").trim();
+  const nextRef = (nextReferenceNumber || "").trim();
+  const roleChanged = (previousRole || "") !== (nextRole || "");
+  const referenceChanged = prevRef !== nextRef;
+
+  if (!roleChanged && !referenceChanged) {
+    return [...existingHistory];
+  }
+
+  return [
+    ...existingHistory,
+    {
+      role: previousRole || "—",
+      referencenumber: prevRef || "—",
+      modifiedBy: modifiedBy || "Unknown",
+      modifiedAt: getNowDateString(),
+    },
+  ];
+};
+
+const ActivityLogTable = ({ history = [], title = "Activity Log" }) => {
+  const orderedHistory = toUpdateActivityRows(history);
+
+  return (
+    <div style={{ marginTop: "0.5em", gridColumn: "1 / -1" }}>
+      <Typography
+        variant="body2"
+        style={{ fontWeight: 600, color: "var(--brand-primary)", marginBottom: "0.5em" }}
+      >
+        {title}
+      </Typography>
+      <TableContainer
+        component={Paper}
+        variant="outlined"
+        style={{ border: "1px solid var(--brand-border)", boxShadow: "none" }}
+      >
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
+                Role
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
+                Reference Number
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
+                Modified By
+              </TableCell>
+              <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
+                Modified At
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {orderedHistory.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} style={{ textAlign: "center", color: "#6f7378" }}>
+                  No activity yet.
+                </TableCell>
+              </TableRow>
+            )}
+            {orderedHistory.map((entry, index) => (
+              <TableRow key={`${entry.modifiedAt}-${entry.modifiedBy}-${index}`}>
+                <TableCell>{entry.role || "—"}</TableCell>
+                <TableCell>{entry.referencenumber || "—"}</TableCell>
+                <TableCell>{entry.modifiedBy || "—"}</TableCell>
+                <TableCell>{formatActivityDateDisplay(entry.modifiedAt)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </div>
+  );
 };
 
 const findUserByReferenceNumber = (users, referenceNumber) => {
@@ -218,6 +438,7 @@ const mapUserToForm = (selectedUser) => {
     imageKeys: getUserImageKeys(selectedUser),
     privileges: getUserPrivileges(selectedUser),
     discountrate: getUserDiscountRate(selectedUser),
+    activitylog: getActivityLog(selectedUser),
   };
 };
 
@@ -895,6 +1116,7 @@ const UserManagement = ({ profileMode = false }) => {
   const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
   const [roleFilter, setRoleFilter] = useState(null);
   const [page, setPage] = useState(1);
+  const [expandedRowId, setExpandedRowId] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef(null);
   const PAGE_SIZE = 10;
@@ -1316,6 +1538,22 @@ const UserManagement = ({ profileMode = false }) => {
       payload.discountrate = Math.min(100, Math.max(0, Number(user.discountrate) || 0));
 
       if (isEditMode) {
+        const existingUser = users.find((item) => item.id === editingUserId);
+        const previousRole = existingUser?.role || "";
+        const previousReferenceNumber =
+          existingUser?.referencenumber || existingUser?.referenceNumber || "";
+        const modifiedBy =
+          authUser?.email || authUser?.name || currentDbUserRole || "Unknown";
+
+        payload.activitylog = buildActivityLogPayload({
+          existingHistory: getActivityLog(existingUser || user),
+          previousRole,
+          previousReferenceNumber,
+          nextRole: user.role,
+          nextReferenceNumber: user.referencenumber.trim(),
+          modifiedBy,
+        });
+
         await updateUser(editingUserId, payload);
       } else {
         await createUser(payload);
@@ -1580,39 +1818,74 @@ const UserManagement = ({ profileMode = false }) => {
                     >
                       Action
                     </TableCell>
+                    <TableCell
+                      align="center"
+                      style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)", width: 40 }}
+                    />
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {paginatedUsers.map((item) => (
-                    <TableRow key={item.id} hover>
-                      <TableCell>{item.firstname || item.firstName || "—"}</TableCell>
-                      <TableCell>{item.lastname || item.lastName || "—"}</TableCell>
-                      <TableCell>{getUserId(item)}</TableCell>
-                      <TableCell>{item.email || "—"}</TableCell>
-                      <TableCell>{item.mobile || "—"}</TableCell>
-                      <TableCell>{item.role || "—"}</TableCell>
-                      <TableCell>{item.pincode || "—"}</TableCell>
-                      <TableCell>{item.referencenumber || "—"}</TableCell>
-                      <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
-                        <IconButton
-                          onClick={() => handleOpenView(item)}
-                          size="small"
-                          aria-label="View user"
-                          style={{ color: "var(--brand-primary-strong)" }}
-                        >
-                          <MdVisibility size={20} />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleOpenEdit(item)}
-                          size="small"
-                          aria-label="Edit user"
-                          style={{ color: "var(--brand-primary-strong)" }}
-                        >
-                          <MdEdit size={20} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {paginatedUsers.map((item) => {
+                    const expanded = expandedRowId === item.id;
+                    const activityLog = getActivityLog(item);
+
+                    return (
+                      <Fragment key={item.id}>
+                        <TableRow hover>
+                          <TableCell>{item.firstname || item.firstName || "—"}</TableCell>
+                          <TableCell>{item.lastname || item.lastName || "—"}</TableCell>
+                          <TableCell>{getUserId(item)}</TableCell>
+                          <TableCell>{item.email || "—"}</TableCell>
+                          <TableCell>{item.mobile || "—"}</TableCell>
+                          <TableCell>{item.role || "—"}</TableCell>
+                          <TableCell>{item.pincode || "—"}</TableCell>
+                          <TableCell>{item.referencenumber || "—"}</TableCell>
+                          <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
+                            <IconButton
+                              onClick={() => handleOpenView(item)}
+                              size="small"
+                              aria-label="View user"
+                              style={{ color: "var(--brand-primary-strong)" }}
+                            >
+                              <MdVisibility size={20} />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleOpenEdit(item)}
+                              size="small"
+                              aria-label="Edit user"
+                              style={{ color: "var(--brand-primary-strong)" }}
+                            >
+                              <MdEdit size={20} />
+                            </IconButton>
+                          </TableCell>
+                          <TableCell align="center" style={{ width: 40 }}>
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                setExpandedRowId((prev) => (prev === item.id ? null : item.id))
+                              }
+                              aria-label={expanded ? "Collapse activity log" : "Expand activity log"}
+                              style={{ color: "var(--brand-primary-strong)" }}
+                            >
+                              {expanded ? <MdKeyboardArrowUp size={20} /> : <MdKeyboardArrowDown size={20} />}
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell
+                            colSpan={10}
+                            style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}
+                          >
+                            <Collapse in={expanded} timeout="auto" unmountOnExit>
+                              <div style={{ padding: "0.75em 0 1em" }}>
+                                <ActivityLogTable history={activityLog} />
+                              </div>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -1715,7 +1988,7 @@ const UserManagement = ({ profileMode = false }) => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={viewOpen} onClose={handleCloseView} scroll="paper">
+      <Dialog open={viewOpen} onClose={handleCloseView} scroll="paper" maxWidth="lg" fullWidth>
         <DialogTitle>View User</DialogTitle>
         <DialogContent dividers>
           {viewingUser && (
@@ -1724,7 +1997,7 @@ const UserManagement = ({ profileMode = false }) => {
                 display: "flex",
                 flexDirection: "column",
                 gap: "1em",
-                width: isMobile ? "100%" : "720px",
+                width: "100%",
                 maxWidth: "100%",
               }}
             >

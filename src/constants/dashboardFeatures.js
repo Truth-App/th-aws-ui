@@ -6,6 +6,7 @@ export const DASHBOARD_FEATURES = [
   { id: "users", label: "User Management", path: "/users", adminOnly: true },
   { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy", adminOnly: true },
   { id: "inventory", label: "Inventory Management", path: "/inventory", adminOnly: true },
+  { id: "orders-pincode-report", label: "Pincode Mapping", path: "/pincode-mapping", adminOnly: true },
   { id: "orders", label: "My Orders", path: "/my-orders", adminOnly: false },
   { id: "view-orders", label: "View Orders", path: "/view-orders", adminOnly: true },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning", adminOnly: false },
@@ -18,6 +19,7 @@ export const FEATURE_LABELS = [
   { id: "users", label: "User Management", path: "/users" },
   { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "inventory", label: "Inventory Management", path: "/inventory" },
+  { id: "orders-pincode-report", label: "Pincode Mapping", path: "/pincode-mapping" },
   { id: "orders", label: "My Orders", path: "/my-orders" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
@@ -64,6 +66,7 @@ export const getAdminDashboardFeatures = () => [
   { id: "users", label: "User Management", path: "/users" },
   { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "inventory", label: "Inventory Management", path: "/inventory" }, 
+  { id: "orders-pincode-report", label: "Pincode Mapping", path: "/pincode-mapping" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },  
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" } 
 ];

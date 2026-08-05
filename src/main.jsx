@@ -118,6 +118,14 @@ createRoot(document.getElementById("root")).render(
                 }
               />
               <Route
+                path="/pincode-mapping"
+                element={
+                  <ProtectedRoute>
+                    <OrdersPincodeReport />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/orders-pincode-report"
                 element={
                   <ProtectedRoute>

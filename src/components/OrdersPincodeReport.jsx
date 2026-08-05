@@ -28,6 +28,8 @@ import {
 import { Bar, Doughnut } from "react-chartjs-2";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { getOrders } from "../api/orders";
+import { getUsers } from "../api/users";
+import { PINCODE_API_URL } from "../constants/api";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -114,6 +116,8 @@ const getOrderCity = (order) =>
   order?.customerAddress?.city ||
   "—";
 
+const normalizeCity = (value) => String(value || "").trim().toLowerCase();
+
 const getCustomerName = (order) => order?.user?.fullName || order?.user?.name || "—";
 
 const getOrderAmount = (order) => Number(order?.amount?.total || 0);
@@ -124,6 +128,8 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 2,
   })}`;
 
+const getShipmentOwnerValue = (type, id) => `${type}:${id}`;
+
 const OrdersPincodeReport = ({ embedded = false }) => {
   const barBlueStrong = "#0f2f7e";
   const barBlueActive = "#1846aa";
@@ -132,13 +138,19 @@ const OrdersPincodeReport = ({ embedded = false }) => {
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
   const [pincodeFilter, setPincodeFilter] = useState("All");
+  const [cityFilter, setCityFilter] = useState("All");
+  const [shipmentOwnerFilter, setShipmentOwnerFilter] = useState("All");
   const [appliedFromDate, setAppliedFromDate] = useState(defaults.fromDate);
   const [appliedToDate, setAppliedToDate] = useState(defaults.toDate);
   const [appliedPincodeFilter, setAppliedPincodeFilter] = useState("All");
+  const [appliedCityFilter, setAppliedCityFilter] = useState("All");
+  const [appliedShipmentOwnerFilter, setAppliedShipmentOwnerFilter] = useState("All");
   const [selectedDayKey, setSelectedDayKey] = useState("");
   const [selectedChartPincode, setSelectedChartPincode] = useState("");
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [pincodeMappings, setPincodeMappings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const PAGE_SIZE = 10;
@@ -174,6 +186,135 @@ const OrdersPincodeReport = ({ embedded = false }) => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadUsers = async () => {
+      try {
+        const data = await getUsers();
+        if (cancelled) return;
+        setUsers(Array.isArray(data) ? data : []);
+      } catch {
+        if (!cancelled) {
+          setUsers([]);
+        }
+      }
+    };
+
+    loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPincodeMappings = async () => {
+      try {
+        const response = await fetch(PINCODE_API_URL, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pincode mapping. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        const rows = Array.isArray(data?.result)
+          ? data.result
+              .map((item) => ({
+                pincode: String(item?.pincode || "").trim(),
+                city: String(item?.city || "").trim(),
+              }))
+              .filter((item) => item.pincode && item.city)
+          : [];
+
+        setPincodeMappings(rows);
+      } catch {
+        if (!cancelled) {
+          setPincodeMappings([]);
+        }
+      }
+    };
+
+    loadPincodeMappings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pincodeToCityMap = useMemo(() => {
+    return pincodeMappings.reduce((acc, item) => {
+      acc[item.pincode] = item.city;
+      return acc;
+    }, {});
+  }, [pincodeMappings]);
+
+  const availableCities = useMemo(() => {
+    const citySet = new Set(pincodeMappings.map((item) => item.city).filter(Boolean));
+    return [...citySet].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [pincodeMappings]);
+
+  const availableOrderPincodes = useMemo(() => {
+    const pincodeSet = new Set(
+      orders
+        .map((order) => String(order?.shippingAddress?.pincode || "").trim())
+        .filter(Boolean),
+    );
+
+    return [...pincodeSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [orders]);
+
+  const userFirstNameById = useMemo(() => {
+    return users.reduce((acc, user) => {
+      const userId = String(user?.userId || "").trim();
+      const firstName = String(user?.firstname || user?.firstName || "").trim();
+      if (userId && firstName) {
+        acc[userId] = firstName;
+      }
+      return acc;
+    }, {});
+  }, [users]);
+
+  const shipmentOwnerOptions = useMemo(() => {
+    const options = [];
+    const seen = new Set();
+
+    orders.forEach((order) => {
+      const shippedAdminId = String(order?.shippedAdminId || "").trim();
+      if (shippedAdminId) {
+        const value = getShipmentOwnerValue("admin", shippedAdminId);
+        if (!seen.has(value)) {
+          seen.add(value);
+          const firstName = userFirstNameById[shippedAdminId];
+          const namedLabel = firstName
+            ? `${firstName} (admin ${shippedAdminId})`
+            : `- (admin ${shippedAdminId})`;
+          options.push({ value, label: namedLabel });
+        }
+      }
+
+      const sStockistId = String(order?.sStockistId || "").trim();
+      if (sStockistId) {
+        const value = getShipmentOwnerValue("superstockist", sStockistId);
+        if (!seen.has(value)) {
+          seen.add(value);
+          const firstName = userFirstNameById[sStockistId];
+          const namedLabel = firstName
+            ? `${firstName} (superstockist ${sStockistId})`
+            : `- (superstockist ${sStockistId})`;
+          options.push({ value, label: namedLabel });
+        }
+      }
+    });
+
+    return options.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  }, [orders, userFirstNameById]);
+
   const filteredOrders = useMemo(() => {
     const from = startOfDay(appliedFromDate);
     const to = endOfDay(appliedToDate);
@@ -191,17 +332,42 @@ const OrdersPincodeReport = ({ embedded = false }) => {
       })
       .filter(Boolean)
       .filter(({ createdDate }) => createdDate >= from && createdDate <= to)
-      .filter(({ pincode }) => {
+      .filter(({ order }) => {
         if (appliedPincodeFilter === "All") return true;
-        return pincode === appliedPincodeFilter;
+        const shippingPincode = String(order?.shippingAddress?.pincode || "").trim();
+        return shippingPincode === appliedPincodeFilter;
+      })
+      .filter(({ order, pincode }) => {
+        if (appliedCityFilter === "All") return true;
+        const mappedCity = pincodeToCityMap[pincode] || getOrderCity(order);
+        return normalizeCity(mappedCity) === normalizeCity(appliedCityFilter);
+      })
+      .filter(({ order }) => {
+        if (appliedShipmentOwnerFilter === "All") return true;
+
+        const shippedAdminId = String(order?.shippedAdminId || "").trim();
+        const sStockistId = String(order?.sStockistId || "").trim();
+
+        if (appliedShipmentOwnerFilter === getShipmentOwnerValue("admin", shippedAdminId)) {
+          return Boolean(shippedAdminId);
+        }
+
+        if (appliedShipmentOwnerFilter === getShipmentOwnerValue("superstockist", sStockistId)) {
+          return Boolean(sStockistId);
+        }
+
+        return false;
       })
       .sort((a, b) => b.createdDate - a.createdDate);
-  }, [orders, appliedFromDate, appliedToDate, appliedPincodeFilter]);
-
-  const availablePincodes = useMemo(() => {
-    const pins = new Set(orders.map((order) => getOrderPincode(order)));
-    return [...pins].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [orders]);
+  }, [
+    orders,
+    appliedFromDate,
+    appliedToDate,
+    appliedPincodeFilter,
+    appliedCityFilter,
+    appliedShipmentOwnerFilter,
+    pincodeToCityMap,
+  ]);
 
   const dailyTrend = useMemo(() => {
     const from = startOfDay(appliedFromDate);
@@ -311,6 +477,8 @@ const OrdersPincodeReport = ({ embedded = false }) => {
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
     setAppliedPincodeFilter(pincodeFilter);
+    setAppliedCityFilter(cityFilter);
+    setAppliedShipmentOwnerFilter(shipmentOwnerFilter);
     setSelectedDayKey("");
     setSelectedChartPincode("");
     setPage(1);
@@ -336,7 +504,9 @@ const OrdersPincodeReport = ({ embedded = false }) => {
         <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
           Orders between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
           {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
-          {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}.
+          {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}
+          {appliedCityFilter !== "All" ? ` · City: ${appliedCityFilter}` : ""}
+          {appliedShipmentOwnerFilter !== "All" ? ` · Shipment: ${appliedShipmentOwnerFilter}` : ""}.
         </Typography>
 
         <div
@@ -376,9 +546,39 @@ const OrdersPincodeReport = ({ embedded = false }) => {
             style={{ minWidth: isMobile ? "100%" : "200px" }}
           >
             <MenuItem value="All">All Pincodes</MenuItem>
-            {availablePincodes.map((pin) => (
+            {availableOrderPincodes.map((pin) => (
               <MenuItem key={pin} value={pin}>
                 {pin}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="City"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "200px" }}
+          >
+            <MenuItem value="All">All Cities</MenuItem>
+            {availableCities.map((city) => (
+              <MenuItem key={city} value={city}>
+                {city}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Select superstockist shipment"
+            value={shipmentOwnerFilter}
+            onChange={(e) => setShipmentOwnerFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "260px" }}
+          >
+            <MenuItem value="All">All Shipments</MenuItem>
+            {shipmentOwnerOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
               </MenuItem>
             ))}
           </TextField>

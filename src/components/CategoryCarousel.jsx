@@ -71,7 +71,14 @@ const normalizeCategory = (item) => {
   return { title: item.title || "", imageKey: item.imageKey || item.imagekey || "" };
 };
 
-const CategoryCarousel = ({ selectedCategory, onCategorySelect, items, avatarVariant = "rounded", useDivisionThemes = false }) => {
+const CategoryCarousel = ({
+  selectedCategory,
+  onCategorySelect,
+  items,
+  avatarVariant = "rounded",
+  useDivisionThemes = false,
+  showSelectionBorder = false,
+}) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const categoryItems = (items ?? defaultCategories).map(normalizeCategory);
 
@@ -141,7 +148,9 @@ const CategoryCarousel = ({ selectedCategory, onCategorySelect, items, avatarVar
               ? selectedCategory === category.title
                 ? `2px solid ${getCategoryTheme(category.title, index).borderColor}`
                 : `0.3px solid ${getCategoryTheme(category.title, index).borderColor}`
-              : "none",
+              : showSelectionBorder && selectedCategory === category.title
+                ? "2px solid var(--brand-primary-strong)"
+                : "1px solid transparent",
           }}
         >
           <Avatar

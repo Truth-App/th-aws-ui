@@ -1,9 +1,9 @@
 import AdminPageLayout from "../components/AdminPageLayout";
-import OrdersPincodeReport from "../components/OrdersPincodeReport";
+import PincodeMappingTable from "../components/PincodeMappingTable";
 
 const OrdersPincodeReportPage = () => (
   <AdminPageLayout activeFeature="orders-pincode-report">
-    <OrdersPincodeReport />
+    <PincodeMappingTable />
   </AdminPageLayout>
 );
 

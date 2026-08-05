@@ -584,11 +584,11 @@ const ProductsSoldReport = ({ embedded = false }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700 }}>Product</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Category</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Units sold</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Sales value</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Orders</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Product</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Category</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Units sold</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Sales value</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Orders</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

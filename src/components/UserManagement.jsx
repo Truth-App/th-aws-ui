@@ -10,6 +10,7 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import Checkbox from "@mui/material/Checkbox";
+import Switch from "@mui/material/Switch";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
 import Select from "@mui/material/Select";
@@ -28,7 +29,7 @@ import Collapse from "@mui/material/Collapse";
 import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
-import { createUser, getUsers, updateUser } from "../api/users";
+import { createUser, getUsers, updateUser, activateDeactivateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
 import { PRESIGNED_URL_API, S3_BASE_URL, PINCODE_API_URL } from "../constants/api";
 import { ADMIN_ROLE, USER_ROLES } from "../constants/roles";
@@ -43,7 +44,7 @@ import {
   markProfileSetupSkipped,
 } from "../helpers/profileHelpers";
 import { ToastContainer, toast } from "react-toastify";
-import { MdEdit, MdPersonAdd, MdVisibility, MdKeyboardArrowDown, MdKeyboardArrowUp } from "react-icons/md";
+import { MdEdit, MdPersonAdd, MdVisibility, MdKeyboardArrowDown, MdKeyboardArrowUp, MdBlock, MdCheckCircle } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -68,11 +69,16 @@ const INITIAL_USER_FORM = {
   bankname: "",
   accountno: "",
   ifsccode: "",
-  status: "",
+  status: "Active",
   activitylog: [],
 };
 
+const normalizeUserStatus = (value) =>
+  String(value || "Active").toLowerCase() === "inactive" ? "Inactive" : "Active";
+
 const getUserId = (user) => user.userId || user.email || user.id || "—";
+
+const getUserApiId = (user) => user?.id || "";
 
 const mapReferenceNumberFromUserId = (selectedUser) =>
   selectedUser?.userId || selectedUser?.referencenumber || selectedUser?.referenceNumber || "";
@@ -464,6 +470,7 @@ const mapUserToForm = (selectedUser) => {
     activitylog: getUserActivityLog(selectedUser),
     privileges: getUserPrivileges(selectedUser),
     discountrate: getUserDiscountRate(selectedUser),
+    status: normalizeUserStatus(selectedUser.status),
     activitylog: getActivityLog(selectedUser),
   };
 };
@@ -957,6 +964,22 @@ const UserFormFields = ({
   </div>
 );
 
+const StatusToggle = ({ status = "Active", onChange, disabled = false }) => (
+  <FormControlLabel
+    style={{ marginLeft: 0 }}
+    control={
+      <Switch
+        name="status"
+        checked={status === "Active"}
+        onChange={onChange}
+        disabled={disabled}
+        color="primary"
+      />
+    }
+    label={`Status: ${status === "Active" ? "Active" : "Inactive"}`}
+  />
+);
+
 const ProfileUserSelectTable = ({
   users,
   filter,
@@ -1097,6 +1120,8 @@ const ReferenceNumberFields = ({
   const hasSavedReferenceNumber = Boolean(String(savedReferenceNumber || "").trim());
   const referenceNumberDisabled =
     disabled || (!canEditReferenceNumber && hasSavedReferenceNumber);
+  const roleFieldDisabled =
+    disabled || roleDisabled || (!canEditReferenceNumber && hasSavedReferenceNumber);
 
   return (
   <>
@@ -1115,7 +1140,7 @@ const ReferenceNumberFields = ({
         <RoleSelectField
           user={user}
           onChange={onChange}
-          disabled={disabled || roleDisabled}
+          disabled={roleFieldDisabled}
           fullWidth
         />
       </>
@@ -1301,13 +1326,34 @@ const UserManagement = ({ profileMode = false }) => {
     currentDbUserRole,
     viewingUser?.role || "",
   );
+  const isCurrentUserAdmin = currentDbUserRole === ADMIN_ROLE;
+  const canEditReferenceAndRole = isCurrentUserAdmin;
+  const canManageUserStatus = isCurrentUserAdmin;
+  const isProfileInactiveLocked =
+    profileMode &&
+    dialogMode === "edit" &&
+    normalizeUserStatus(user.status) === "Inactive" &&
+    !isCurrentUserAdmin;
 
   const handleOnChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, checked } = e.target;
+    if (name === "status") {
+      if (!canManageUserStatus) return;
+      setUser((prev) => ({
+        ...prev,
+        status: checked ? "Active" : "Inactive",
+      }));
+      return;
+    }
     if (name === "referencenumber") {
       const referencedUser = findUserByReferenceNumber(users, value);
       const assignedRole = getAssignedRoleFromReferenceUser(referencedUser);
       setSelectedReferenceUserId(referencedUser?.id || null);
+      const hasSavedRef = Boolean(String(savedReferenceNumber || "").trim());
+
+      // Non-admin with a saved reference cannot change it (field is also disabled).
+      if (!isCurrentUserAdmin && hasSavedRef) return;
+
       setUser((prev) => ({
         ...prev,
         referencenumber: value,
@@ -1318,10 +1364,17 @@ const UserManagement = ({ profileMode = false }) => {
         ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
           ? {}
           : { supportedpincodes: [] }),
+        status:
+          !isCurrentUserAdmin && value.trim()
+            ? "Inactive"
+            : prev.status,
       }));
       return;
     }
     if (name === "role") {
+      if (!isCurrentUserAdmin && Boolean(String(savedReferenceNumber || "").trim())) {
+        return;
+      }
       setUser((prev) => ({
         ...prev,
         role: value,
@@ -1378,10 +1431,14 @@ const UserManagement = ({ profileMode = false }) => {
 
   const handleReferenceUserSelect = (selectedUser) => {
     const assignedRole = getAssignedRoleFromReferenceUser(selectedUser);
+    const nextReferenceNumber = mapReferenceNumberFromUserId(selectedUser);
+    const hasSavedRef = Boolean(String(savedReferenceNumber || "").trim());
+    if (!isCurrentUserAdmin && hasSavedRef) return;
+
     setSelectedReferenceUserId(selectedUser.id);
     setUser((prev) => ({
       ...prev,
-      referencenumber: mapReferenceNumberFromUserId(selectedUser),
+      referencenumber: nextReferenceNumber,
       role: assignedRole,
       privileges: getDefaultPrivilegeIdsByRole(assignedRole),
       discountrate: getDefaultDiscountRateByRole(assignedRole),
@@ -1389,6 +1446,10 @@ const UserManagement = ({ profileMode = false }) => {
       ...(shouldShowSupportedPincodes(currentDbUserRole, assignedRole)
         ? {}
         : { supportedpincodes: [] }),
+      status:
+        !isCurrentUserAdmin && nextReferenceNumber.trim()
+          ? "Inactive"
+          : prev.status,
     }));
   };
 
@@ -1509,6 +1570,33 @@ const UserManagement = ({ profileMode = false }) => {
     setViewingUser(null);
   };
 
+  const handleToggleUserStatus = async (item) => {
+    if (!canManageUserStatus) {
+      toast.error("Only administrator can change user status");
+      return;
+    }
+
+    const apiUserId = getUserApiId(item);
+    if (!apiUserId) {
+      toast.error("Unable to update status: user id is missing");
+      return;
+    }
+
+    const currentStatus = normalizeUserStatus(item.status);
+    const nextStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+    try {
+      let dataUser = {
+        status: nextStatus,
+      }
+      await activateDeactivateUser(apiUserId, dataUser);
+      toast.success(`User set to ${nextStatus}`);
+      await loadUsers();
+    } catch (err) {
+      toast.error(err?.message || "Unable to update user status");
+    }
+  };
+
   const validateUser = () => {
     if (!user.firstname.trim() || !user.lastname.trim()) {
       toast.error("Please enter first name and last name");
@@ -1613,18 +1701,33 @@ const UserManagement = ({ profileMode = false }) => {
           existingUser?.referencenumber || existingUser?.referenceNumber || "";
         const modifiedBy =
           authUser?.email || authUser?.name || currentDbUserRole || "Unknown";
+        const nextReferenceNumber = user.referencenumber.trim();
+        const referenceChanged =
+          nextReferenceNumber !== String(previousReferenceNumber || "").trim();
+
+        let nextStatus;
+        if (isCurrentUserAdmin) {
+          nextStatus = normalizeUserStatus(user.status);
+        } else if (referenceChanged && nextReferenceNumber) {
+          nextStatus = "Inactive";
+        } else {
+          nextStatus = normalizeUserStatus(existingUser?.status || user.status);
+        }
+
+        payload.status = nextStatus;
 
         payload.activitylog = buildActivityLogPayload({
           existingHistory: getActivityLog(existingUser || user),
           previousRole,
           previousReferenceNumber,
           nextRole: user.role,
-          nextReferenceNumber: user.referencenumber.trim(),
+          nextReferenceNumber,
           modifiedBy,
         });
 
         await updateUser(editingUserId, payload);
       } else {
+        payload.status = "Active";
         await createUser(payload);
       }
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
@@ -1705,6 +1808,20 @@ const UserManagement = ({ profileMode = false }) => {
                   width: "100%",
                 }}
               >
+                {isProfileInactiveLocked && (
+                  <Typography
+                    variant="body2"
+                    color="error"
+                    style={{
+                      padding: "0.75em 1em",
+                      border: "1px solid #f5c2c7",
+                      backgroundColor: "#f8d7da",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    Your account is Inactive. Please contact administration to make it Active.
+                  </Typography>
+                )}
                 <UserFormFields
                   user={user}
                   onChange={handleOnChange}
@@ -1717,6 +1834,7 @@ const UserManagement = ({ profileMode = false }) => {
                   extendedUserForm
                   allUsers={users}
                   currentUserId={user.userid}
+                  disabled={isProfileInactiveLocked}
                 />
                 <ReferenceNumberFields
                   user={user}
@@ -1727,26 +1845,36 @@ const UserManagement = ({ profileMode = false }) => {
                   onSelectUser={handleReferenceUserSelect}
                   onChange={handleOnChange}
                   profileMode
-                  roleDisabled
-                  canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
+                  disabled={isProfileInactiveLocked}
+                  roleDisabled={!canEditReferenceAndRole || isProfileInactiveLocked}
+                  canEditReferenceNumber={canEditReferenceAndRole && !isProfileInactiveLocked}
                   savedReferenceNumber={savedReferenceNumber}
                 />
+                {dialogMode === "edit" && (
+                  <StatusToggle
+                    status={user.status}
+                    onChange={handleOnChange}
+                    disabled={!canManageUserStatus || isProfileInactiveLocked}
+                  />
+                )}
                 <ImageUploadSection
                   imageKeys={user.imageKeys || []}
                   fileInputRef={fileInputRef}
                   uploadingFiles={uploadingFiles}
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
+                  disabled={isProfileInactiveLocked}
                 />
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   <Button
                     onClick={handleSaveUser}
-                    disabled={uploadingFiles}
+                    disabled={uploadingFiles || isProfileInactiveLocked}
                     variant="contained"
                     style={{
                       backgroundColor: "var(--brand-primary-strong)",
                       textTransform: "none",
                       fontWeight: "bolder",
+                      opacity: isProfileInactiveLocked ? 0.6 : 1,
                     }}
                   >
                     Save Profile
@@ -1884,6 +2012,9 @@ const UserManagement = ({ profileMode = false }) => {
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Reference Number
                     </TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
+                      Status
+                    </TableCell>
                     <TableCell
                       align="right"
                       style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)", minWidth: 120 }}
@@ -1900,6 +2031,8 @@ const UserManagement = ({ profileMode = false }) => {
                   {paginatedUsers.map((item) => {
                     const expanded = expandedRowId === item.id;
                     const activityLog = getActivityLog(item);
+                    const userStatus = normalizeUserStatus(item.status);
+                    const isInactive = userStatus === "Inactive";
 
                     return (
                       <Fragment key={item.id}>
@@ -1912,7 +2045,47 @@ const UserManagement = ({ profileMode = false }) => {
                           <TableCell>{item.role || "—"}</TableCell>
                           <TableCell>{item.pincode || "—"}</TableCell>
                           <TableCell>{item.referencenumber || "—"}</TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={userStatus}
+                              variant="outlined"
+                              style={
+                                isInactive
+                                  ? { color: "#d32f2f", borderColor: "#d32f2f" }
+                                  : {
+                                      color: "var(--brand-primary-strong)",
+                                      borderColor: "var(--brand-primary-strong)",
+                                    }
+                              }
+                            />
+                          </TableCell>
                           <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
+                            {canManageUserStatus ? (
+                              <IconButton
+                                onClick={() => handleToggleUserStatus(item)}
+                                size="small"
+                                aria-label={isInactive ? "Activate user" : "Deactivate user"}
+                                title={isInactive ? "Activate user" : "Deactivate user"}
+                                style={{
+                                  color: isInactive ? "#d32f2f" : "#2e7d32",
+                                }}
+                              >
+                                {isInactive ? <MdBlock size={20} /> : <MdCheckCircle size={20} />}
+                              </IconButton>
+                            ) : (
+                              isInactive && (
+                                <IconButton
+                                  size="small"
+                                  aria-label="User inactive"
+                                  title="Inactive user"
+                                  style={{ color: "#d32f2f", cursor: "default" }}
+                                  disableRipple
+                                >
+                                  <MdBlock size={20} />
+                                </IconButton>
+                              )
+                            )}
                             <IconButton
                               onClick={() => handleOpenView(item)}
                               size="small"
@@ -1945,7 +2118,7 @@ const UserManagement = ({ profileMode = false }) => {
                         </TableRow>
                         <TableRow>
                           <TableCell
-                            colSpan={10}
+                            colSpan={11}
                             style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}
                           >
                             <Collapse in={expanded} timeout="auto" unmountOnExit>
@@ -2040,9 +2213,16 @@ const UserManagement = ({ profileMode = false }) => {
                 onChange={handleOnChange}
                 profileMode
                 showDiscountRate
-                roleDisabled={currentDbUserRole !== ADMIN_ROLE}
-                canEditReferenceNumber={currentDbUserRole === ADMIN_ROLE}
+                roleDisabled={!canEditReferenceAndRole}
+                canEditReferenceNumber={canEditReferenceAndRole}
                 savedReferenceNumber={savedReferenceNumber}
+              />
+            )}
+            {dialogMode === "edit" && (
+              <StatusToggle
+                status={user.status}
+                onChange={handleOnChange}
+                disabled={!canManageUserStatus}
               />
             )}
             <ImageUploadSection
@@ -2096,6 +2276,11 @@ const UserManagement = ({ profileMode = false }) => {
                 showDiscountRate
                 disabled
                 roleDisabled
+              />
+              <StatusToggle
+                status={viewingUser.status}
+                onChange={() => {}}
+                disabled
               />
               <ImageUploadSection
                 imageKeys={viewingUser.imageKeys || []}

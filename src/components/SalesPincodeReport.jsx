@@ -511,12 +511,12 @@ const SalesPincodeReport = ({ embedded = false }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700 }}>Order ID</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Pincode</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>City</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Customer</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Amount</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Ordered On</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Order ID</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Pincode</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>City</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Customer</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Amount</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Ordered On</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

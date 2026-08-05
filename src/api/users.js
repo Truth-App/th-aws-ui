@@ -99,3 +99,24 @@ export const updateUser = async (userId, payload) => {
 
   return data;
 };
+
+export const activateDeactivateUser = async (userId, payload) => {
+  const response = await fetch(`${USER_API_URL}/${userId}/activate-deactive-user`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  
+  if (!response.ok) {
+    const message = getApiErrorMessage(data, `Failed to activate/deactivate user. Status: ${response.status}`);
+    throw new Error(message || `Failed to activate/deactivate user. Status: ${response.status}`);
+  }
+
+  const envelopeError = getApiErrorMessage(data, "Failed to activate/deactivate user.");
+  if (envelopeError) {
+    throw new Error(envelopeError);
+  }
+  return data;
+};

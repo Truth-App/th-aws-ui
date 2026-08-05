@@ -30,6 +30,7 @@ import { getUsers } from "../api/users";
 import { fetchUsers } from "../store/slices/usersSlice";
 import { getUserRoleFromList } from "../constants/dashboardFeatures";
 import { ADMIN_ROLE, SUPER_STOCKIST_ROLE } from "../constants/roles";
+import { PINCODE_API_URL } from "../constants/api";
 
 const IMAGE_BASE_URL = "https://th-app-product.s3.ap-south-2.amazonaws.com/";
 const TIMELINE_STEPS = ["PLACED", "PAID", "ACCEPTED", "SHIPPED", "DELIVERED"];
@@ -193,6 +194,28 @@ const getTimelineStepTimes = (details) => {
   };
 };
 
+const getOrderPincodeForMapping = (details) => {
+  const candidates = [
+    details?.shippingAddress?.pincode,
+    details?.shippingAddress?.pinCode,
+    details?.shippingAddress?.postalCode,
+    details?.deliveryAddress?.pincode,
+    details?.deliveryAddress?.pinCode,
+    details?.deliveryAddress?.postalCode,
+    details?.address?.pincode,
+    details?.address?.pinCode,
+    details?.address?.postalCode,
+    details?.customerAddress?.pincode,
+    details?.customerAddress?.pinCode,
+    details?.customerAddress?.postalCode,
+    details?.pincode,
+    details?.pinCode,
+  ];
+
+  const matched = candidates.find((value) => String(value || "").trim());
+  return String(matched || "").trim();
+};
+
 const OrderSuccess = () => {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -228,6 +251,10 @@ const OrderSuccess = () => {
   const [productStock, setProductStock] = useState({});
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceError, setInvoiceError] = useState("");
+  const [mappingPincodeLoading, setMappingPincodeLoading] = useState(false);
+  const [mappingPincodeError, setMappingPincodeError] = useState("");
+  const [orderPincodeMatchStatus, setOrderPincodeMatchStatus] = useState(null);
+  const [orderPincodeForMapping, setOrderPincodeForMapping] = useState("");
   const details = orderData?.orderDetails;
   const shortOrderId = String(details?.orderId || orderId || "").slice(0, 8);
   const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
@@ -277,6 +304,71 @@ const OrderSuccess = () => {
 
     fetchOrder();
   }, [orderId]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- validate current order pincode against pincode mapping API */
+  useEffect(() => {
+    if (!details) {
+      setOrderPincodeMatchStatus(null);
+      setOrderPincodeForMapping("");
+      setMappingPincodeError("");
+      return;
+    }
+
+    const orderPincode = getOrderPincodeForMapping(details);
+    setOrderPincodeForMapping(orderPincode);
+
+    if (!orderPincode) {
+      setOrderPincodeMatchStatus(false);
+      setMappingPincodeError("");
+      return;
+    }
+
+    let ignore = false;
+
+    const validatePincode = async () => {
+      setMappingPincodeLoading(true);
+      setMappingPincodeError("");
+
+      try {
+        const response = await fetch(PINCODE_API_URL, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pincode mapping. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const mappedRows = Array.isArray(data?.result) ? data.result : [];
+        const mappedPincodes = new Set(
+          mappedRows
+            .map((row) => String(row?.pincode || "").trim())
+            .filter(Boolean),
+        );
+
+        if (!ignore) {
+          setOrderPincodeMatchStatus(mappedPincodes.has(orderPincode));
+        }
+      } catch (error) {
+        if (!ignore) {
+          setOrderPincodeMatchStatus(null);
+          setMappingPincodeError(error?.message || "Failed to validate order pincode.");
+        }
+      } finally {
+        if (!ignore) {
+          setMappingPincodeLoading(false);
+        }
+      }
+    };
+
+    validatePincode();
+
+    return () => {
+      ignore = true;
+    };
+  }, [details]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const rawExpectedDate =
@@ -494,6 +586,11 @@ const OrderSuccess = () => {
   const isAdminApprovalLocked = hasFinalAdminApproval || canShowShipmentCard || canShowDeliveryCard;
   const isAdminApprovalEffectiveApproved =
     !isAdminApprovalRejected && (isAdminApprovalApproved || canShowShipmentCard || canShowDeliveryCard);
+  const showPincodeMismatchBanner =
+    !isAdminApprovalLocked &&
+    !mappingPincodeLoading &&
+    !mappingPincodeError &&
+    orderPincodeMatchStatus === false;
   const isPaymentCOD =
     (details?.paymentStatus || "").toUpperCase() === "COD" || details?.isPaymentCOD === true;
   const isPaymentPaidOnline = (details?.paymentStatus || "").toUpperCase() === "PAID";
@@ -1187,6 +1284,35 @@ const OrderSuccess = () => {
                   <Typography variant="h6" style={{ fontWeight: 700, marginBottom: "12px" }}>
                     Admin Approval
                   </Typography>
+
+                  {showPincodeMismatchBanner && (
+                    <div
+                      style={{
+                        marginBottom: "12px",
+                        padding: "10px 12px",
+                        borderRadius: "8px",
+                        backgroundColor: "#fff4e5",
+                        border: "1px solid #ffd8a8",
+                      }}
+                    >
+                      <Typography variant="body2" style={{ color: "#8a4b08", fontWeight: 700 }}>
+                        The current order does not belong to available pincodes.
+                      </Typography>
+                      <Typography variant="body2" style={{ color: "#8a4b08", marginTop: "4px" }}>
+                        {`Current order pincode: ${orderPincodeForMapping || "123123"}.`}
+                      </Typography>
+                      <Typography variant="body2" style={{ color: "#8a4b08", marginTop: "4px" }}>
+                        To add pincode{" "}
+                        <a
+                          href="http://localhost:5173/pincode-mapping"
+                          style={{ color: "#8a4b08", fontWeight: 700 }}
+                        >
+                          click here
+                        </a>
+                        .
+                      </Typography>
+                    </div>
+                  )}
 
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "12px" }}>
                     <Chip

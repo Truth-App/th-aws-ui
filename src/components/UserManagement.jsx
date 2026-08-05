@@ -12,6 +12,10 @@ import MenuItem from "@mui/material/MenuItem";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormGroup from "@mui/material/FormGroup";
+import Select from "@mui/material/Select";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import CircularProgress from "@mui/material/CircularProgress";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -26,7 +30,7 @@ import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
 import { createUser, getUsers, updateUser } from "../api/users";
 import CategoryCarousel from "./CategoryCarousel";
-import { PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
+import { PRESIGNED_URL_API, S3_BASE_URL, PINCODE_API_URL } from "../constants/api";
 import { ADMIN_ROLE, USER_ROLES } from "../constants/roles";
 import {
   FEATURE_LABELS,
@@ -58,6 +62,7 @@ const INITIAL_USER_FORM = {
   address: "",
   landmark: "",
   imageKeys: [],
+  activitylog: [],
   privileges: [],
   discountrate: 0,
   bankname: "",
@@ -382,6 +387,26 @@ const getUserImageKeys = (selectedUser) => {
 
 const getUserPrivileges = (selectedUser) => parseUserPrivileges(selectedUser);
 
+const getUserActivityLog = (selectedUser) => {
+  const raw =
+    selectedUser?.activitylog ??
+    selectedUser?.activityLog ??
+    selectedUser?.activity_logs ??
+    selectedUser?.activitylogs;
+
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 const getUserSupportedPincodes = (selectedUser) => {
   const raw =
     selectedUser?.supportedpincodes ??
@@ -436,6 +461,7 @@ const mapUserToForm = (selectedUser) => {
     accountno: selectedUser.accountno || selectedUser.accountNo || selectedUser.accountnumber || "",
     ifsccode: selectedUser.ifsccode || selectedUser.ifscCode || "",
     imageKeys: getUserImageKeys(selectedUser),
+    activitylog: getUserActivityLog(selectedUser),
     privileges: getUserPrivileges(selectedUser),
     discountrate: getUserDiscountRate(selectedUser),
     activitylog: getActivityLog(selectedUser),
@@ -543,7 +569,7 @@ const PrivilegesSection = ({
   const privilegeOptions = useMemo(() => {
     const baseLabels = FEATURE_LABELS.filter(
       (feature) =>
-        !["onboarding-report", "orders-pincode-report", "reports"].includes(feature.id),
+        !["onboarding-report", "reports"].includes(feature.id),
     );
     if (role !== ADMIN_ROLE) return baseLabels;
 
@@ -597,90 +623,128 @@ const SupportedPincodesSection = ({
   disabled = false,
   onAdd,
   onRemove,
+  allUsers = [],
+  currentUserId = null,
 }) => {
-  const [draftPincode, setDraftPincode] = useState("");
+  const [pincodeOptions, setPincodeOptions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedPincodes, setSelectedPincodes] = useState(supportedpincodes || []);
 
-  const handleDraftChange = (e) => {
-    setDraftPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
-  };
-
-  const handleAddPincode = () => {
-    const normalized = draftPincode.trim();
-    if (!/^\d{6}$/.test(normalized)) {
-      toast.error("Supported pincode must be 6 digits");
-      return;
-    }
-    if (supportedpincodes.includes(normalized)) {
-      toast.error("This supported pincode is already added");
-      return;
-    }
-    onAdd(normalized);
-    setDraftPincode("");
-  };
-
-  const handleDraftKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (!disabled) {
-        handleAddPincode();
+  // Extract pincodes already assigned to other users and map to user info
+  const assignedPincodesMap = useMemo(() => {
+    const assigned = {};
+    allUsers.forEach((user) => {
+      // Skip the current user being edited
+      if (currentUserId && (user.id === currentUserId || user.userId === currentUserId)) {
+        return;
       }
-    }
+      const userPincodes = getUserSupportedPincodes(user);
+      const userId = user.userId || user.id || "Unknown";
+      userPincodes.forEach((pincode) => {
+        assigned[pincode] = userId;
+      });
+    });
+    return assigned;
+  }, [allUsers, currentUserId]);
+
+  useEffect(() => {
+    const fetchPincodes = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(PINCODE_API_URL, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const pincodes = Array.isArray(data?.result) ? data.result : [];
+          setPincodeOptions(pincodes);
+        } else {
+          toast.error("Failed to load pincode options");
+        }
+      } catch (error) {
+        toast.error("Error loading pincodes");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPincodes();
+  }, []);
+
+  useEffect(() => {
+    setSelectedPincodes(supportedpincodes || []);
+  }, [supportedpincodes]);
+
+  const handlePincodeChange = (event) => {
+    const value = event.target.value;
+    setSelectedPincodes(value);
+    
+    // Get the old pincodes and new pincodes
+    const oldSet = new Set(supportedpincodes);
+    const newSet = new Set(value);
+    
+    // Find added and removed pincodes
+    const added = value.filter((v) => !oldSet.has(v));
+    const removed = supportedpincodes.filter((v) => !newSet.has(v));
+    
+    // Notify parent component of changes
+    added.forEach((pincode) => onAdd(pincode));
+    removed.forEach((pincode) => onRemove(pincode));
   };
 
   return (
     <div style={{ gridColumn: "1 / -1" }}>
-      <Typography
-        variant="body2"
-        style={{ fontWeight: 600, color: "var(--brand-primary-strong)", marginBottom: "0.5em" }}
-      >
-        Supported Pincodes
-      </Typography>
-      {!disabled && (
-        <div style={{ display: "flex", gap: "0.75em", alignItems: "flex-start", flexWrap: "wrap" }}>
-          <TextField
-            size="small"
-            label="Supported Pincode"
-            variant="outlined"
-            value={draftPincode}
-            onChange={handleDraftChange}
-            onKeyDown={handleDraftKeyDown}
-            inputProps={{ maxLength: 6 }}
-            helperText="Enter supported pin codes"
-            style={{ flex: "1 1 180px", maxWidth: 280 }}
-          />
-          <Button
-            variant="outlined"
-            onClick={handleAddPincode}
-            disabled={draftPincode.length !== 6}
-            style={{
-              textTransform: "none",
-              fontWeight: 600,
-              borderColor: "var(--brand-primary-strong)",
-              color: "var(--brand-primary-strong)",
-              marginTop: "2px",
-            }}
-          >
-            Add
-          </Button>
-        </div>
-      )}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5em", marginTop: disabled ? 0 : "0.75em" }}>
-        {supportedpincodes.length > 0 ? (
-          supportedpincodes.map((pincode) => (
+      <FormControl fullWidth size="small" disabled={disabled || loading}>
+        <InputLabel>Supported Pincodes</InputLabel>
+        <Select
+          multiple
+          value={selectedPincodes}
+          onChange={handlePincodeChange}
+          label="Supported Pincodes"
+          endAdornment={loading ? <CircularProgress color="inherit" size={20} /> : null}
+          renderValue={(selected) => selected.join(", ")}
+        >
+          {pincodeOptions.map((option) => {
+            const assignedUserId = assignedPincodesMap[option.pincode];
+            const isAssigned = !!assignedUserId && !selectedPincodes.includes(option.pincode);
+            const isSelected = selectedPincodes.includes(option.pincode);
+            return (
+              <MenuItem
+                key={`${option.pincode}-${option.city}`}
+                value={option.pincode}
+                disabled={isAssigned}
+                style={{
+                  backgroundColor: isSelected ? "var(--brand-tint)" : isAssigned ? "#f5f5f5" : "transparent",
+                  color: isSelected ? "var(--brand-primary-strong)" : isAssigned ? "#999" : "inherit",
+                  fontWeight: isSelected ? 600 : 400,
+                }}
+              >
+                {option.pincode} - {option.city}
+                {assignedUserId ? ` (Assigned to ${assignedUserId})` : ""}
+              </MenuItem>
+            );
+          })}
+        </Select>
+      </FormControl>
+      {selectedPincodes.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5em", marginTop: "0.75em" }}>
+          {selectedPincodes.map((pincode) => (
             <Chip
               key={pincode}
               label={pincode}
               size="small"
-              onDelete={disabled ? undefined : () => onRemove(pincode)}
+              onDelete={disabled ? undefined : () => handlePincodeChange({
+                target: {
+                  value: selectedPincodes.filter((p) => p !== pincode)
+                }
+              })}
               style={{ backgroundColor: "var(--brand-tint)", color: "var(--brand-primary-strong)" }}
             />
-          ))
-        ) : (
-          <Typography variant="body2" style={{ color: "#6f7378" }}>
-            No supported pincodes added
-          </Typography>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -722,6 +786,8 @@ const UserFormFields = ({
   isMobile,
   profileMode = false,
   extendedUserForm = false,
+  allUsers = [],
+  currentUserId = null,
 }) => (
   <div
     style={{
@@ -820,6 +886,8 @@ const UserFormFields = ({
         disabled={disabled}
         onAdd={onAddSupportedPincode}
         onRemove={onRemoveSupportedPincode}
+        allUsers={allUsers}
+        currentUserId={currentUserId}
       />
     )}
     <TextField
@@ -1521,6 +1589,7 @@ const UserManagement = ({ profileMode = false }) => {
         ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || null : null,
         imageKeys: user.imageKeys || [],
         images: user.imageKeys || [],
+        activitylog: user.activitylog || [],
       };
 
       if (profileMode) {
@@ -1646,6 +1715,8 @@ const UserManagement = ({ profileMode = false }) => {
                   isMobile={isMobile}
                   profileMode={profileMode}
                   extendedUserForm
+                  allUsers={users}
+                  currentUserId={user.userid}
                 />
                 <ReferenceNumberFields
                   user={user}
@@ -1731,13 +1802,14 @@ const UserManagement = ({ profileMode = false }) => {
             style={{
               marginTop: 0,
               backgroundColor: "var(--brand-surface)",
-              padding: 0,
+              padding: "6px 0 0",
               borderRadius: "8px",
             }}
           >
             <CategoryCarousel
               items={USER_ROLES}
               selectedCategory={roleFilter}
+              showSelectionBorder
               onCategorySelect={(role) => {
                 setRoleFilter(role);
                 setPage(1);
@@ -1959,6 +2031,8 @@ const UserManagement = ({ profileMode = false }) => {
               isMobile={isMobile}
               profileMode={false}
               extendedUserForm={dialogMode === "edit"}
+              allUsers={users}
+              currentUserId={editingUserId || user.userid}
             />
             {dialogMode === "edit" && (
               <ReferenceNumberFields
@@ -2012,6 +2086,8 @@ const UserManagement = ({ profileMode = false }) => {
                 isMobile={isMobile}
                 profileMode={false}
                 extendedUserForm
+                allUsers={users}
+                currentUserId={viewingUser?.id || viewingUser?.userId}
               />
               <ReferenceNumberFields
                 user={viewingUser}

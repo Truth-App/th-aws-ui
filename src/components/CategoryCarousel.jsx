@@ -84,7 +84,14 @@ const normalizeCategory = (item) => {
   };
 };
 
-const CategoryCarousel = ({ selectedCategory, onCategorySelect, items, avatarVariant = "rounded", useDivisionThemes = false }) => {
+const CategoryCarousel = ({
+  selectedCategory,
+  onCategorySelect,
+  items,
+  avatarVariant = "rounded",
+  useDivisionThemes = false,
+  showSelectionBorder = false,
+}) => {
   const isMobile = useMediaQuery("(max-width:600px)");
   const categoryItems = (items ?? defaultCategories).map(normalizeCategory);
 

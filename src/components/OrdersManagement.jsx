@@ -36,6 +36,7 @@ const DEFAULT_APPROVAL_CHECKS = {
   pendingApproval: true,
   approved: false,
   rejected: false,
+  codOrder: false,
   guestOrder: false,
 };
 
@@ -222,6 +223,11 @@ const OrdersManagement = ({
 
     if (selectedStatus === "PAID") {
       const isPaymentCOD = isCODOrder(order);
+      const hasStatusFilterSelected =
+        approvalChecks.pendingApproval ||
+        approvalChecks.approved ||
+        approvalChecks.rejected;
+
       const matchesPendingApproval =
         approvalChecks.pendingApproval &&
         (
@@ -230,9 +236,15 @@ const OrdersManagement = ({
         );
       const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
       const matchesRejected = approvalChecks.rejected && normalizedOrderStatus === "ORDER_REJECTED";
-      const matchesGuestOrder = approvalChecks.guestOrder && order?.isGuestOrder === true;
+      const matchesStatus =
+        hasStatusFilterSelected
+          ? (matchesPendingApproval || matchesApproved || matchesRejected)
+          : true;
 
-      return matchesPendingApproval || matchesApproved || matchesRejected || matchesGuestOrder;
+      const matchesCodOrder = !approvalChecks.codOrder || normalizedPaymentStatus === "COD";
+      const matchesGuestOrder = !approvalChecks.guestOrder || order?.isGuestOrder === true;
+
+      return matchesStatus && matchesCodOrder && matchesGuestOrder;
     }
 
     if (selectedStatus === "SHIPPED") {
@@ -424,6 +436,16 @@ const OrdersManagement = ({
                   />
                 }
                 label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Rejected order</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.codOrder}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, codOrder: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>COD Order</Typography>}
               />
               <FormControlLabel
                 control={

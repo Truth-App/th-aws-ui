@@ -557,11 +557,11 @@ const OnboardingUsersReport = ({ embedded = false }) => {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ fontWeight: 700 }}>Name</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>User ID</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Email</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Role</TableCell>
-                    <TableCell style={{ fontWeight: 700 }}>Onboarded On</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Name</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>User ID</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Email</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Role</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Onboarded On</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

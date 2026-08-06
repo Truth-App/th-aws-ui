@@ -54,8 +54,7 @@ export const getSuperStockistDashboardFeatures = () => [
   { id: "user-hierarchy", label: "User Hierarchy", path: "/user-hierarchy" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },
   { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
-  { id: "order-fulfillment", label: "Order Fulfillment", path: "/order-fulfillment" },
-  { id: "reports", label: "Reports", path: "/reports" },
+  { id: "order-fulfillment", label: "Order Fulfillment", path: "/order-fulfillment" },  
   { id: "my-stocks", label: "My Stocks", path: "/my-stocks" },
 ];
 
@@ -68,7 +67,8 @@ export const getAdminDashboardFeatures = () => [
   { id: "inventory", label: "Inventory Management", path: "/inventory" }, 
   { id: "orders-pincode-report", label: "Pincode Mapping", path: "/pincode-mapping" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },  
-  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" } 
+  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" }
+  { id: "reports", label: "Reports", path: "/reports" }
 ];
 
 export const getDashboardFeaturesByRole = (role) => {

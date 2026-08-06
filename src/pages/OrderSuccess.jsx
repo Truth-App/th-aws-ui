@@ -284,6 +284,8 @@ const OrderSuccess = () => {
     }
   }, [dispatch, usersStatus]);
 
+
+
   useEffect(() => {
     if (!orderId) return;
 
@@ -1304,7 +1306,7 @@ const OrderSuccess = () => {
                       <Typography variant="body2" style={{ color: "#8a4b08", marginTop: "4px" }}>
                         To add pincode{" "}
                         <a
-                          href="http://localhost:5173/pincode-mapping"
+                          href={`${window.location.origin}/pincode-mapping`}
                           style={{ color: "#8a4b08", fontWeight: 700 }}
                         >
                           click here

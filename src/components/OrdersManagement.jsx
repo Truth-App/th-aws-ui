@@ -9,6 +9,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import Checkbox from "@mui/material/Checkbox";
 import FormControlLabel from "@mui/material/FormControlLabel";
+import FormControl from "@mui/material/FormControl";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import useMediaQuery from "@mui/material/useMediaQuery";
@@ -37,6 +38,7 @@ const DEFAULT_APPROVAL_CHECKS = {
   approved: false,
   rejected: false,
   codOrder: false,
+  onlinePaymentOrder: false,
   guestOrder: false,
 };
 
@@ -134,6 +136,8 @@ const OrdersManagement = ({
     setOrderIdSearchTerm(restoredState.orderIdSearchTerm || "");
   }, [location.state]);
 
+
+
   useEffect(() => {
     const fetchUserOrders = async () => {
       setLoading(true);
@@ -202,11 +206,14 @@ const OrdersManagement = ({
       .filter((value) => value !== undefined && value !== null && value !== "")
       .map((value) => String(value).toLowerCase());
 
+    const orderCity = String(order?.cityFromPincode || "").toLowerCase();
+
     const matchesOrderId = fullOrderId.includes(normalizedSearchTerm) || shortOrderId.includes(normalizedSearchTerm);
     const matchesPincode = orderPincodeCandidates.some((pincode) => pincode.includes(normalizedSearchTerm));
     const matchesPhone = orderPhoneCandidates.some((phone) => phone.includes(normalizedSearchTerm));
+    const matchesCity = orderCity.includes(normalizedSearchTerm);
 
-    if (normalizedSearchTerm && !matchesOrderId && !matchesPincode && !matchesPhone) {
+    if (normalizedSearchTerm && !matchesOrderId && !matchesPincode && !matchesPhone && !matchesCity) {
       return false;
     }
 
@@ -242,9 +249,10 @@ const OrdersManagement = ({
           : true;
 
       const matchesCodOrder = !approvalChecks.codOrder || normalizedPaymentStatus === "COD";
+      const matchesOnlinePaymentOrder = !approvalChecks.onlinePaymentOrder || normalizedPaymentStatus === "PAID";
       const matchesGuestOrder = !approvalChecks.guestOrder || order?.isGuestOrder === true;
 
-      return matchesStatus && matchesCodOrder && matchesGuestOrder;
+      return matchesStatus && matchesCodOrder && matchesOnlinePaymentOrder && matchesGuestOrder;
     }
 
     if (selectedStatus === "SHIPPED") {
@@ -319,7 +327,7 @@ const OrdersManagement = ({
         >
           <TextField
             size="small"
-            placeholder="Search by order id, pincode, or phone number"
+            placeholder="Search by order id, pincode, city, or phone number"
             value={orderIdSearchTerm}
             onChange={(event) => setOrderIdSearchTerm(event.target.value)}
             InputProps={{
@@ -446,6 +454,16 @@ const OrdersManagement = ({
                   />
                 }
                 label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>COD Order</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={approvalChecks.onlinePaymentOrder}
+                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, onlinePaymentOrder: event.target.checked }))}
+                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                  />
+                }
+                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Online Payment</Typography>}
               />
               <FormControlLabel
                 control={

@@ -67,7 +67,7 @@ export const getAdminDashboardFeatures = () => [
   { id: "inventory", label: "Inventory Management", path: "/inventory" }, 
   { id: "orders-pincode-report", label: "Pincode Mapping", path: "/pincode-mapping" },
   { id: "view-orders", label: "View Orders", path: "/view-orders" },  
-  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" }
+  { id: "view-earnings", label: "View Earnings Summary", path: "/view-earning" },
   { id: "reports", label: "Reports", path: "/reports" }
 ];
 

@@ -28,6 +28,7 @@ import {
 import { Bar, Doughnut } from "react-chartjs-2";
 import { getUsers } from "../api/users";
 import { USER_ROLES } from "../constants/roles";
+import { PINCODE_API_URL } from "../constants/api";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Title, Tooltip, Legend);
 
@@ -94,10 +95,15 @@ const OnboardingUsersReport = ({ embedded = false }) => {
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
   const [roleFilter, setRoleFilter] = useState("All");
+  const [cityFilter, setCityFilter] = useState("All");
+  const [pincodeFilter, setPincodeFilter] = useState("All");
   const [appliedFromDate, setAppliedFromDate] = useState(defaults.fromDate);
   const [appliedToDate, setAppliedToDate] = useState(defaults.toDate);
   const [appliedRoleFilter, setAppliedRoleFilter] = useState("All");
+  const [appliedCityFilter, setAppliedCityFilter] = useState("All");
+  const [appliedPincodeFilter, setAppliedPincodeFilter] = useState("All");
   const [selectedDayKey, setSelectedDayKey] = useState("");
+  const [pincodeMappings, setPincodeMappings] = useState([]);
   const [selectedChartRole, setSelectedChartRole] = useState("");
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState([]);
@@ -130,6 +136,93 @@ const OnboardingUsersReport = ({ embedded = false }) => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPincodeMappings = async () => {
+      try {
+        const response = await fetch(PINCODE_API_URL, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pincode mapping. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        const rows = Array.isArray(data?.result)
+          ? data.result
+              .map((item) => ({
+                pincode: String(item?.pincode || "").trim(),
+                city: String(item?.city || "").trim(),
+              }))
+              .filter((item) => item.pincode && item.city)
+          : [];
+
+        setPincodeMappings(rows);
+      } catch {
+        if (!cancelled) {
+          setPincodeMappings([]);
+        }
+      }
+    };
+
+    loadPincodeMappings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pincodeFilter !== "All" && cityFilter !== "All") {
+      const pincodesInCity = pincodeMappings
+        .filter((item) => item.city === cityFilter)
+        .map((item) => item.pincode);
+
+      if (!pincodesInCity.includes(pincodeFilter)) {
+        setPincodeFilter("All");
+      }
+    }
+  }, [cityFilter, pincodeFilter, pincodeMappings]);
+
+  const pincodeToCityMap = useMemo(() => {
+    return pincodeMappings.reduce((acc, item) => {
+      acc[item.pincode] = item.city;
+      return acc;
+    }, {});
+  }, [pincodeMappings]);
+
+  const availableCities = useMemo(() => {
+    const citySet = new Set(pincodeMappings.map((item) => item.city).filter(Boolean));
+    return [...citySet].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [pincodeMappings]);
+
+  const normalizeCity = (value) => String(value || "").trim().toLowerCase();
+
+  const availablePincodes = useMemo(() => {
+    const pins = new Set(
+      users
+        .map((user) => user?.pincode || user?.postalCode || "")
+        .filter((p) => String(p).trim())
+    );
+    return [...pins].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [users]);
+
+  const availablePincodesForCity = useMemo(() => {
+    if (cityFilter === "All") {
+      return availablePincodes;
+    }
+
+    const pincodesInCity = pincodeMappings
+      .filter((item) => item.city === cityFilter)
+      .map((item) => item.pincode);
+
+    return availablePincodes.filter((pin) => pincodesInCity.includes(pin));
+  }, [availablePincodes, pincodeMappings, cityFilter]);
+
   const filteredUsers = useMemo(() => {
     const from = startOfDay(appliedFromDate);
     const to = endOfDay(appliedToDate);
@@ -146,8 +239,19 @@ const OnboardingUsersReport = ({ embedded = false }) => {
         if (appliedRoleFilter === "All") return true;
         return (user?.role || "Customer") === appliedRoleFilter;
       })
+      .filter(({ user }) => {
+        if (appliedCityFilter === "All") return true;
+        const userPincode = user?.pincode || user?.postalCode || "";
+        const mappedCity = pincodeToCityMap[String(userPincode).trim()] || user?.city || user?.location || "";
+        return normalizeCity(mappedCity) === normalizeCity(appliedCityFilter);
+      })
+      .filter(({ user }) => {
+        if (appliedPincodeFilter === "All") return true;
+        const userPincode = String(user?.pincode || user?.postalCode || "").trim();
+        return userPincode === appliedPincodeFilter;
+      })
       .sort((a, b) => b.createdDate - a.createdDate);
-  }, [users, appliedFromDate, appliedToDate, appliedRoleFilter]);
+  }, [users, appliedFromDate, appliedToDate, appliedRoleFilter, appliedCityFilter, appliedPincodeFilter, pincodeToCityMap]);
 
   const dailyTrend = useMemo(() => {
     const from = startOfDay(appliedFromDate);
@@ -262,6 +366,8 @@ const OnboardingUsersReport = ({ embedded = false }) => {
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
     setAppliedRoleFilter(roleFilter);
+    setAppliedCityFilter(cityFilter);
+    setAppliedPincodeFilter(pincodeFilter);
     setSelectedDayKey("");
     setSelectedChartRole("");
     setPage(1);
@@ -287,7 +393,9 @@ const OnboardingUsersReport = ({ embedded = false }) => {
         <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
           Users onboarded between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
           {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
-          {appliedRoleFilter !== "All" ? ` · Role: ${appliedRoleFilter}` : ""}.
+          {appliedRoleFilter !== "All" ? ` · Role: ${appliedRoleFilter}` : ""}
+          {appliedCityFilter !== "All" ? ` · City: ${appliedCityFilter}` : ""}
+          {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}.
         </Typography>
 
         <div
@@ -330,6 +438,36 @@ const OnboardingUsersReport = ({ embedded = false }) => {
             {USER_ROLES.map((role) => (
               <MenuItem key={role} value={role}>
                 {role}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="City"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "200px" }}
+          >
+            <MenuItem value="All">All Cities</MenuItem>
+            {availableCities.map((city) => (
+              <MenuItem key={city} value={city}>
+                {city}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Pincode"
+            value={pincodeFilter}
+            onChange={(e) => setPincodeFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "200px" }}
+          >
+            <MenuItem value="All">All Pincodes</MenuItem>
+            {availablePincodesForCity.map((pin) => (
+              <MenuItem key={pin} value={pin}>
+                {pin}
               </MenuItem>
             ))}
           </TextField>
@@ -561,26 +699,34 @@ const OnboardingUsersReport = ({ embedded = false }) => {
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>User ID</TableCell>
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Email</TableCell>
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Role</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>City</TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Pincode</TableCell>
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>Onboarded On</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {tableUsers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} style={{ textAlign: "center", color: "#6f7378" }}>
+                      <TableCell colSpan={7} style={{ textAlign: "center", color: "#6f7378" }}>
                         No onboarded users in this date range.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    paginatedTableUsers.map(({ user, createdDate }) => (
-                      <TableRow key={user.id || user.userId || user.email}>
-                        <TableCell>{getUserDisplayName(user)}</TableCell>
-                        <TableCell>{user.userId || user.userid || "—"}</TableCell>
-                        <TableCell>{user.email || "—"}</TableCell>
-                        <TableCell>{user.role || "—"}</TableCell>
-                        <TableCell>{formatDisplayDate(createdDate)}</TableCell>
-                      </TableRow>
-                    ))
+                    paginatedTableUsers.map(({ user, createdDate }) => {
+                      const userPincode = user?.pincode || user?.postalCode || "";
+                      const userCity = pincodeToCityMap[String(userPincode).trim()] || user?.city || user?.location || "—";
+                      return (
+                        <TableRow key={user.id || user.userId || user.email}>
+                          <TableCell>{getUserDisplayName(user)}</TableCell>
+                          <TableCell>{user.userId || user.userid || "—"}</TableCell>
+                          <TableCell>{user.email || "—"}</TableCell>
+                          <TableCell>{user.role || "—"}</TableCell>
+                          <TableCell>{userCity}</TableCell>
+                          <TableCell>{String(userPincode).trim() || "—"}</TableCell>
+                          <TableCell>{formatDisplayDate(createdDate)}</TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>

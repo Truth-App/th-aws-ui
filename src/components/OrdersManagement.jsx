@@ -230,10 +230,6 @@ const OrdersManagement = ({
 
     if (selectedStatus === "PAID") {
       const isPaymentCOD = isCODOrder(order);
-      const hasStatusFilterSelected =
-        approvalChecks.pendingApproval ||
-        approvalChecks.approved ||
-        approvalChecks.rejected;
 
       const matchesPendingApproval =
         approvalChecks.pendingApproval &&
@@ -243,16 +239,17 @@ const OrdersManagement = ({
         );
       const matchesApproved = approvalChecks.approved && normalizedOrderStatus === "ORDER_APPROVED";
       const matchesRejected = approvalChecks.rejected && normalizedOrderStatus === "ORDER_REJECTED";
-      const matchesStatus =
-        hasStatusFilterSelected
-          ? (matchesPendingApproval || matchesApproved || matchesRejected)
-          : true;
+      const matchesStatus = matchesPendingApproval || matchesApproved || matchesRejected;
 
-      const matchesCodOrder = !approvalChecks.codOrder || normalizedPaymentStatus === "COD";
-      const matchesOnlinePaymentOrder = !approvalChecks.onlinePaymentOrder || normalizedPaymentStatus === "PAID";
+      // Payment method filter: show all if neither is checked, otherwise show selected types
+      const paymentFilter =
+        (!approvalChecks.codOrder && !approvalChecks.onlinePaymentOrder) ||
+        (approvalChecks.codOrder && normalizedPaymentStatus === "COD") ||
+        (approvalChecks.onlinePaymentOrder && normalizedPaymentStatus === "PAID");
+      
       const matchesGuestOrder = !approvalChecks.guestOrder || order?.isGuestOrder === true;
 
-      return matchesStatus && matchesCodOrder && matchesOnlinePaymentOrder && matchesGuestOrder;
+      return matchesStatus && paymentFilter && matchesGuestOrder;
     }
 
     if (selectedStatus === "SHIPPED") {
@@ -465,16 +462,18 @@ const OrdersManagement = ({
                 }
                 label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Online Payment</Typography>}
               />
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={approvalChecks.guestOrder}
-                    onChange={(event) => setApprovalChecks((prev) => ({ ...prev, guestOrder: event.target.checked }))}
-                    sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
-                  />
-                }
-                label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Guest Order</Typography>}
-              />
+              {ordersApi !== "my-orders" && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={approvalChecks.guestOrder}
+                      onChange={(event) => setApprovalChecks((prev) => ({ ...prev, guestOrder: event.target.checked }))}
+                      sx={{ color: "var(--brand-primary)", "&.Mui-checked": { color: "var(--brand-primary)" }, padding: "4px" }}
+                    />
+                  }
+                  label={<Typography variant="body2" style={{ fontWeight: 500, color: "var(--brand-ink)" }}>Guest Order</Typography>}
+                />
+              )}
             </div>
           </div>
         )}

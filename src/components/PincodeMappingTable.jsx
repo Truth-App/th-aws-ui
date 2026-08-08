@@ -61,11 +61,11 @@ const readErrorMessage = async (response, fallbackMessage) => {
   return `${fallbackMessage} (Status: ${response.status})`;
 };
 
-const validatePincodeForm = ({ city, pincode }) => {
+const validatePincodeForm = ({ city, pincode }, skipPincodeValidation = false) => {
   if (!String(city || "").trim()) {
     return "City is required.";
   }
-  if (!/^\d{6}$/.test(String(pincode || "").trim())) {
+  if (!skipPincodeValidation && !/^\d{6}$/.test(String(pincode || "").trim())) {
     return "Pincode must be exactly 6 digits.";
   }
   return "";
@@ -84,6 +84,8 @@ const PincodeMappingTable = () => {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
   const [actionSuccess, setActionSuccess] = useState("");
+  const [isFromAccordion, setIsFromAccordion] = useState(false);
+  const [originalCity, setOriginalCity] = useState("");
 
   const loadPincodeMapping = useCallback(async () => {
     setLoading(true);
@@ -147,6 +149,19 @@ const PincodeMappingTable = () => {
     setFormValues({ city: "", pincode: "" });
     setActionError("");
     setActionSuccess("");
+    setIsFromAccordion(false);
+    setOriginalCity("");
+    setFormOpen(true);
+  };
+
+  const openCreateDialogWithCity = (city) => {
+    setFormMode("create");
+    setSelectedRow(null);
+    setFormValues({ city, pincode: "" });
+    setActionError("");
+    setActionSuccess("");
+    setIsFromAccordion(true);
+    setOriginalCity(city);
     setFormOpen(true);
   };
 
@@ -163,6 +178,8 @@ const PincodeMappingTable = () => {
     if (saving) return;
     setFormOpen(false);
     setSelectedRow(null);
+    setIsFromAccordion(false);
+    setOriginalCity("");
   };
 
   const handleDelete = async (row) => {
@@ -202,10 +219,37 @@ const PincodeMappingTable = () => {
       pincode: String(formValues.pincode || "").trim(),
     };
 
-    const validationError = validatePincodeForm(payload);
+    const validationError = validatePincodeForm(payload, isFromAccordion);
     if (validationError) {
       setActionError(validationError);
       return;
+    }
+
+    // Check if city already exists (case-insensitive) only when creating from global button
+    // OR when city was edited from accordion (different from original)
+    if (formMode === "create") {
+      const normalizedNewCity = payload.city.toLowerCase();
+      const cityWasEdited = isFromAccordion && payload.city !== originalCity;
+      const shouldValidate = !isFromAccordion || cityWasEdited;
+
+      if (shouldValidate) {
+        const cityExists = rows.some(
+          (row) => String(row.city || "").trim().toLowerCase() === normalizedNewCity,
+        );
+        if (cityExists) {
+          setActionError(`City "${payload.city}" already exists.`);
+          return;
+        }
+      }
+
+      // Check if pincode already exists (case-insensitive) when creating
+      const pincodeExists = rows.some(
+        (row) => String(row.pincode || "").trim() === payload.pincode,
+      );
+      if (pincodeExists) {
+        setActionError(`Pincode "${payload.pincode}" already exists.`);
+        return;
+      }
     }
 
     setSaving(true);
@@ -231,6 +275,8 @@ const PincodeMappingTable = () => {
 
       setActionSuccess(isEdit ? "Pincode mapping updated." : "Pincode mapping created.");
       setFormOpen(false);
+      setIsFromAccordion(false);
+      setOriginalCity("");
       await loadPincodeMapping();
     } catch (err) {
       setActionError(err?.message || "Failed to save pincode mapping.");
@@ -290,12 +336,6 @@ const PincodeMappingTable = () => {
         {!!actionSuccess && (
           <Alert severity="success" style={{ marginTop: "12px" }}>
             {actionSuccess}
-          </Alert>
-        )}
-
-        {!!actionError && (
-          <Alert severity="error" style={{ marginTop: "12px" }}>
-            {actionError}
           </Alert>
         )}
 
@@ -371,6 +411,18 @@ const PincodeMappingTable = () => {
                         />
                       ))}
                     </div>
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openCreateDialogWithCity(city);
+                      }}
+                      size="small"
+                      aria-label="Create pincode for this city"
+                      style={{ color: "var(--brand-primary)", marginLeft: "auto" }}
+                      title="Create Pincode"
+                    >
+                      <MdAdd size={20} />
+                    </IconButton>
                   </AccordionSummary>
                   <AccordionDetails style={{ padding: 0, borderLeft: "4px solid var(--brand-primary)" }}>
                     <TableContainer component={Paper} variant="outlined" style={{ width: "100%", borderColor: "transparent", boxShadow: "none", backgroundColor: "#f0f7ff" }}>
@@ -443,6 +495,11 @@ const PincodeMappingTable = () => {
             {formMode === "edit" ? "Edit Pincode Mapping" : "Create Pincode Mapping"}
           </DialogTitle>
           <DialogContent style={{ display: "grid", gap: "12px", paddingTop: "8px" }}>
+            {!!actionError && (
+              <Alert severity="error" style={{ marginTop: 0 }}>
+                {actionError}
+              </Alert>
+            )}
             <TextField
               size="small"
               label="Pincode"

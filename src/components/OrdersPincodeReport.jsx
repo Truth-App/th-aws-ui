@@ -247,6 +247,19 @@ const OrdersPincodeReport = ({ embedded = false }) => {
     };
   }, []);
 
+  // Reset pincode filter when city filter changes and selected pincode is no longer available
+  useEffect(() => {
+    if (pincodeFilter !== "All" && cityFilter !== "All") {
+      const pincodesInCity = pincodeMappings
+        .filter((item) => item.city === cityFilter)
+        .map((item) => item.pincode);
+
+      if (!pincodesInCity.includes(pincodeFilter)) {
+        setPincodeFilter("All");
+      }
+    }
+  }, [cityFilter, pincodeFilter, pincodeMappings]);
+
   const pincodeToCityMap = useMemo(() => {
     return pincodeMappings.reduce((acc, item) => {
       acc[item.pincode] = item.city;
@@ -268,6 +281,20 @@ const OrdersPincodeReport = ({ embedded = false }) => {
 
     return [...pincodeSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [orders]);
+
+  const availablePincodesForCity = useMemo(() => {
+    if (cityFilter === "All") {
+      return availableOrderPincodes;
+    }
+
+    // Get all pincodes that belong to the selected city
+    const pincodesInCity = pincodeMappings
+      .filter((item) => item.city === cityFilter)
+      .map((item) => item.pincode);
+
+    // Return only pincodes that are both in the mapping for this city AND in actual orders
+    return availableOrderPincodes.filter((pin) => pincodesInCity.includes(pin));
+  }, [availableOrderPincodes, pincodeMappings, cityFilter]);
 
   const userFirstNameById = useMemo(() => {
     return users.reduce((acc, user) => {
@@ -537,21 +564,7 @@ const OrdersPincodeReport = ({ embedded = false }) => {
             InputLabelProps={{ shrink: true }}
             style={{ minWidth: isMobile ? "100%" : "180px" }}
           />
-          <TextField
-            select
-            size="small"
-            label="Pincode"
-            value={pincodeFilter}
-            onChange={(e) => setPincodeFilter(e.target.value)}
-            style={{ minWidth: isMobile ? "100%" : "200px" }}
-          >
-            <MenuItem value="All">All Pincodes</MenuItem>
-            {availableOrderPincodes.map((pin) => (
-              <MenuItem key={pin} value={pin}>
-                {pin}
-              </MenuItem>
-            ))}
-          </TextField>
+          
           <TextField
             select
             size="small"
@@ -564,6 +577,21 @@ const OrdersPincodeReport = ({ embedded = false }) => {
             {availableCities.map((city) => (
               <MenuItem key={city} value={city}>
                 {city}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Pincode"
+            value={pincodeFilter}
+            onChange={(e) => setPincodeFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "200px" }}
+          >
+            <MenuItem value="All">All Pincodes</MenuItem>
+            {availablePincodesForCity.map((pin) => (
+              <MenuItem key={pin} value={pin}>
+                {pin}
               </MenuItem>
             ))}
           </TextField>

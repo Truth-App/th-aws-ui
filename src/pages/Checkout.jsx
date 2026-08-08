@@ -7,6 +7,7 @@ import Button from "@mui/material/Button";
 import IconButton from "@mui/material/IconButton";
 import Dialog from "@mui/material/Dialog";
 import CircularProgress from "@mui/material/CircularProgress";
+import Alert from "@mui/material/Alert";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
@@ -16,7 +17,7 @@ import Radio from "@mui/material/Radio";
 import { MdAdd, MdRemove, MdDelete } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { addToCart, removeFromCart, clearCart } from "../store/slices/cartSlice";
 import { fetchUsers } from "../store/slices/usersSlice";
 import loadRazorpay from "../helpers/razorpay";
@@ -44,11 +45,26 @@ const Checkout = () => {
   const [paymentVerifying, setPaymentVerifying] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
+  const hasFetchedOnMount = useRef(false);
+
+  // Check user active status immediately from cached data (useMemo runs synchronously)
+  const userIsActive = useMemo(() => {
+    if (!authUser || users.length === 0) return true; // Default to true if no data yet
+    const authEmail = String(authUser?.email || "").trim().toLowerCase();
+    const matchedUser = users.find(
+      (item) => String(item?.email || "").trim().toLowerCase() === authEmail,
+    );
+    return matchedUser ? matchedUser?.status === "Active" : true;
+  }, [authUser, users]);
 
   useEffect(() => {
-    if (!authUser || usersStatus !== "idle") return;
-    dispatch(fetchUsers());
-  }, [authUser, usersStatus, dispatch]);
+    if (!authUser) return;
+    // Always fetch fresh users data once per checkout page visit
+    if (!hasFetchedOnMount.current) {
+      hasFetchedOnMount.current = true;
+      dispatch(fetchUsers());
+    }
+  }, [authUser, dispatch]);
 
   useEffect(() => {
     if (!authUser || didPrefillAuthBasics) return;
@@ -500,7 +516,7 @@ const Checkout = () => {
                         </span>
                       </>
                     ) : (
-                      "You saved on delivery charges"
+                      "Delivery charges"
                     )}
                   </Typography>
                   <Typography
@@ -510,7 +526,14 @@ const Checkout = () => {
                       fontWeight: 400,
                     }}
                   >
-                    {orderTotal < 499 ? "+ ₹50" : "- ₹50"}
+                    {orderTotal < 499 ? (
+                      "+ ₹50"
+                    ) : (
+                      <>
+                        <span style={{ textDecoration: "line-through", color: "#888", marginRight: "6px" }}>₹50</span>
+                        <span style={{ color: "var(--brand-primary-strong)", fontWeight: 600 }}>FREE</span>
+                      </>
+                    )}
                   </Typography>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
@@ -640,13 +663,20 @@ const Checkout = () => {
                 </FormControl>
               </CardContent>
             </Card>
+            {!userIsActive && (
+              <Alert severity="error" style={{ marginBottom: "16px" }}>
+                Your account is inactive.
+                <br />
+                Please contact Admin to place the order.
+              </Alert>
+            )}
             <Button
               variant="contained"
               fullWidth
               onClick={handlePlaceOrder}
-              disabled={cart.length === 0 || orderLoading || paymentVerifying || isProcessing}
+              disabled={cart.length === 0 || orderLoading || paymentVerifying || isProcessing || !userIsActive}
               style={{
-                backgroundColor: cart.length === 0 || orderLoading || paymentVerifying || isProcessing ? undefined : "var(--brand-primary)",
+                backgroundColor: cart.length === 0 || orderLoading || paymentVerifying || isProcessing || !userIsActive ? undefined : "var(--brand-primary)",
                 textTransform: "none",
                 fontWeight: 600,
                 borderRadius: "8px",

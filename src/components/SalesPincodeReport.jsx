@@ -28,6 +28,7 @@ import {
 import { Bar, Doughnut } from "react-chartjs-2";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { getOrders } from "../api/orders";
+import { PINCODE_API_URL } from "../constants/api";
 import {
   CHART_COLORS,
   buildDailyKeys,
@@ -54,14 +55,17 @@ const SalesPincodeReport = ({ embedded = false }) => {
   const defaults = useMemo(() => getDefaultDateRange(), []);
   const [fromDate, setFromDate] = useState(defaults.fromDate);
   const [toDate, setToDate] = useState(defaults.toDate);
+  const [cityFilter, setCityFilter] = useState("All");
   const [pincodeFilter, setPincodeFilter] = useState("All");
   const [appliedFromDate, setAppliedFromDate] = useState(defaults.fromDate);
   const [appliedToDate, setAppliedToDate] = useState(defaults.toDate);
+  const [appliedCityFilter, setAppliedCityFilter] = useState("All");
   const [appliedPincodeFilter, setAppliedPincodeFilter] = useState("All");
   const [selectedDayKey, setSelectedDayKey] = useState("");
   const [selectedChartPincode, setSelectedChartPincode] = useState("");
   const [page, setPage] = useState(1);
   const [orders, setOrders] = useState([]);
+  const [pincodeMappings, setPincodeMappings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const PAGE_SIZE = 10;
@@ -97,6 +101,73 @@ const SalesPincodeReport = ({ embedded = false }) => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPincodeMappings = async () => {
+      try {
+        const response = await fetch(PINCODE_API_URL, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch pincode mapping. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (cancelled) return;
+
+        const rows = Array.isArray(data?.result)
+          ? data.result
+              .map((item) => ({
+                pincode: String(item?.pincode || "").trim(),
+                city: String(item?.city || "").trim(),
+              }))
+              .filter((item) => item.pincode && item.city)
+          : [];
+
+        setPincodeMappings(rows);
+      } catch {
+        if (!cancelled) {
+          setPincodeMappings([]);
+        }
+      }
+    };
+
+    loadPincodeMappings();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Reset pincode filter when city filter changes and selected pincode is no longer available
+  useEffect(() => {
+    if (pincodeFilter !== "All" && cityFilter !== "All") {
+      const pincodesInCity = pincodeMappings
+        .filter((item) => item.city === cityFilter)
+        .map((item) => item.pincode);
+
+      if (!pincodesInCity.includes(pincodeFilter)) {
+        setPincodeFilter("All");
+      }
+    }
+  }, [cityFilter, pincodeFilter, pincodeMappings]);
+
+  const pincodeToCityMap = useMemo(() => {
+    return pincodeMappings.reduce((acc, item) => {
+      acc[item.pincode] = item.city;
+      return acc;
+    }, {});
+  }, [pincodeMappings]);
+
+  const availableCities = useMemo(() => {
+    const citySet = new Set(pincodeMappings.map((item) => item.city).filter(Boolean));
+    return [...citySet].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [pincodeMappings]);
+
+  const normalizeCity = (value) => String(value || "").trim().toLowerCase();
+
   const filteredOrders = useMemo(() => {
     const from = startOfDay(appliedFromDate);
     const to = endOfDay(appliedToDate);
@@ -116,13 +187,32 @@ const SalesPincodeReport = ({ embedded = false }) => {
       .filter(Boolean)
       .filter(({ createdDate }) => createdDate >= from && createdDate <= to)
       .filter(({ pincode }) => appliedPincodeFilter === "All" || pincode === appliedPincodeFilter)
+      .filter(({ order, pincode }) => {
+        if (appliedCityFilter === "All") return true;
+        const mappedCity = pincodeToCityMap[pincode] || getOrderCity(order);
+        return normalizeCity(mappedCity) === normalizeCity(appliedCityFilter);
+      })
       .sort((a, b) => b.createdDate - a.createdDate);
-  }, [orders, appliedFromDate, appliedToDate, appliedPincodeFilter]);
+  }, [orders, appliedFromDate, appliedToDate, appliedPincodeFilter, appliedCityFilter, pincodeToCityMap]);
 
   const availablePincodes = useMemo(() => {
     const pins = new Set(orders.map((order) => getOrderPincode(order)));
     return [...pins].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }, [orders]);
+
+  const availablePincodesForCity = useMemo(() => {
+    if (cityFilter === "All") {
+      return availablePincodes;
+    }
+
+    // Get all pincodes that belong to the selected city
+    const pincodesInCity = pincodeMappings
+      .filter((item) => item.city === cityFilter)
+      .map((item) => item.pincode);
+
+    // Return only pincodes that are both in the mapping for this city AND in actual orders
+    return availablePincodes.filter((pin) => pincodesInCity.includes(pin));
+  }, [availablePincodes, pincodeMappings, cityFilter]);
 
   const dailyTrend = useMemo(() => {
     const dateKeys = buildDailyKeys(appliedFromDate, appliedToDate);
@@ -212,6 +302,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
     setError("");
     setAppliedFromDate(fromDate);
     setAppliedToDate(toDate);
+    setAppliedCityFilter(cityFilter);
     setAppliedPincodeFilter(pincodeFilter);
     setSelectedDayKey("");
     setSelectedChartPincode("");
@@ -238,6 +329,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
             <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
               Sales between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
               {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
+              {appliedCityFilter !== "All" ? ` · City: ${appliedCityFilter}` : ""}
               {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}.
             </Typography>
           </>
@@ -247,6 +339,7 @@ const SalesPincodeReport = ({ embedded = false }) => {
           <Typography variant="body2" color="text.secondary" style={{ marginBottom: "1em" }}>
             Sales between {formatDisplayDate(startOfDay(appliedFromDate) || new Date())} and{" "}
             {formatDisplayDate(endOfDay(appliedToDate) || new Date())}
+            {appliedCityFilter !== "All" ? ` · City: ${appliedCityFilter}` : ""}
             {appliedPincodeFilter !== "All" ? ` · Pincode: ${appliedPincodeFilter}` : ""}.
           </Typography>
         )}
@@ -282,13 +375,28 @@ const SalesPincodeReport = ({ embedded = false }) => {
           <TextField
             select
             size="small"
+            label="City"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            style={{ minWidth: isMobile ? "100%" : "200px" }}
+          >
+            <MenuItem value="All">All Cities</MenuItem>
+            {availableCities.map((city) => (
+              <MenuItem key={city} value={city}>
+                {city}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
             label="Pincode"
             value={pincodeFilter}
             onChange={(e) => setPincodeFilter(e.target.value)}
             style={{ minWidth: isMobile ? "100%" : "200px" }}
           >
             <MenuItem value="All">All Pincodes</MenuItem>
-            {availablePincodes.map((pin) => (
+            {availablePincodesForCity.map((pin) => (
               <MenuItem key={pin} value={pin}>
                 {pin}
               </MenuItem>

@@ -329,6 +329,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
         <TableCell>{getUserLabelByReferenceId(users, userId)}</TableCell>
         <TableCell>{getItemStockQuantity(item) ?? "—"}</TableCell>
         <TableCell>{getItemOrderedQuantity(item) ?? "—"}</TableCell>
+        <TableCell>{Math.max(0, (getItemStockQuantity(item) || 0) - (getItemOrderedQuantity(item) || 0)) ?? "—"}</TableCell>
         <TableCell align="right" style={{ whiteSpace: "nowrap" }}>
           <IconButton
             onClick={() => onToggleView(item)}
@@ -359,7 +360,7 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell colSpan={6} style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}>
+        <TableCell colSpan={7} style={{ paddingBottom: 0, paddingTop: 0, borderBottom: expanded ? undefined : "none" }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <div style={{ padding: "0.75em 0 1em" }}>
               <StockHistoryTable history={stockHistory} />
@@ -649,6 +650,9 @@ const InventoryManagement = () => {
                     </TableCell>
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
                       Ordered Quantity
+                    </TableCell>
+                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary)", backgroundColor: "var(--brand-surface)" }}>
+                      Available Quantity
                     </TableCell>
                     <TableCell
                       align="right"

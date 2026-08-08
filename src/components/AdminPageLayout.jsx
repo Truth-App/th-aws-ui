@@ -1,10 +1,15 @@
+import { useState } from "react";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { MdMenu, MdClose } from "react-icons/md";
 import Navbar from "./Navbar";
 import DashboardFeatureCard from "./DashboardFeatureCard";
 import Footer from "./Footer";
-import useMediaQuery from "@mui/material/useMediaQuery";
 
 const AdminPageLayout = ({ activeFeature, children }) => {
   const isTablet = useMediaQuery("(max-width:900px)");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div
@@ -34,14 +39,48 @@ const AdminPageLayout = ({ activeFeature, children }) => {
       >
         <div
           style={{
-            flex: isTablet ? "0 0 auto" : "0 0 20%",
+            flex: sidebarOpen ? (isTablet ? "0 0 auto" : "0 0 20%") : "0 0 auto",
             display: "flex",
+            flexDirection: isTablet ? "column" : "row",
+            alignItems: isTablet ? "stretch" : "flex-start",
+            gap: "0.5em",
             minWidth: 0,
             overflow: "hidden",
           }}
         >
-          <DashboardFeatureCard activeFeature={activeFeature} />
+          <Tooltip title={sidebarOpen ? "Hide menu" : "Show menu"}>
+            <IconButton
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              aria-expanded={sidebarOpen}
+              size="small"
+              style={{
+                color: "var(--brand-primary-strong)",
+                border: "1px solid var(--brand-border)",
+                backgroundColor: "#fff",
+                flexShrink: 0,
+                alignSelf: isTablet ? "flex-start" : "flex-start",
+              }}
+            >
+              {sidebarOpen ? <MdClose size={22} /> : <MdMenu size={22} />}
+            </IconButton>
+          </Tooltip>
+
+          {sidebarOpen && (
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                minWidth: 0,
+                width: "100%",
+                overflow: "hidden",
+              }}
+            >
+              <DashboardFeatureCard activeFeature={activeFeature} />
+            </div>
+          )}
         </div>
+
         <div
           style={{
             flex: "1",

@@ -1329,7 +1329,8 @@ const UserManagement = ({ profileMode = false }) => {
   const isCurrentUserAdmin = currentDbUserRole === ADMIN_ROLE;
   const canEditReferenceAndRole = isCurrentUserAdmin;
   const canManageUserStatus = isCurrentUserAdmin;
-  const isProfileInactiveLocked =
+  // Show inactive banner only; keep profile editable so user can still update details (e.g. bank).
+  const isProfileInactive =
     profileMode &&
     dialogMode === "edit" &&
     normalizeUserStatus(user.status) === "Inactive" &&
@@ -1705,13 +1706,14 @@ const UserManagement = ({ profileMode = false }) => {
         const referenceChanged =
           nextReferenceNumber !== String(previousReferenceNumber || "").trim();
 
+        const previousStatus = normalizeUserStatus(existingUser?.status || user.status);
         let nextStatus;
         if (isCurrentUserAdmin) {
           nextStatus = normalizeUserStatus(user.status);
         } else if (referenceChanged && nextReferenceNumber) {
           nextStatus = "Inactive";
         } else {
-          nextStatus = normalizeUserStatus(existingUser?.status || user.status);
+          nextStatus = previousStatus;
         }
 
         payload.status = nextStatus;
@@ -1726,6 +1728,11 @@ const UserManagement = ({ profileMode = false }) => {
         });
 
         await updateUser(editingUserId, payload);
+
+        // Status deactivate/activate must go through dedicated API (not only updateUser).
+        if (nextStatus !== previousStatus) {
+          await activateDeactivateUser(editingUserId, { status: nextStatus });
+        }
       } else {
         payload.status = "Active";
         await createUser(payload);
@@ -1808,7 +1815,7 @@ const UserManagement = ({ profileMode = false }) => {
                   width: "100%",
                 }}
               >
-                {isProfileInactiveLocked && (
+                {isProfileInactive && (
                   <Typography
                     variant="body2"
                     color="error"
@@ -1834,7 +1841,6 @@ const UserManagement = ({ profileMode = false }) => {
                   extendedUserForm
                   allUsers={users}
                   currentUserId={user.userid}
-                  disabled={isProfileInactiveLocked}
                 />
                 <ReferenceNumberFields
                   user={user}
@@ -1845,16 +1851,15 @@ const UserManagement = ({ profileMode = false }) => {
                   onSelectUser={handleReferenceUserSelect}
                   onChange={handleOnChange}
                   profileMode
-                  disabled={isProfileInactiveLocked}
-                  roleDisabled={!canEditReferenceAndRole || isProfileInactiveLocked}
-                  canEditReferenceNumber={canEditReferenceAndRole && !isProfileInactiveLocked}
+                  roleDisabled={!canEditReferenceAndRole}
+                  canEditReferenceNumber={canEditReferenceAndRole}
                   savedReferenceNumber={savedReferenceNumber}
                 />
                 {dialogMode === "edit" && (
                   <StatusToggle
                     status={user.status}
                     onChange={handleOnChange}
-                    disabled={!canManageUserStatus || isProfileInactiveLocked}
+                    disabled={!canManageUserStatus}
                   />
                 )}
                 <ImageUploadSection
@@ -1863,18 +1868,16 @@ const UserManagement = ({ profileMode = false }) => {
                   uploadingFiles={uploadingFiles}
                   onFileUpload={handleFileUpload}
                   onRemoveFile={handleRemoveFile}
-                  disabled={isProfileInactiveLocked}
                 />
                 <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                   <Button
                     onClick={handleSaveUser}
-                    disabled={uploadingFiles || isProfileInactiveLocked}
+                    disabled={uploadingFiles}
                     variant="contained"
                     style={{
                       backgroundColor: "var(--brand-primary-strong)",
                       textTransform: "none",
                       fontWeight: "bolder",
-                      opacity: isProfileInactiveLocked ? 0.6 : 1,
                     }}
                   >
                     Save Profile
@@ -1999,10 +2002,7 @@ const UserManagement = ({ profileMode = false }) => {
                     </TableCell>
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Email
-                    </TableCell>
-                    <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
-                      Mobile
-                    </TableCell>
+                    </TableCell>                    
                     <TableCell style={{ fontWeight: 700, color: "var(--brand-primary-strong)", backgroundColor: "var(--brand-surface)" }}>
                       Role
                     </TableCell>
@@ -2041,7 +2041,6 @@ const UserManagement = ({ profileMode = false }) => {
                           <TableCell>{item.lastname || item.lastName || "—"}</TableCell>
                           <TableCell>{getUserId(item)}</TableCell>
                           <TableCell>{item.email || "—"}</TableCell>
-                          <TableCell>{item.mobile || "—"}</TableCell>
                           <TableCell>{item.role || "—"}</TableCell>
                           <TableCell>{item.pincode || "—"}</TableCell>
                           <TableCell>{item.referencenumber || "—"}</TableCell>

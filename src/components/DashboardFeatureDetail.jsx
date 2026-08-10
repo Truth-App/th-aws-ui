@@ -23,6 +23,7 @@ import { compressImageFile } from "../helpers/imageCompression";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import { MdArrowBack } from "react-icons/md";
 
 const INITIAL_PRODUCT_FORM = {
   title: "",
@@ -457,7 +458,8 @@ const DashboardFeatureDetail = () => {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "0.5em",
+                justifyContent: "center",
+                gap: "0.75em",
                 marginTop: "0.75em",
                 flexWrap: "wrap",
               }}
@@ -469,21 +471,24 @@ const DashboardFeatureDetail = () => {
                   setPage(1);
                 }}
                 style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
-                  color: "#6f7378",
-                  fontWeight: 500,
+                  border: "1px solid #b8ccc0",
+                  background: "#f5faf6",
+                  color: "#156b41",
+                  borderRadius: "999px",
+                  height: "36px",
+                  padding: "0 14px",
+                  fontWeight: 700,
+                  fontSize: "0.82rem",
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  fontSize: "0.875rem",
+                  whiteSpace: "nowrap",
+                  display: "inline-flex",
+                  alignItems: "center",
                 }}
               >
-                Home
+                <MdArrowBack size={16} style={{ marginRight: "6px" }} />
+                Back
               </button>
-              <Typography variant="body2" style={{ color: "#6f7378" }}>
-                &gt;
-              </Typography>
               <Typography variant="body2" style={{ color: "var(--brand-primary)", fontWeight: 600 }}>
                 {selectedCategoryTitle}
               </Typography>

@@ -95,6 +95,32 @@ const formatDate = (value) => {
   });
 };
 
+const getLocalDateTimeInputValue = (value = new Date()) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const isFutureDateTime = (value) => {
+  if (!value) return false;
+  const selected = new Date(value);
+  if (Number.isNaN(selected.getTime())) return false;
+  return selected.getTime() > Date.now();
+};
+
+const toIsoFromDateTimeLocal = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString();
+};
+
 const getHistoryTimestamp = (history, expectedStatus) => {
   if (!Array.isArray(history) || !expectedStatus) return "";
   const normalizedTarget = expectedStatus.toUpperCase();
@@ -255,6 +281,7 @@ const OrderSuccess = () => {
   const [mappingPincodeError, setMappingPincodeError] = useState("");
   const [orderPincodeMatchStatus, setOrderPincodeMatchStatus] = useState(null);
   const [orderPincodeForMapping, setOrderPincodeForMapping] = useState("");
+  const todayDateTimeInputValue = getLocalDateTimeInputValue();
   const details = orderData?.orderDetails;
   const shortOrderId = String(details?.orderId || orderId || "").slice(0, 8);
   const hasSStockistAssigned = Boolean(String(details?.sStockistId || "").trim());
@@ -390,10 +417,7 @@ const OrderSuccess = () => {
       return;
     }
 
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    setExpectedDeliveryDate(`${yyyy}-${mm}-${dd}`);
+    setExpectedDeliveryDate(getLocalDateTimeInputValue(date));
   }, [details]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -505,10 +529,7 @@ const OrderSuccess = () => {
       return;
     }
 
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    setDeliveredDate(`${yyyy}-${mm}-${dd}`);
+    setDeliveredDate(getLocalDateTimeInputValue(date));
   }, [details]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -740,7 +761,13 @@ const OrderSuccess = () => {
     if (!orderId) return;
 
     if (nextShipmentStatus === "APPROVED" && !String(expectedDeliveryDate || "").trim()) {
-      setShipmentError("Please select expected delivery date.");
+      setShipmentError("Please select expected delivery date and time.");
+      setShipmentMessage("");
+      return;
+    }
+
+    if (nextShipmentStatus === "APPROVED" && !isFutureDateTime(expectedDeliveryDate)) {
+      setShipmentError("Expected delivery date and time must be in the future.");
       setShipmentMessage("");
       return;
     }
@@ -752,8 +779,14 @@ const OrderSuccess = () => {
 
     try {
       const normalizedExpectedDeliveryDate = expectedDeliveryDate
-        ? new Date(`${expectedDeliveryDate}T00:00:00.000Z`).toISOString()
+        ? toIsoFromDateTimeLocal(expectedDeliveryDate)
         : "";
+
+      if (nextShipmentStatus === "APPROVED" && !normalizedExpectedDeliveryDate) {
+        setShipmentError("Please select a valid expected delivery date and time.");
+        setShipmentLoading(false);
+        return;
+      }
 
       const shipmentPayload = {
         approvalType: "SHIPMENT",
@@ -783,7 +816,13 @@ const OrderSuccess = () => {
     }
 
     if (deliveryStatusChoice === "DELIVERED" && !deliveredDate) {
-      setDeliveryError("Please select delivered date.");
+      setDeliveryError("Please select delivered date and time.");
+      setDeliveryMessage("");
+      return;
+    }
+
+    if (deliveryStatusChoice === "DELIVERED" && !isFutureDateTime(deliveredDate)) {
+      setDeliveryError("Delivered date and time must be in the future.");
       setDeliveryMessage("");
       return;
     }
@@ -804,8 +843,13 @@ const OrderSuccess = () => {
     const deliveryApprovalStatus = deliveryStatusChoice === "DELIVERED" ? "DELIVERED" : "FAILED";
     const normalizedDeliveredDate =
       deliveryStatusChoice === "DELIVERED" && deliveredDate
-        ? new Date(`${deliveredDate}T00:00:00.000Z`).toISOString()
+        ? toIsoFromDateTimeLocal(deliveredDate)
         : "";
+    if (deliveryStatusChoice === "DELIVERED" && !normalizedDeliveredDate) {
+      setDeliveryError("Please select a valid delivered date and time.");
+      setDeliveryMessage("");
+      return;
+    }
     const normalizedDeliveryPin =
       deliveryStatusChoice === "DELIVERED" && shouldShowDeliveryPinInput && (isAdmin || isSuperStockist || isCustomer)
         ? String(deliveryPinInput || "").replace(/\D/g, "").slice(0, 4)
@@ -1661,10 +1705,15 @@ const OrderSuccess = () => {
                     <>
                       <TextField
                         fullWidth
-                        type="date"
-                        label="Expected Delivery Date"
+                        type="datetime-local"
+                        label="Expected Delivery Date & Time"
                         value={expectedDeliveryDate}
-                        onChange={(event) => setExpectedDeliveryDate(event.target.value)}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          if (nextValue && nextValue < todayDateTimeInputValue) return;
+                          setExpectedDeliveryDate(nextValue);
+                        }}
+                        inputProps={{ min: todayDateTimeInputValue }}
                         InputLabelProps={{ shrink: true }}
                       />
 
@@ -1837,10 +1886,15 @@ const OrderSuccess = () => {
                           )}
                           <TextField
                             fullWidth
-                            type="date"
-                            label="Delivered Date"
+                            type="datetime-local"
+                            label="Delivered Date & Time"
                             value={deliveredDate}
-                            onChange={(event) => setDeliveredDate(event.target.value)}
+                            onChange={(event) => {
+                              const nextValue = event.target.value;
+                              if (nextValue && nextValue < todayDateTimeInputValue) return;
+                              setDeliveredDate(nextValue);
+                            }}
+                            inputProps={{ min: todayDateTimeInputValue }}
                             InputLabelProps={{ shrink: true }}
                             style={{ marginTop: shouldShowDeliveryPinInput ? "12px" : "0px" }}
                           />

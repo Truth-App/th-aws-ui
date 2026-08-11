@@ -8,7 +8,7 @@ import Dialog from "@mui/material/Dialog";
 import IconButton from "@mui/material/IconButton";
 import Chip from "@mui/material/Chip";
 import useMediaQuery from "@mui/material/useMediaQuery";
-import { MdClose, MdAdd, MdRemove } from "react-icons/md";
+import { MdClose, MdAdd, MdRemove, MdChevronLeft, MdChevronRight } from "react-icons/md";
 import { useSelector, useDispatch } from "react-redux";
 import { addToCart, removeFromCart } from "../store/slices/cartSlice";
 import { useState } from "react";
@@ -461,7 +461,12 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
         maxWidth="md"
         fullWidth
         PaperProps={{
-          style: { backgroundColor: "#000" },
+          style: {
+            backgroundColor: "#000",
+            margin: isMobile ? "8px" : undefined,
+            width: isMobile ? "calc(100% - 16px)" : undefined,
+            overflow: "hidden",
+          },
         }}
       >
         <div
@@ -470,8 +475,9 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            minHeight: "400px",
+            minHeight: isMobile ? "70vh" : "400px",
             backgroundColor: "#000",
+            overflow: "hidden",
           }}
         >
           <IconButton
@@ -481,7 +487,7 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               top: "8px",
               right: "8px",
               color: "white",
-              zIndex: 1,
+              zIndex: 3,
             }}
           >
             <MdClose size={24} />
@@ -495,14 +501,15 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
               alignItems: "center",
               width: "100%",
               height: "100%",
+              minHeight: isMobile ? "70vh" : "400px",
             }}
           >
             <img
               src={zoomImagePath}
               alt={product.title}
               style={{
-                maxWidth: "100%",
-                maxHeight: "500px",
+                maxWidth: isMobile ? "100%" : "100%",
+                maxHeight: isMobile ? "70vh" : "500px",
                 transform: `scale(${zoomLevel})`,
                 transition: "transform 0.2s ease",
                 objectFit: "contain",
@@ -511,30 +518,44 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
 
             {imageKeys.length > 1 && (
               <>
-                <Button
+                <IconButton
                   onClick={handleZoomPrevImage}
+                  aria-label="Previous image"
                   style={{
                     position: "absolute",
-                    left: "8px",
-                    backgroundColor: "rgba(255, 255, 255, 0.22)",
+                    left: isMobile ? "4px" : "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    zIndex: 3,
+                    backgroundColor: "rgba(0, 0, 0, 0.65)",
                     color: "white",
-                    minWidth: "40px",
+                    borderRadius: "6px",
+                    width: isMobile ? 36 : 40,
+                    height: isMobile ? 36 : 40,
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
                   }}
                 >
-                  ❮
-                </Button>
-                <Button
+                  <MdChevronLeft size={isMobile ? 26 : 28} />
+                </IconButton>
+                <IconButton
                   onClick={handleZoomNextImage}
+                  aria-label="Next image"
                   style={{
                     position: "absolute",
-                    right: "8px",
-                    backgroundColor: "rgba(255, 255, 255, 0.22)",
+                    right: isMobile ? "4px" : "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    zIndex: 3,
+                    backgroundColor: "rgba(0, 0, 0, 0.65)",
                     color: "white",
-                    minWidth: "40px",
+                    borderRadius: "6px",
+                    width: isMobile ? 36 : 40,
+                    height: isMobile ? 36 : 40,
+                    border: "1px solid rgba(255, 255, 255, 0.25)",
                   }}
                 >
-                  ❯
-                </Button>
+                  <MdChevronRight size={isMobile ? 26 : 28} />
+                </IconButton>
               </>
             )}
           </div>
@@ -543,11 +564,14 @@ const ProductCard = ({ product, actionType = "cart", actionLabel = "Update Produ
             style={{
               position: "absolute",
               bottom: "16px",
+              left: "50%",
+              transform: "translateX(-50%)",
               display: "flex",
               gap: "8px",
               backgroundColor: "rgba(0, 0, 0, 0.7)",
               padding: "8px 12px",
               borderRadius: "8px",
+              zIndex: 3,
             }}
           >
             <IconButton onClick={handleZoomOut} disabled={zoomLevel <= 1} style={{ color: "white" }}>

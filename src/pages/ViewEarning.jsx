@@ -79,6 +79,11 @@ const getMonthYearLabel = (key) => {
   return new Intl.DateTimeFormat("en-IN", { month: "long", year: "numeric" }).format(labelDate);
 };
 
+const hasStockistIdInHistory = (history) => {
+  if (!Array.isArray(history)) return false;
+  return history.some((entry) => "sStockistId" in entry);
+};
+
 const groupEarningsHistory = (history) => {
   if (!Array.isArray(history) || history.length === 0) return [];
 
@@ -179,17 +184,21 @@ const ViewEarning = () => {
     () =>
       users
         .filter((item) => roleFilter === "All" || normalizeRole(item?.role) === roleFilter)
-        .map((item, index) => ({
-          id: String(item?.userId || item?.id || item?.email || index + 1),
-          name:
-            `${item?.firstName || item?.firstname || ""} ${item?.lastName || item?.lastname || ""}`.trim() ||
-            "-",
-          email: item?.email || "-",
-          role: normalizeRole(item?.role) || "-",
-          mobile: item?.mobile || item?.phone || "-",
-          earnings: formatInr(item?.totalEarnings ?? 0),
-          earningsHistoryGroups: groupEarningsHistory(item?.earningsHistory),
-        })),
+        .map((item, index) => {
+          const earningsHistoryGroups = groupEarningsHistory(item?.earningsHistory);
+          return {
+            id: String(item?.userId || item?.id || item?.email || index + 1),
+            name:
+              `${item?.firstName || item?.firstname || ""} ${item?.lastName || item?.lastname || ""}`.trim() ||
+              "-",
+            email: item?.email || "-",
+            role: normalizeRole(item?.role) || "-",
+            mobile: item?.mobile || item?.phone || "-",
+            earnings: formatInr(item?.totalEarnings ?? 0),
+            earningsHistoryGroups,
+            hasStockistId: hasStockistIdInHistory(item?.earningsHistory),
+          };
+        }),
     [users, roleFilter],
   );
 
@@ -314,7 +323,7 @@ const ViewEarning = () => {
 
                             <TableRow>
                               <TableCell
-                                colSpan={6}
+                                colSpan={row.hasStockistId ? 6 : 6}
                                 style={{ paddingBottom: 0, paddingTop: 0, borderBottom: isExpanded ? "none" : undefined }}
                               >
                                 <Collapse in={isExpanded} timeout="auto" unmountOnExit>
@@ -339,6 +348,7 @@ const ViewEarning = () => {
                                           <TableRow>
                                             <TableCell style={{ fontWeight: 700 }}>Order ID</TableCell>
                                             <TableCell style={{ fontWeight: 700 }}>Share</TableCell>
+                                            {row.hasStockistId && <TableCell style={{ fontWeight: 700 }}>User</TableCell>}
                                             <TableCell style={{ fontWeight: 700 }}>Order Created At</TableCell>
                                           </TableRow>
                                         </TableHead>
@@ -347,7 +357,7 @@ const ViewEarning = () => {
                                             <Fragment key={`${row.id}-${group.key}`}>
                                               <TableRow>
                                                 <TableCell
-                                                  colSpan={3}
+                                                  colSpan={row.hasStockistId ? 4 : 3}
                                                   style={{
                                                     fontWeight: 700,
                                                     color: "var(--brand-primary)",
@@ -362,6 +372,7 @@ const ViewEarning = () => {
                                                 <TableRow key={`${row.id}-${group.key}-${entry?.orderId || index}`}>
                                                   <TableCell>{entry?.orderId || "-"}</TableCell>
                                                   <TableCell>{entry?.share ?? "-"}</TableCell>
+                                                  {row.hasStockistId && <TableCell>{entry?.sStockistId || "-"}</TableCell>}
                                                   <TableCell>{formatOrderCreatedAt(entry?.orderTimestamp)}</TableCell>
                                                 </TableRow>
                                               ))}

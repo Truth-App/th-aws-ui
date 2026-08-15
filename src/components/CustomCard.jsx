@@ -106,13 +106,16 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
           <button
             type="button"
             className="storefront-clear-category"
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => {
+              setSelectedCategory(null);
+              onSearchChange?.("");
+            }}
           >
             <MdArrowBack size={16} style={{ marginRight: "6px", verticalAlign: "text-bottom" }} />
             Back
           </button>
         </div>
-      ) : (
+      ) : !searchTerm.trim() ? (
         <section className="storefront-category-panel">
           <div className="storefront-section-head">
             <h2>Shop by Category</h2>
@@ -124,7 +127,7 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
             useDivisionThemes
           />
         </section>
-      )}
+      ) : null}
 
       <section className="storefront-products-panel">
         <div className="storefront-section-head">

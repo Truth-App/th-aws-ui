@@ -666,7 +666,9 @@ const OrderSuccess = () => {
         ? "admin"
         : "";
   const selectedSStockistId =
-    selectedStakeholderRoleForApproval === "sStockist" ? String(stakeholderOverride || "").trim() : "";
+    (selectedStakeholderRoleForApproval === "sStockist" || selectedStakeholderRoleForApproval === "admin")
+      ? String(stakeholderOverride || "").trim()
+      : "";
   const resolvedSStockistId = String(selectedSStockistId || details?.sStockistId || "").trim();
   const currentSStockistId = String(details?.sStockistId || "").trim();
   const shouldIncludeStakeholderUpdate =
@@ -1422,96 +1424,98 @@ const OrderSuccess = () => {
                     )}
                   </div>
 
-                  <div style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
-                    {details?.shippedAdminId && (
+                  {(isAdmin || isSuperStockist || isStockist || isDealer) && (
+                    <div style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      {details?.shippedAdminId && (isAdmin || isSuperStockist || isStockist || isDealer) && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                        >
+                          Shipped Admin ID = {details.shippedAdminId}
+                        </Typography>
+                      )}
                       <Typography
                         variant="body2"
-                        color="text.secondary"
-                        style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                        style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px" }}
                       >
-                        Shipped Admin ID = {details.shippedAdminId}
+                        Superstockist = {details?.sStockistId || "NA"}
                       </Typography>
-                    )}
-                    <Typography
-                      variant="body2"
-                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px" }}
-                    >
-                      Superstockist = {details?.sStockistId || "NA"}
-                    </Typography>
-                    {isAdmin && (
-                      <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}>
-                        <FormControl fullWidth size="small" style={{ marginTop: "8px", marginBottom: "8px" }}>
-                          <InputLabel>Assign Superstockist</InputLabel>
-                          <Select
-                            value={stakeholderOverride}
-                            label="Assign Superstockist"
-                            onChange={(event) => setStakeholderOverride(event.target.value)}
-                            disabled={stakeholderLoading || isAdminApprovalLocked}
-                            MenuProps={{
-                              PaperProps: {
-                                style: {
-                                  maxHeight: 280,
-                                  maxWidth: "92vw",
+                      {isAdmin && (
+                        <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}>
+                          <FormControl fullWidth size="small" style={{ marginTop: "8px", marginBottom: "8px" }}>
+                            <InputLabel>Assign Superstockist</InputLabel>
+                            <Select
+                              value={stakeholderOverride}
+                              label="Assign Superstockist"
+                              onChange={(event) => setStakeholderOverride(event.target.value)}
+                              disabled={stakeholderLoading || isAdminApprovalLocked}
+                              MenuProps={{
+                                PaperProps: {
+                                  style: {
+                                    maxHeight: 280,
+                                    maxWidth: "92vw",
+                                  },
                                 },
-                              },
-                            }}
-                          >
-                            <MenuItem value="" disabled>
-                              {stakeholderLoading ? "Loading superstockists..." : "— Select superstockist —"}
-                            </MenuItem>
-                            {stakeholderOptions.map((user) => {
-                              const firstName = user?.firstName || user?.firstname || "";
-                              const lastName = user?.lastName || user?.lastname || "";
-                              const fullName = `${firstName} ${lastName}`.trim() || "-";
-                              const optionUserId = user?.userId || user?.id || user?.email || "-";
-                              const optionPincode = user?.pincode || "-";
-                              const optionRole =
-                                user?.role === ADMIN_ROLE
-                                  ? "Admin"
-                                  : user?.role === SUPER_STOCKIST_ROLE
-                                    ? "Superstockist"
-                                    : (user?.role || "-");
-                              const isMatched = Boolean(currentSStockistId) && currentSStockistId === optionUserId;
-                              return (
-                                <MenuItem
-                                  key={`${optionUserId}-${user?.role || "-"}`}
-                                  value={optionUserId}
-                                  style={{ whiteSpace: "normal", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px" }}
-                                >
-                                  {isMatched && <MdCheckCircle size={16} color="var(--brand-primary-strong)" />}
-                                  {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
-                                </MenuItem>
-                              );
-                            })}
-                          </Select>
-                        </FormControl>
-                        {!!stakeholderError && (
-                          <Typography variant="body2" color="error" style={{ marginBottom: "8px" }}>
-                            {stakeholderError}
-                          </Typography>
-                        )}
-                      </div>
-                    )}
-                    {!isAdmin && <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }} />}
-                    <Typography
-                      variant="body2"
-                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
-                    >
-                      Stockist = {details?.stockistId || "NA"}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
-                    >
-                      Dealer = {details?.dealerId || "NA"}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
-                    >
-                      CustomerId = {details?.userId || details?.user?.userId || "NA"}
-                    </Typography>
-                  </div>
+                              }}
+                            >
+                              <MenuItem value="" disabled>
+                                {stakeholderLoading ? "Loading superstockists..." : "— Select superstockist —"}
+                              </MenuItem>
+                              {stakeholderOptions.map((user) => {
+                                const firstName = user?.firstName || user?.firstname || "";
+                                const lastName = user?.lastName || user?.lastname || "";
+                                const fullName = `${firstName} ${lastName}`.trim() || "-";
+                                const optionUserId = user?.userId || user?.id || user?.email || "-";
+                                const optionPincode = user?.pincode || "-";
+                                const optionRole =
+                                  user?.role === ADMIN_ROLE
+                                    ? "Admin"
+                                    : user?.role === SUPER_STOCKIST_ROLE
+                                      ? "Superstockist"
+                                      : (user?.role || "-");
+                                const isMatched = Boolean(currentSStockistId) && currentSStockistId === optionUserId;
+                                return (
+                                  <MenuItem
+                                    key={`${optionUserId}-${user?.role || "-"}`}
+                                    value={optionUserId}
+                                    style={{ whiteSpace: "normal", wordBreak: "break-word", display: "flex", alignItems: "center", gap: "8px" }}
+                                  >
+                                    {isMatched && <MdCheckCircle size={16} color="var(--brand-primary-strong)" />}
+                                    {`${fullName} - (${optionUserId}) - (${optionRole}) - (pin - ${optionPincode})`}
+                                  </MenuItem>
+                                );
+                              })}
+                            </Select>
+                          </FormControl>
+                          {!!stakeholderError && (
+                            <Typography variant="body2" color="error" style={{ marginBottom: "8px" }}>
+                              {stakeholderError}
+                            </Typography>
+                          )}
+                        </div>
+                      )}
+                      {!isAdmin && <div style={{ paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }} />}
+                      <Typography
+                        variant="body2"
+                        style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                      >
+                        Stockist = {details?.stockistId || "NA"}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                      >
+                        Dealer = {details?.dealerId || "NA"}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        style={{ fontWeight: 700, color: "#1f1f1f", paddingBottom: "6px", marginBottom: "2px", borderBottom: "1px solid #e6e6e6" }}
+                      >
+                        CustomerId = {details?.userId || details?.user?.userId || "NA"}
+                      </Typography>
+                    </div>
+                  )}
 
                   {isAdminApprovalLocked || !isAdmin ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -1521,9 +1525,11 @@ const OrderSuccess = () => {
                       <Typography variant="body2" color="text.secondary">
                         Comments = {adminApprovalDetails?.comments || "-"}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        User ID = {adminApprovalDetails?.userId || "-"}
-                      </Typography>
+                      {(isAdmin || isSuperStockist || isStockist || isDealer) && (
+                        <Typography variant="body2" color="text.secondary">
+                          User ID = {adminApprovalDetails?.userId || "-"}
+                        </Typography>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -1689,17 +1695,19 @@ const OrderSuccess = () => {
                   {hasFinalShipmentDecision || !canManageShipment ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                       <Typography variant="body2" color="text.secondary">
-                        Expected Delivery Date = {formatDate(shipmentDetails?.expectedDeliveryDate || details?.expectedDeliveryDate)}
+                        Approved Date = {formatDate(shipmentDetails?.approvedDate)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Approved Date = {formatDate(shipmentDetails?.approvedDate)}
+                        Expected Delivery Date = {formatDate(shipmentDetails?.expectedDeliveryDate || details?.expectedDeliveryDate)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         Comments = {shipmentDetails?.comments || "-"}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        User ID = {shipmentDetails?.userId || "-"}
-                      </Typography>
+                      {(isAdmin || isSuperStockist || isStockist || isDealer) && (
+                        <Typography variant="body2" color="text.secondary">
+                          User ID = {shipmentDetails?.userId || "-"}
+                        </Typography>
+                      )}
                     </div>
                   ) : (
                     <>
@@ -1840,9 +1848,11 @@ const OrderSuccess = () => {
                       <Typography variant="body2" color="text.secondary">
                         Comments = {deliveryDetails?.comments || "-"}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        User ID = {deliveryDetails?.userId || "-"}
-                      </Typography>
+                      {(isAdmin || isSuperStockist || isStockist || isDealer) && (
+                        <Typography variant="body2" color="text.secondary">
+                          User ID = {deliveryDetails?.userId || "-"}
+                        </Typography>
+                      )}
                       {!!deliveryCodTrueKeys.length && (
                         <Typography variant="body2" color="text.secondary">
                           Payment = Cash on delivery ({deliveryCodTrueLabels.join(", ")})

@@ -391,7 +391,14 @@ const InventoryManagement = () => {
   const [expandedRowId, setExpandedRowId] = useState(null);
 
   const superStockistUsers = useMemo(
-    () => users.filter((user) => user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator"),
+    () =>
+      users.filter((user) => {
+        const isAllowedRole =
+          user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator";
+        const isActive =
+          String(user.status || "Active").toLowerCase() !== "inactive";
+        return isAllowedRole && isActive;
+      }),
     [users],
   );
 

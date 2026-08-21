@@ -4,7 +4,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import EditUserProfile from "../components/UserManagement";
+import UserEditProfile from "../components/userManagement/UserEditProfile";
 import { fetchUsers } from "../store/slices/usersSlice";
 
 const EditProfile = () => {
@@ -46,7 +46,7 @@ const EditProfile = () => {
           minHeight: "70vh",
         }}
       >
-        <EditUserProfile profileMode />
+        <UserEditProfile />
       </div>
       <Footer />
     </>

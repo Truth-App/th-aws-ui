@@ -14,15 +14,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchCategories } from "../store/slices/categorySlice";
 import { CATEGORY_API_URL, PRESIGNED_URL_API, S3_BASE_URL } from "../constants/api";
 import { compressImageFile } from "../helpers/imageCompression";
+import { Category } from "../models/Category";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import useMediaQuery from "@mui/material/useMediaQuery";
 
-const INITIAL_CATEGORY_FORM = {
-  title: "",
-  imageKey: "",
-  isActive: true,
-};
+const INITIAL_CATEGORY_FORM = Category.createEmpty().toFormValues();
 
 const CategoryManagement = () => {
   const dispatch = useDispatch();
@@ -158,14 +155,10 @@ const CategoryManagement = () => {
 
   const handleOpenEdit = (selectedCategory) => {
     setDialogMode("edit");
-    setEditingCategoryId(selectedCategory.id);
-    const existingImageKey = selectedCategory.imageKey || selectedCategory.imagekey || "";
-    latestImageKeyRef.current = existingImageKey;
-    setCategory({
-      title: selectedCategory.title || "",
-      imageKey: existingImageKey,
-      isActive: selectedCategory.isActive || true,
-    });
+    const mapped = Category.fromApi(selectedCategory).toFormValues();
+    setEditingCategoryId(mapped.id || selectedCategory.id);
+    latestImageKeyRef.current = mapped.imageKey || "";
+    setCategory(mapped);
     setOpen(true);
   };
 
@@ -192,12 +185,13 @@ const CategoryManagement = () => {
       const endpoint = isEditMode ? `${CATEGORY_API_URL}/${editingCategoryId}` : CATEGORY_API_URL;
       const method = isEditMode ? "PUT" : "POST";
 
-      const payload = JSON.stringify({
-                    title: category.title.trim(),
-                    imageKey,
-                    imagekey: imageKey,
-                    isActive: category.isActive,
-                  });
+      const payload = JSON.stringify(
+        new Category({
+          ...category,
+          title: category.title.trim(),
+          imageKey,
+        }).toApiPayload(),
+      );
       const response = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },

@@ -28,14 +28,14 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { isAuthenticated, user, status } = useSelector((state) => state.user);
-  const { items: users, status: usersStatus } = useSelector((state) => state.users);
+  const { items: users } = useSelector((state) => state.users);
   const authResolving = status === 'idle' || status === 'loading';
 
   useEffect(() => {
-    if (isAuthenticated && usersStatus === "idle") {
-      dispatch(fetchUsers());
-    }
-  }, [dispatch, isAuthenticated, usersStatus]);
+    if (!isAuthenticated) return;
+    // Always reload latest users so navbar name/role/id aren't stale.
+    dispatch(fetchUsers());
+  }, [dispatch, isAuthenticated]);
 
   const userPrivileges = useMemo(
     () => getUserPrivilegesFromList(users, user?.email),
@@ -48,11 +48,16 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
   );
   const backendUserId = backendUser?.userId || "";
   const backendUserRole = backendUser?.role || "";
+  const backendDisplayName = [backendUser?.firstname , backendUser?.lastname ].filter(Boolean).join(" ").trim();
+  const profileDisplayName = backendDisplayName || user?.name || "";
 
   const showDashboard = hasDashboardAccess(userPrivileges);
   const dashboardPath = getDashboardHomePath("", userPrivileges);
 
   const handleProfileClick = (event) => {
+    if (isAuthenticated) {
+      dispatch(fetchUsers());
+    }
     setAnchorEl(event.currentTarget);
   };
 
@@ -200,11 +205,11 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
             <CircularProgress size={24} sx={{ color: "var(--brand-primary)" }} />
           ) : (
             <>
-              {isAuthenticated && (user?.name || backendUserId || backendUserRole) && (
+              {isAuthenticated && (profileDisplayName || backendUserId || backendUserRole) && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2, minWidth: 0 }}>
-                  {(user?.name || backendUserId) && (
+                  {(profileDisplayName || backendUserId) && (
                     <span style={{ fontSize: isNarrowMobile ? "0.74rem" : "0.82rem", fontWeight: 600, color: "#f5f9ff", whiteSpace: "nowrap", maxWidth: isNarrowMobile ? "108px" : isMobile ? "140px" : "160px", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {user?.name || ""}{user?.name && backendUserId ? ` (${backendUserId})` : backendUserId || ""}
+                      {profileDisplayName}{profileDisplayName && backendUserId ? ` (${backendUserId})` : backendUserId || ""}
                     </span>
                   )}
                   {backendUserRole && (
@@ -233,12 +238,12 @@ const Navbar = ({ searchTerm = "", onSearchChange, showSearchInNavbar = false, o
         >
           {isAuthenticated ? (
             <>
-              {user?.name && (
+              {profileDisplayName && (
                 <MenuItem
                   disabled
                   sx={{ fontFamily: "Montserrat, sans-serif", fontSize: "0.8em", opacity: "1 !important", color: "#555" }}
                 >
-                  {user.name}
+                  {profileDisplayName}
                 </MenuItem>
               )}
               <Divider />

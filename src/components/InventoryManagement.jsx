@@ -287,7 +287,7 @@ const InventoryFormFields = ({
       )}
       {superStockistUsers.map((user) => (
         <MenuItem key={user.id} value={user.id}>
-          {user.firstname || user.firstName} {user.lastname || user.lastName}
+          {getUserDisplayName(user)}
         </MenuItem>
       ))}
     </TextField>
@@ -372,12 +372,21 @@ const InventoryRow = ({ item, products, users, expanded, onToggle, onToggleView,
   );
 };
 
+const getUserDisplayName = (user) =>
+  `${user?.firstname || user?.firstName || ""} ${user?.lastname || user?.lastName || ""}`.trim();
+
+const compareByLabelAsc = (aLabel, bLabel) =>
+  String(aLabel || "").localeCompare(String(bLabel || ""), undefined, {
+    sensitivity: "base",
+    numeric: true,
+  });
+
 const InventoryManagement = () => {
   const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
   const { items: inventoryItems, status, error } = useSelector((state) => state.inventory);
-  const { items: products, status: productsStatus } = useSelector((state) => state.products);
-  const { items: users, status: usersStatus } = useSelector((state) => state.users);
+  const { items: products } = useSelector((state) => state.products);
+  const { items: users } = useSelector((state) => state.users);
 
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
@@ -390,29 +399,33 @@ const InventoryManagement = () => {
   const [userFilter, setUserFilter] = useState("");
   const [expandedRowId, setExpandedRowId] = useState(null);
 
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort((a, b) => compareByLabelAsc(a?.title, b?.title)),
+    [products],
+  );
+
   const superStockistUsers = useMemo(
     () =>
-      users.filter((user) => {
-        const isAllowedRole =
-          user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator";
-        const isActive =
-          String(user.status || "Active").toLowerCase() !== "inactive";
-        return isAllowedRole && isActive;
-      }),
+      users
+        .filter((user) => {
+          const isAllowedRole =
+            user.role === SUPER_STOCKIST_ROLE || user.role === "Administrator";
+          const isActive =
+            String(user.status || "Active").toLowerCase() !== "inactive";
+          return isAllowedRole && isActive;
+        })
+        .sort((a, b) => compareByLabelAsc(getUserDisplayName(a), getUserDisplayName(b))),
     [users],
   );
 
   useEffect(() => {
-    if (status === "idle") {
-      dispatch(fetchInventory());
-    }
-    if (productsStatus === "idle") {
-      dispatch(fetchProducts());
-    }
-    if (usersStatus === "idle") {
-      dispatch(fetchUsers());
-    }
-  }, [dispatch, status, productsStatus, usersStatus]);
+    // Always reload latest users/inventory/products when opening Inventory Management
+    // so select boxes reflect status/role changes made elsewhere.
+    dispatch(fetchInventory());
+    dispatch(fetchProducts());
+    dispatch(fetchUsers());
+  }, [dispatch]);
 
   const filteredInventory = useMemo(() => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
@@ -447,6 +460,7 @@ const InventoryManagement = () => {
   };
 
   const handleClickOpen = () => {
+    dispatch(fetchUsers());
     setDialogMode("create");
     setEditingInventoryId(null);
     setInventory({ ...INITIAL_INVENTORY_FORM, stockquantity: "0" });
@@ -454,6 +468,7 @@ const InventoryManagement = () => {
   };
 
   const handleOpenEdit = (selectedItem) => {
+    dispatch(fetchUsers());
     setDialogMode("edit");
     setEditingInventoryId(selectedItem.id);
     setInventory(mapInventoryToEditForm(selectedItem));
@@ -602,7 +617,7 @@ const InventoryManagement = () => {
               style={{ flex: isMobile ? "0 0 auto" : "1 1 200px", minWidth: isMobile ? "100%" : 180 }}
             >
               <MenuItem value="">All products</MenuItem>
-              {products.map((product) => (
+              {sortedProducts.map((product) => (
                 <MenuItem key={product.id} value={product.id}>
                   {product.title}
                 </MenuItem>
@@ -619,7 +634,7 @@ const InventoryManagement = () => {
               <MenuItem value="">All users</MenuItem>
               {superStockistUsers.map((user) => (
                 <MenuItem key={user.id} value={user.userId || ""}>
-                  {user.firstname || user.firstName} {user.lastname || user.lastName}
+                  {getUserDisplayName(user)}
                 </MenuItem>
               ))}
             </TextField>
@@ -712,7 +727,7 @@ const InventoryManagement = () => {
         <DialogContent dividers>
           <InventoryFormFields
             inventory={inventory}
-            products={products}
+            products={sortedProducts}
             users={users}
             superStockistUsers={superStockistUsers}
             onChange={handleOnChange}

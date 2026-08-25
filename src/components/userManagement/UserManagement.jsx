@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { activateDeactivateUser, getUsers } from "../../api/users";
 import { ADMIN_ROLE } from "../../constants/roles";
+import { fetchUsers } from "../../store/slices/usersSlice";
 import UserList from "./UserList";
 import UserEditDialog from "./UserEditDialog";
 import UserViewDialog from "./UserViewDialog";
@@ -15,6 +16,7 @@ import {
 } from "./userManagementUtils";
 
 const UserManagement = () => {
+  const dispatch = useDispatch();
   const isMobile = useMediaQuery("(max-width:600px)");
   const authUser = useSelector((state) => state.user.user);
 
@@ -36,6 +38,7 @@ const UserManagement = () => {
       const data = await getUsers();
       setUsers(Array.isArray(data) ? data : []);
       setStatus("succeeded");
+      dispatch(fetchUsers());
       return Array.isArray(data) ? data : [];
     } catch (err) {
       setUsers([]);

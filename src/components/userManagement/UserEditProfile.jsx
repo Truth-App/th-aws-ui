@@ -3,7 +3,7 @@ import CardContent from "@mui/material/CardContent";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { ToastContainer, toast } from "react-toastify";
@@ -16,6 +16,7 @@ import {
   getUserRoleFromList,
 } from "../../constants/dashboardFeatures";
 import { markProfileSetupSkipped } from "../../helpers/profileHelpers";
+import { fetchUsers } from "../../store/slices/usersSlice";
 import {
   ImageUploadSection,
   ReferenceNumberFields,
@@ -42,6 +43,7 @@ import {
 
 const UserEditProfile = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const isSetupFlow = searchParams.get("setup") === "1";
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -341,6 +343,7 @@ const UserEditProfile = () => {
 
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
       const refreshedUsers = await loadUsers();
+      dispatch(fetchUsers());
       setSavedReferenceNumber(user.referencenumber?.trim() || "");
       if (!isEditMode) {
         setDialogMode("edit");

@@ -31,13 +31,12 @@ const CustomCard = ({ searchTerm = "", onSearchChange, showInlineSearch = false,
   const filteredProducts = products.filter((product) => {
     const normalizedSearchTerm = searchTerm.trim().toLowerCase();
     const title = (product.title || "").toLowerCase();
-    const description = (product.description || "").toLowerCase();
     const productCategoryId = String(
       product.categoryId || product.categoryid || product.category_id || "",
     );
 
     if (normalizedSearchTerm) {
-      const matchesSearch = title.includes(normalizedSearchTerm) || description.includes(normalizedSearchTerm);
+      const matchesSearch = title.includes(normalizedSearchTerm);
       if (!matchesSearch) return false;
     }
 

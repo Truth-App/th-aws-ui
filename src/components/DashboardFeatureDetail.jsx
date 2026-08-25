@@ -129,12 +129,9 @@ const DashboardFeatureDetail = () => {
 
     return products.filter((item) => {
       const title = (item.title || "").toLowerCase();
-      const description = (item.description || "").toLowerCase();
       const productCategoryId = String(item.categoryId || item.categoryid || item.category_id || "");
       const matchesSearch =
-        !normalizedSearchTerm ||
-        title.includes(normalizedSearchTerm) ||
-        description.includes(normalizedSearchTerm);
+        !normalizedSearchTerm || title.includes(normalizedSearchTerm);
       const matchesCategory =
         categoryFilter === "All Items" || productCategoryId === String(categoryFilter);
 

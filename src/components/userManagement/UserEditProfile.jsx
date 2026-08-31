@@ -58,6 +58,7 @@ const UserEditProfile = () => {
   const [profileUserFilter, setProfileUserFilter] = useState("");
   const [selectedReferenceUserId, setSelectedReferenceUserId] = useState(null);
   const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
+  const [savedStatus, setSavedStatus] = useState("Active");
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const loadUsers = async () => {
@@ -99,6 +100,7 @@ const UserEditProfile = () => {
         const refUser = findUserByReferenceNumber(users, savedRef);
         setSelectedReferenceUserId(refUser?.id || null);
         setSavedReferenceNumber(savedRef);
+        setSavedStatus(normalizeUserStatus(matchedUser.status));
         setUser(mapProfileUserToForm(matchedUser));
         return;
       }
@@ -108,6 +110,7 @@ const UserEditProfile = () => {
     setDialogMode("create");
     setEditingUserId(null);
     setSavedReferenceNumber("");
+    setSavedStatus("Active");
     setUser({
       ...INITIAL_USER_FORM,
       email: authUser?.email || "",
@@ -135,10 +138,10 @@ const UserEditProfile = () => {
   const canManageUserStatus = isCurrentUserAdmin;
   const hasReferenceNumber = Boolean(String(user.referencenumber || "").trim());
   const isStatusLockedByReference = hasReferenceNumber && !isCurrentUserAdmin;
-  const isProfileInactive =
-    dialogMode === "edit" &&
-    normalizeUserStatus(user.status) === "Inactive" &&
-    !isCurrentUserAdmin;
+  // Lock only after saved status is Inactive — typing a reference does not lock yet.
+  const isProfileLockedByInactive =
+    savedStatus === "Inactive" && !isCurrentUserAdmin;
+  const showInactiveNotice = isProfileLockedByInactive;
 
   const handleOnChange = (e) => {
     const { name, value, checked } = e.target;
@@ -298,7 +301,7 @@ const UserEditProfile = () => {
   };
 
   const handleSaveUser = async () => {
-    if (isProfileInactive) {
+    if (isProfileLockedByInactive) {
       toast.error("Your account is Inactive. Please contact administration to make it Active.");
       return;
     }
@@ -345,6 +348,7 @@ const UserEditProfile = () => {
       const refreshedUsers = await loadUsers();
       dispatch(fetchUsers());
       setSavedReferenceNumber(user.referencenumber?.trim() || "");
+      setSavedStatus(normalizeUserStatus(nextStatus));
       if (!isEditMode) {
         setDialogMode("edit");
       }
@@ -416,7 +420,7 @@ const UserEditProfile = () => {
                 width: "100%",
               }}
             >
-              {isProfileInactive && (
+              {showInactiveNotice && (
                 <Typography
                   variant="body2"
                   color="error"
@@ -437,7 +441,7 @@ const UserEditProfile = () => {
                 onAddSupportedPincode={handleAddSupportedPincode}
                 onRemoveSupportedPincode={handleRemoveSupportedPincode}
                 showSupportedPincodes={canManageSupportedPincodes}
-                disabled={isProfileInactive}
+                disabled={isProfileLockedByInactive}
                 isMobile={isMobile}
                 profileMode
                 extendedUserForm
@@ -453,10 +457,11 @@ const UserEditProfile = () => {
                 onSelectUser={handleReferenceUserSelect}
                 onChange={handleOnChange}
                 profileMode
-                disabled={isProfileInactive}
-                roleDisabled={!canEditReferenceAndRole || isProfileInactive}
+                disabled={isProfileLockedByInactive}
+                roleDisabled={!canEditReferenceAndRole || isProfileLockedByInactive}
                 canEditReferenceNumber={
-                  !isProfileInactive && (canEditReferenceAndRole || dialogMode === "create")
+                  !isProfileLockedByInactive &&
+                  (canEditReferenceAndRole || dialogMode === "create")
                 }
                 savedReferenceNumber={savedReferenceNumber}
               />
@@ -464,12 +469,14 @@ const UserEditProfile = () => {
                 status={user.status}
                 onChange={handleOnChange}
                 disabled={
-                  isProfileInactive || !canManageUserStatus || isStatusLockedByReference
+                  isProfileLockedByInactive ||
+                  !canManageUserStatus ||
+                  isStatusLockedByReference
                 }
               />
               <ImageUploadSection
                 imageKeys={user.imageKeys || []}
-                disabled={isProfileInactive}
+                disabled={isProfileLockedByInactive}
                 fileInputRef={fileInputRef}
                 uploadingFiles={uploadingFiles}
                 onFileUpload={handleFileUpload}
@@ -478,7 +485,7 @@ const UserEditProfile = () => {
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                 <Button
                   onClick={handleSaveUser}
-                  disabled={uploadingFiles || isProfileInactive}
+                  disabled={uploadingFiles || isProfileLockedByInactive}
                   variant="contained"
                   style={{
                     backgroundColor: "var(--brand-primary-strong)",
@@ -491,7 +498,7 @@ const UserEditProfile = () => {
                 {isSetupFlow && (
                   <Button
                     onClick={handleSkipProfile}
-                    disabled={uploadingFiles || isProfileInactive}
+                    disabled={uploadingFiles || isProfileLockedByInactive}
                     variant="outlined"
                     style={{
                       textTransform: "none",

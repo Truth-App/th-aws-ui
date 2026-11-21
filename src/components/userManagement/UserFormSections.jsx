@@ -365,7 +365,14 @@ const SupportedPincodesSection = ({
   );
 };
 
-const RoleSelectField = ({ user, onChange, disabled = false, fullWidth = false }) => (
+const RoleSelectField = ({
+  user,
+  onChange,
+  disabled = false,
+  fullWidth = false,
+  error = false,
+  helperText,
+}) => (
   <TextField
     select={!disabled}
     size="small"
@@ -377,6 +384,8 @@ const RoleSelectField = ({ user, onChange, disabled = false, fullWidth = false }
     disabled={disabled}
     required={!disabled}
     fullWidth={fullWidth}
+    error={error}
+    helperText={helperText || undefined}
   >
     {!disabled && (
       <MenuItem value="" disabled>
@@ -404,6 +413,7 @@ const UserFormFields = ({
   extendedUserForm = false,
   allUsers = [],
   currentUserId = null,
+  fieldErrors = {},
 }) => (
   <div
     style={{
@@ -430,7 +440,11 @@ const UserFormFields = ({
       variant="outlined"
       name="firstname"
       value={user.firstname}
-      helperText="Please enter the correct first name, as per the Bank records"
+      helperText={
+        fieldErrors.firstname ||
+        "Please enter the correct first name, as per the Bank records"
+      }
+      error={Boolean(fieldErrors.firstname)}
       maxLength={50}
       onChange={onChange}
       disabled={disabled}
@@ -442,7 +456,11 @@ const UserFormFields = ({
       variant="outlined"
       name="lastname"
       value={user.lastname}
-      helperText="Please enter the correct last name, as per the Bank records"
+      helperText={
+        fieldErrors.lastname ||
+        "Please enter the correct last name, as per the Bank records"
+      }
+      error={Boolean(fieldErrors.lastname)}
       maxLength={50}
       onChange={onChange}
       disabled={disabled}
@@ -458,6 +476,8 @@ const UserFormFields = ({
       onChange={onChange}
       disabled={disabled}
       required={!disabled}
+      error={Boolean(fieldErrors.email)}
+      helperText={fieldErrors.email || undefined}
     />
     <TextField
       size="small"
@@ -469,9 +489,17 @@ const UserFormFields = ({
       disabled={disabled}
       inputProps={{ maxLength: 10, readOnly: disabled }}
       required={!disabled}
+      error={Boolean(fieldErrors.mobile)}
+      helperText={fieldErrors.mobile || undefined}
     />
     {!extendedUserForm && (
-      <RoleSelectField user={user} onChange={onChange} disabled={disabled} />
+      <RoleSelectField
+        user={user}
+        onChange={onChange}
+        disabled={disabled}
+        error={Boolean(fieldErrors.role)}
+        helperText={fieldErrors.role}
+      />
     )}
     <TextField
       size="small"
@@ -483,6 +511,8 @@ const UserFormFields = ({
       disabled={disabled}
       inputProps={{ maxLength: 12, readOnly: disabled }}
       required={!disabled}
+      error={Boolean(fieldErrors.aadharnumber)}
+      helperText={fieldErrors.aadharnumber || undefined}
     />
     <TextField
       size="small"
@@ -494,7 +524,8 @@ const UserFormFields = ({
       disabled={disabled}
       inputProps={{ maxLength: 6, readOnly: disabled }}
       required={!disabled}
-      helperText={!disabled ? "Enter the correct pin code" : undefined}
+      error={Boolean(fieldErrors.pincode)}
+      helperText={fieldErrors.pincode || (!disabled ? "Enter the correct pin code" : undefined)}
     />
     {showSupportedPincodes && (
       <SupportedPincodesSection
@@ -526,6 +557,8 @@ const UserFormFields = ({
       multiline
       minRows={2}
       required={!disabled}
+      error={Boolean(fieldErrors.address)}
+      helperText={fieldErrors.address || undefined}
       style={isMobile ? undefined : { gridColumn: "1 / -1" }}
     />
     {shouldShowBankDetails(user.role) && (

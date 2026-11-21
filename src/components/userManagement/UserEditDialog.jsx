@@ -28,8 +28,8 @@ import {
 import {
   buildUserSavePayload,
   getPresignedUrl,
+  getUserFormFieldErrors,
   uploadFileToS3,
-  validateUserForm,
 } from "./userFormActions";
 
 const UserEditDialog = ({
@@ -51,6 +51,7 @@ const UserEditDialog = ({
   const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
   const [selectedReferenceUserId, setSelectedReferenceUserId] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const isCurrentUserAdmin = currentDbUserRole === ADMIN_ROLE;
   const canEditReferenceAndRole = isCurrentUserAdmin;
@@ -85,6 +86,13 @@ const UserEditDialog = ({
 
   const handleOnChange = (e) => {
     const { name, value, checked } = e.target;
+    if (name && fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
     if (name === "status") {
       if (!canManageUserStatus) return;
       setUser((prev) => ({
@@ -247,13 +255,15 @@ const UserEditDialog = ({
   };
 
   const handleSaveUser = async () => {
-    if (
-      !validateUserForm({
-        user,
-        canManageSupportedPincodes,
-        requireDiscountRate: mode === "edit",
-      })
-    ) {
+    // Validate all mandatory fields before any API call
+    const errors = getUserFormFieldErrors({
+      user,
+      canManageSupportedPincodes,
+      requireDiscountRate: mode === "edit",
+    });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error(Object.values(errors)[0]);
       return;
     }
 
@@ -326,6 +336,7 @@ const UserEditDialog = ({
             extendedUserForm={mode === "edit"}
             allUsers={users}
             currentUserId={editingUserId || user.userid}
+            fieldErrors={fieldErrors}
           />
           {mode === "edit" && (
             <ReferenceNumberFields

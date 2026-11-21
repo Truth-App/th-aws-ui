@@ -37,8 +37,8 @@ import {
 import {
   buildUserSavePayload,
   getPresignedUrl,
+  getUserFormFieldErrors,
   uploadFileToS3,
-  validateUserForm,
 } from "./userFormActions";
 
 const UserEditProfile = () => {
@@ -60,6 +60,7 @@ const UserEditProfile = () => {
   const [savedReferenceNumber, setSavedReferenceNumber] = useState("");
   const [savedStatus, setSavedStatus] = useState("Active");
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const loadUsers = async () => {
     setStatus("loading");
@@ -145,6 +146,13 @@ const UserEditProfile = () => {
 
   const handleOnChange = (e) => {
     const { name, value, checked } = e.target;
+    if (name && fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
     if (name === "status") {
       if (!canManageUserStatus) return;
       setUser((prev) => ({
@@ -305,7 +313,16 @@ const UserEditProfile = () => {
       toast.error("Your account is Inactive. Please contact administration to make it Active.");
       return;
     }
-    if (!validateUserForm({ user, canManageSupportedPincodes, requireDiscountRate: false })) {
+
+    // Validate all mandatory fields before any API call
+    const errors = getUserFormFieldErrors({
+      user,
+      canManageSupportedPincodes,
+      requireDiscountRate: false,
+    });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error(Object.values(errors)[0]);
       return;
     }
 
@@ -454,6 +471,7 @@ const UserEditProfile = () => {
                 extendedUserForm
                 allUsers={users}
                 currentUserId={user.userid}
+                fieldErrors={fieldErrors}
               />
               <ReferenceNumberFields
                 user={user}

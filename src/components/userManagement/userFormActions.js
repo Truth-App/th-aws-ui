@@ -36,80 +36,75 @@ export const uploadFileToS3 = async (file, presignedUrl) => {
   }
 };
 
+/** Returns field-level errors for mandatory user form fields. Empty object = valid. */
+export const getUserFormFieldErrors = ({
+  user,
+  canManageSupportedPincodes = false,
+  requireDiscountRate = false,
+}) => {
+  const errors = {};
+  const firstname = String(user?.firstname ?? "").trim();
+  const lastname = String(user?.lastname ?? "").trim();
+  const email = String(user?.email ?? "").trim();
+  const mobile = String(user?.mobile ?? "").trim();
+  const role = String(user?.role ?? "").trim();
+  const aadharnumber = String(user?.aadharnumber ?? "").trim();
+  const pincode = String(user?.pincode ?? "").trim();
+  const address = String(user?.address ?? "").trim();
+
+  if (!firstname) errors.firstname = "First name is required";
+  else if (firstname.length > 50) errors.firstname = "First name must be less than 50 characters";
+
+  if (!lastname) errors.lastname = "Last name is required";
+  else if (lastname.length > 50) errors.lastname = "Last name must be less than 50 characters";
+
+  if (!email) errors.email = "Email is required";
+  else if (email.length > 50) errors.email = "Email must be less than 50 characters";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email";
+
+  if (!mobile) errors.mobile = "Mobile number is required";
+  else if (!/^\d{10}$/.test(mobile)) errors.mobile = "Mobile number must be 10 digits";
+
+  if (!role) errors.role = "Please select a role";
+
+  if (!aadharnumber) errors.aadharnumber = "Aadhar number is required";
+  else if (!/^\d{12}$/.test(aadharnumber)) errors.aadharnumber = "Aadhar number must be 12 digits";
+
+  if (!pincode) errors.pincode = "Pincode is required";
+  else if (!/^\d{6}$/.test(pincode)) errors.pincode = "Pincode must be 6 digits";
+
+  if (!address) errors.address = "Address is required";
+
+  const supportedpincodes = canManageSupportedPincodes ? user?.supportedpincodes || [] : [];
+  if (supportedpincodes.some((code) => !/^\d{6}$/.test(String(code).trim()))) {
+    errors.supportedpincodes = "Each supported pincode must be 6 digits";
+  }
+
+  if (requireDiscountRate) {
+    const discountRate = Number(user?.discountrate);
+    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 100) {
+      errors.discountrate = "Discount rate must be between 0 and 100";
+    }
+  }
+
+  return errors;
+};
+
+/** Validates mandatory fields. Shows toast and returns false if invalid — call before any save API. */
 export const validateUserForm = ({
   user,
   canManageSupportedPincodes,
   requireDiscountRate = false,
 }) => {
-  if (!user.firstname.trim() || !user.lastname.trim()) {
-    toast.error("Please enter first name and last name");
+  const errors = getUserFormFieldErrors({
+    user,
+    canManageSupportedPincodes,
+    requireDiscountRate,
+  });
+  const firstError = Object.values(errors)[0];
+  if (firstError) {
+    toast.error(firstError);
     return false;
-  }
-  //max length 50 characters
-  if (user.firstname.trim().length > 50) {
-    toast.error("First name must be less than 50 characters");
-    return false;
-  }
-  if (user.lastname.trim().length > 50) {
-    toast.error("Last name must be less than 50 characters");
-    return false;
-  }
-  if (!user.email.trim()) {
-    toast.error("Please enter email");
-    return false;
-  }
-  //email 20 characters
-  if (user.email.trim().length > 50) {
-    toast.error("Email must be less than 50 characters");
-    return false;
-  }
-  if (!user.mobile.trim()) {
-    toast.error("Please enter mobile number");
-    return false;
-  }
-  if (!/^\d{10}$/.test(user.mobile.trim())) {
-    toast.error("Mobile number must be 10 digits");
-    return false;
-  }
-  if (!user.role) {
-    toast.error("Please select a role");
-    return false;
-  }
-  if (!user.aadharnumber.trim()) {
-    toast.error("Please enter Aadhar number");
-    return false;
-  }
-  if (user.aadharnumber.trim().length > 12) {
-    toast.error("Aadhar number must be less than 12 characters");
-    return false;
-  }
-  if (!/^\d{12}$/.test(user.aadharnumber.trim())) {
-    toast.error("Aadhar number must be 12 digits");
-    return false;
-  }
-  if (!user.pincode.trim()) {
-    toast.error("Please enter pincode");
-    return false;
-  }
-  if (!/^\d{6}$/.test(user.pincode.trim())) {
-    toast.error("Pincode must be 6 digits");
-    return false;
-  }
-  const supportedpincodes = canManageSupportedPincodes ? user.supportedpincodes || [] : [];
-  if (supportedpincodes.some((pincode) => !/^\d{6}$/.test(pincode))) {
-    toast.error("Each pincode must be 6 digits");
-    return false;
-  }
-  if (!user.address.trim()) {
-    toast.error("Please enter address");
-    return false;
-  }
-  if (requireDiscountRate) {
-    const discountRate = Number(user.discountrate);
-    if (!Number.isFinite(discountRate) || discountRate < 0 || discountRate > 100) {
-      toast.error("Discount rate must be between 0 and 100");
-      return false;
-    }
   }
   return true;
 };

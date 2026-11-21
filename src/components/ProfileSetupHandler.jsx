@@ -2,9 +2,7 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router";
 import { fetchUsers } from "../store/slices/usersSlice";
-import { createUser } from "../api/users";
 import {
-  buildGoogleUserPayload,
   canShowEditProfile,
   consumePostLoginSetup,
   findUserByEmail,
@@ -42,21 +40,14 @@ const ProfileSetupHandler = ({ children }) => {
 
       setupHandledRef.current = true;
 
-      let currentUsers = users;
-      let matchedUser = findUserByEmail(currentUsers, authUser.email);
-
-      if (!matchedUser) {
-        try {
-          await createUser(buildGoogleUserPayload(authUser));
-          currentUsers = await dispatch(fetchUsers()).unwrap();
-          matchedUser = findUserByEmail(currentUsers, authUser.email);
-        } catch (error) {
-          console.error("Failed to save Google user profile:", error);
-        }
-      }
+      // Do not auto-create incomplete Google users (missing pincode burns DynamoDB sequence IDs).
+      // New users complete required fields on /profile/edit, then createUser runs with validation.
+      const matchedUser = findUserByEmail(users, authUser.email);
+      const wantsPostLoginSetup = consumePostLoginSetup();
+      const needsFirstTimeProfile = !matchedUser;
 
       const shouldOpenSetup =
-        consumePostLoginSetup() &&
+        (needsFirstTimeProfile || wantsPostLoginSetup) &&
         !hasSkippedProfileSetup(authUser.id) &&
         canShowEditProfile(matchedUser) &&
         location.pathname !== "/profile/edit";

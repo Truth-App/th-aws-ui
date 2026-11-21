@@ -137,9 +137,10 @@ export const buildUserSavePayload = ({
     landmark: user.landmark.trim(),
     pincode: user.pincode.trim(),
     supportedpincodes,
-    bankname: shouldShowBankDetails(user.role) ? user.bankname?.trim() || null : null,
-    accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || null : null,
-    ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || null : null,
+    // Use empty strings — DynamoDB GSIs reject NULL attribute values (causes Lambda 502).
+    bankname: shouldShowBankDetails(user.role) ? user.bankname?.trim() || "" : "",
+    accountno: shouldShowBankDetails(user.role) ? user.accountno?.trim() || "" : "",
+    ifsccode: shouldShowBankDetails(user.role) ? user.ifsccode?.trim() || "" : "",
     imageKeys: user.imageKeys || [],
     images: user.imageKeys || [],
     activitylog: user.activitylog || [],

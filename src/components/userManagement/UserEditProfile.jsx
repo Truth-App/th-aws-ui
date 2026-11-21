@@ -324,34 +324,41 @@ const UserEditProfile = () => {
         modifiedBy,
       });
 
+      let refreshedUsers = users;
+
       if (isEditMode) {
+        // 1) Save first
         await updateUser(editingUserId, payload);
+        // 2) Only after save success — follow-up APIs
         if (nextStatus !== previousStatus) {
           await activateDeactivateUser(editingUserId, { status: nextStatus });
         }
+        refreshedUsers = await loadUsers();
+        dispatch(fetchUsers());
       } else {
+        // 1) Create first — stop here on failure (no other APIs)
         await createUser(payload);
-        const refreshedAfterCreate = await loadUsers();
-        if (nextStatus === "Inactive") {
-          const createdUser = refreshedAfterCreate.find(
-            (item) =>
-              (item.email || "").trim().toLowerCase() ===
-              (user.email || "").trim().toLowerCase(),
-          );
-          if (createdUser?.id) {
-            await activateDeactivateUser(createdUser.id, { status: "Inactive" });
-          }
+        // 2) Only after create success — refresh, verify, then optional status API
+        refreshedUsers = await loadUsers();
+        const createdUser = refreshedUsers.find(
+          (item) =>
+            (item.email || "").trim().toLowerCase() ===
+            (user.email || "").trim().toLowerCase(),
+        );
+        if (!createdUser?.id) {
+          throw new Error("User was not created. Please try again.");
         }
+        if (nextStatus === "Inactive") {
+          await activateDeactivateUser(createdUser.id, { status: "Inactive" });
+          refreshedUsers = await loadUsers();
+        }
+        dispatch(fetchUsers());
+        setDialogMode("edit");
       }
 
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
-      const refreshedUsers = await loadUsers();
-      dispatch(fetchUsers());
       setSavedReferenceNumber(user.referencenumber?.trim() || "");
       setSavedStatus(normalizeUserStatus(nextStatus));
-      if (!isEditMode) {
-        setDialogMode("edit");
-      }
 
       if (isSetupFlow) {
         const role = getUserRoleFromList(refreshedUsers, authUser?.email);

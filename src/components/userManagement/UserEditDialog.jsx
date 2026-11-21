@@ -273,14 +273,18 @@ const UserEditDialog = ({
       });
 
       if (isEditMode) {
+        // 1) Save first
         await updateUser(editingUserId, payload);
+        // 2) Only after save success
         if (nextStatus !== previousStatus) {
           await activateDeactivateUser(editingUserId, { status: nextStatus });
         }
       } else {
+        // 1) Create first — no follow-up APIs if this throws
         await createUser(payload);
       }
 
+      // 3) Only after create/update success
       toast.success(isEditMode ? "User updated successfully" : "User added successfully");
       await onSaved?.();
       handleClose();
